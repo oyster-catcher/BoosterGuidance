@@ -1,0 +1,31 @@
+Guides Boosters to landing site from orbit, aka. Falcon 9
+
+Does
+- Boostback to target: lat/lon or vessel
+- Coasting phase
+- Re-entry burn
+- Powered Descent
+
+Parameters boostback
+- Min Boostback error? (or just get a close as can)
+- Use RCS to steer if available, otherwise use minimum thrust
+- Aim at this altitude above landing site
+
+Re-entry burn
+- Altitude for re-entry burn
+- Target max velocity
+
+Aero Descent
+- Altitude to apply air brakes
+- Gain on steering
+- Max Angle-of-Attack
+
+Powered Descent
+- Keep steering with aim direction until under given velocity
+- Once under velocity use thrust for steering, up to max angle
+
+Logging
+
+Other
+- Can toggle on and off for manual control
+- Show predicted target
