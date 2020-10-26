@@ -309,6 +309,7 @@ namespace BoosterGuidance
       controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt - lowestY);
       controller.poweredDescentAlt = poweredDescentAlt.val;
       controller.aeroDescentAlt = aeroDescentAlt.val;
+      controller.maxAoA = maxAoA;
       controller.SetPhase(phase);
       string info = "Enabled Guidance";
       if (phase == BLControllerPhase.BoostBack)
@@ -355,11 +356,12 @@ namespace BoosterGuidance
       if (_transform != null)
       {
         double lat, lon, alt;
+        // prediction is for position of planet at current time compensating for
+        // planet rotation
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
+        Debug.Log("Predicted: lat=" + lat + " lon=" + lon + " alt=" + alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
-        if (pred_obj != null)
-          Destroy(pred_obj);
-        RedrawPrediction(lat, lon, alt);
+        RedrawPrediction(lat, lon, alt + 5);
       }
       info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s", controller.targetError, controller.targetT);
       state.mainThrottle = (float)throttle;
