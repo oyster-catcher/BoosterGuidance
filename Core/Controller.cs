@@ -12,6 +12,7 @@ namespace BoosterGuidance
     protected double tgtLatitude, tgtLongitude, tgtAlt;
     public double targetT = 0; // Time to land
     public double targetError = 0; // Distance from target to landing point in m
+    public double attitudeError = 0; // Error in desired attitude in degrees
 
     public Controller()
     {
