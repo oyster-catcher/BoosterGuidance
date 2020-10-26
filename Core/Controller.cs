@@ -25,6 +25,11 @@ namespace BoosterGuidance
       steer = Vector3d.up;
     }
 
+    virtual public string PhaseStr()
+    {
+      return "n/a";
+    }
+
     virtual public bool Set(string key, string val)
     {
       return false;
