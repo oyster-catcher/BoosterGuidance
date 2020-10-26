@@ -29,3 +29,21 @@ Logging
 Other
 - Can toggle on and off for manual control
 - Show predicted target
+
+
+
+
+DESIGN
+
+Controller class
+Controller provides GetControlOutputs()
+
+BLController is Booster Landing controller
+
+Simulate - runs controller loop
+
+Vessel - has dryMass, fuel, attitude, minThrust, maxThrust, airBrakes, drag
+
+VesselSim - Runs a full simulation from a start point with logging
+
+Body - has position, radius, g (surface)

@@ -4,29 +4,33 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 //using UnityGUIFramework;
+using KSP.Localization;
 using KSP.UI.Screens;
 
 namespace BoosterGuidance
 {
+  public delegate bool TryParse<T>(string str, out T value);
+
   [KSPAddon(KSPAddon.Startup.Flight, false)]
-  public class BoosterFlightControl : MonoBehaviour
+  public class BoosterGuidanceCore : PartModule
   {
-    private bool _displayGUI;
+    MainWindow mainw;
 
     public void Start()
     {
       //DebugHelper.Debug("EngineFlightControl:Start");
-      Instance = this;
+      //Instance = this;
       GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
       OnGUIAppLauncherReady();
     }
 
     private void OnGUIAppLauncherReady()
     {
+      Localizer.Init();
       if (ApplicationLauncher.Ready && _appLauncherButton == null)
       {
-        _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(() => _displayGUI = true,
-            () => _displayGUI = false,
+        _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(CreateWindow ,
+            () => { },
             () => { },
             () => { },
             () => { },
@@ -35,8 +39,20 @@ namespace BoosterGuidance
             GameDatabase.Instance.GetTexture("BoosterGuidance/BoosterGuidanceIcon", false)
             );
       }
+      mainw = new MainWindow();
     }
-    public static BoosterFlightControl Instance;
+
+    private void CreateWindow()
+    {
+      mainw.ToggleVisibility();
+    }
+
+    private void OnGUI()
+    {
+      mainw.OnGUI();
+    }
+
+    public static BoosterGuidanceCore Instance;
     private ApplicationLauncherButton _appLauncherButton;
   }
 }
