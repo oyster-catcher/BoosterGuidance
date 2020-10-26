@@ -35,7 +35,7 @@ namespace BoosterGuidance
       // Correct to point of intersect on surface
       double vy = Vector3d.Dot(lastv, Vector3d.Normalize(r));
       double p = 0;
-      Debug.Log("y=" + y + " vy=" + vy+" tgtAlt="+tgtAlt);
+      //Debug.Log("y=" + y + " vy=" + vy+" tgtAlt="+tgtAlt);
       if (vy < -0.1)
       {
         p = (tgtAlt - y) / -vy; // Backup proportion
@@ -43,7 +43,7 @@ namespace BoosterGuidance
         T = T - p;
       }
 
-      Debug.Log("Final y=" + (r.magnitude - body.Radius)+" p=" + p);
+      //Debug.Log("Final y=" + (r.magnitude - body.Radius)+" p=" + p);
 
       // Compensate for body rotation giving world position in the surface point now
       // that would be hit in the future
