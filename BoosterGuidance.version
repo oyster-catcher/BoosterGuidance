@@ -1,0 +1,9 @@
+{
+"NAME":"BoosterGuidance","URL":"https://github.com/oyster_catcher/BoosterGuidance",
+"DOWNLOAD":"https://github.com/oyster_catcher/BoosterGuidance/releases",
+"CHANGE_LOG_URL":"https://github.com/oyster_catcher/BoosterGuidance/releases",
+"VERSION":{"MAJOR":0,"MINOR":0,"PATCH":1,"BUILD":0},
+"KSP_VERSION":{"MAJOR":1,"MINOR":10,"PATCH":0},
+"KSP_VERSION_MIN":{"MAJOR":1,"MINOR":3,"PATCH":1},
+"KSP_VERSION_MAX":{"MAJOR":1,"MINOR":10,"PATCH":99}
+}
