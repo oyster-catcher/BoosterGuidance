@@ -29,8 +29,8 @@ namespace BoosterGuidance
       Localizer.Init();
       if (ApplicationLauncher.Ready && _appLauncherButton == null)
       {
-        _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(CreateWindow ,
-            () => { },
+        _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(ShowHideMasterWindow ,
+            ShowHideMasterWindow,
             () => { },
             () => { },
             () => { },
@@ -42,7 +42,7 @@ namespace BoosterGuidance
       mainw = new MainWindow();
     }
 
-    private void CreateWindow()
+    private void ShowHideMasterWindow()
     {
       mainw.ToggleVisibility();
     }
@@ -50,6 +50,11 @@ namespace BoosterGuidance
     private void OnGUI()
     {
       mainw.OnGUI();
+    }
+
+    public void OnDestroy()
+    {
+      Debug.Log("[BoosterGuidance] OnDestroy()");
     }
 
     public static BoosterGuidanceCore Instance;

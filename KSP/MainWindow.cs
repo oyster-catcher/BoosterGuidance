@@ -12,13 +12,13 @@ namespace BoosterGuidance
     Color pred_color = new Color(1, 0.2f, 0.2f, 0.5f);
 
     // private
+    bool hidden = true;
     bool moreOptions = true;
     BLController controller = null;
     Rect windowRect = new Rect(150, 150, 220, 480);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     double tgtAlt = 0;
-    EditableInt angleOfElevation = 0;
     EditableInt reentryBurnAlt = 70000;
     EditableInt reentryBurnTargetSpeed = 700;
     EditableInt aeroDescentAlt = 50000;
@@ -37,7 +37,8 @@ namespace BoosterGuidance
 
     public void OnGUI()
     {
-      windowRect = GUI.Window(0, windowRect, WindowFunction, "Booster Guidance");
+      if (!hidden)
+        windowRect = GUI.Window(0, windowRect, WindowFunction, "Booster Guidance");
     }
 
     void SetEnabledColors(bool phaseEnabled)
@@ -67,7 +68,11 @@ namespace BoosterGuidance
       OnUpdate();
       SetEnabledColors(true);
       // Close button
-      GUI.Button(new Rect(windowRect.width - 18, 2, 16, 16), "");
+      if (GUI.Button(new Rect(windowRect.width - 18, 2, 16, 16), ""))
+      {
+        hidden = true;
+        return;
+      }
 
       BLControllerPhase phase = BLControllerPhase.Unset;
       if (controller != null)
@@ -120,17 +125,6 @@ namespace BoosterGuidance
       if (GUILayout.Button(new GUIContent("Boostback","Enable thrust towards target when out of atmosphere")))
         EnableGuidance(BLControllerPhase.BoostBack);
       GUILayout.EndHorizontal();
-
-      /*
-      GUILayout.BeginHorizontal();
-      GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Elevation angle", angleOfElevation, "°", 25);
-      if (GUILayout.Button("▼"))
-        angleOfElevation -= 1;
-      if (GUILayout.Button("▲"))
-        angleOfElevation += 1;
-      GUILayout.EndHorizontal();
-      */
 
       // Coasting
       SetEnabledColors((phase == BLControllerPhase.Coasting) || (phase == BLControllerPhase.Unset));
@@ -233,6 +227,7 @@ namespace BoosterGuidance
 
     public void ToggleVisibility()
     {
+      hidden = !hidden;
     }
 
     public void UpdateController(BLController controller)
