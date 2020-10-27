@@ -29,6 +29,7 @@ namespace BoosterGuidance
 
     // Private parameters
     private double minError = float.MaxValue;
+    public double reentryBurnSteerGain = 0.005;
     public double steerGain = 0.05;
     public double maxAoA = 10;
 
@@ -131,7 +132,7 @@ namespace BoosterGuidance
         //Debug.Log("Attitude error=" + attitudeError);
         double ba = 0;
         if (attitudeError < 90)
-          ba = 0.03 * Math.Max(10,error.magnitude) / Math.Min(targetT,10);
+          ba = 0.01 * Math.Max(10,error.magnitude) / Math.Min(targetT,10);
         throttle = Mathf.Clamp((float)((ba - amin) / (amax - amin)), minThrottle, 1);
         // Stop if error has grown significantly
         if ((targetError > minError * 1.2) || (targetError < 10))
@@ -139,8 +140,7 @@ namespace BoosterGuidance
           phase = BLControllerPhase.Coasting;
         }
         minError = Math.Min(targetError, minError);
-        // TODO: Add in elevation
-        if (y < reentryBurnAlt)
+        if ((y < reentryBurnAlt) && (vy < 0))
           phase = BLControllerPhase.ReentryBurn;
       }
 
@@ -155,7 +155,7 @@ namespace BoosterGuidance
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        Vector3d adj = error * steerGain * 0.01;
+        Vector3d adj = error * reentryBurnSteerGain * 0.01;
         double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
         if (adj.magnitude > maxAdj)
           adj = Vector3d.Normalize(adj) * maxAdj;
@@ -178,7 +178,7 @@ namespace BoosterGuidance
         double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
         if (adj.magnitude > maxAdj)
           adj = Vector3d.Normalize(adj) * maxAdj;
-        steer = -Vector3d.Normalize(vessel.GetSrfVelocity()) + adj;
+        steer = -Vector3d.Normalize(v) + adj;
         float ddot = (float)Vector3d.Dot(Vector3d.Normalize(att), Vector3d.Normalize(steer));
         double att_err = Mathf.Acos(ddot) * 180 / Mathf.PI;
 
@@ -193,18 +193,29 @@ namespace BoosterGuidance
         double av = maxThrust / vessel.totalMass - g;
         double dvy = -touchdownSpeed;
 
+        // Aero-dynamically steer until velocity too low
+        Vector3d adj = error * steerGain * 0.01;
+        double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
+        if (adj.magnitude > maxAdj)
+          adj = Vector3d.Normalize(adj) * maxAdj;
+        //steer = -Vector3d.Normalize(steer)+ adj;
+        if (vy < 0)
+        {
+          if (v.magnitude > 200)
+            // Aero-dynamic steer
+            steer = Vector3d.Normalize(Vector3d.Normalize(steer) - adj);
+          else
+            // Just cancel velocity but ensure damped by keeping upright
+            steer = Vector3d.Normalize(5 * up + Vector3d.Normalize(steer));
+        }
+
         if (y > 0)
           dvy = -Math.Sqrt(1.0 * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
         else
           dvy = -touchdownSpeed;
         // dv based on time to impact
-        throttle = HGUtils.Clamp((dvy - vy) * throttleGain + (g - amin) / (amax - amin), 0, 1);
-        if (vy < 0)
-          steer = Vector3d.Normalize(5 * up - v);
-        else
-          steer = up;
-
-        steer = Vector3d.Normalize(steer);
+        throttle = HGUtils.Clamp((dvy - vy) * throttleGain + (g - amin) / (amax - amin), minThrottle, 1);
+        // TODO: Need to shutdown engines if thrust too high
       }
     }
   }
