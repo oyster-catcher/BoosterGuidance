@@ -46,47 +46,6 @@ namespace BoosterGuidance
       tgtAlt = alt;
     }
 
-    protected int ComputeMinMaxThrust(Vessel vessel, out double minThrust, out double maxThrust, bool log = false)
-    {
-
-
-      allEngines.Clear();
-      int numEngines = 0;
-      minThrust = 0;
-      maxThrust = 0;
-      foreach (Part part in vessel.parts)
-      {
-        if (log)
-          Debug.Log("part=" + part);
-        part.isEngine(out List<ModuleEngines> engines);
-        foreach (ModuleEngines engine in engines)
-        {
-          Vector3d relpos = vessel.transform.InverseTransformPoint(part.transform.position);
-          float isp = (engine.realIsp > 0) ? engine.realIsp : 280; // guess!
-          float pressure = (float)FlightGlobals.getStaticPressure() * 0.01f; // so 1.0 at Kerbin sea level?
-          float atmMaxThrust = engine.MaxThrustOutputAtm(true, true, pressure, FlightGlobals.getExternalTemperature());
-          if (log)
-            Debug.Log("  engine=" + engine + " relpos=" + relpos + " isp=" + isp + " MinThrust=" + engine.GetEngineThrust(isp, 0) + " MaxThrust=" + atmMaxThrust + " operational=" + engine.isOperational);
-          if (engine.isOperational)
-          {
-            minThrust += engine.GetEngineThrust(isp, 0); // can't get atmMinThrust (this ignore throttle limiting but thats ok)
-            maxThrust += atmMaxThrust; // this uses throttle limiting and should give vac thrust as pressure/temp specified too
-            allEngines.Add(engine);
-            numEngines++;
-          }
-        }
-      }
-      return numEngines;
-    }
-
-    virtual public double GetCurrentThrust()
-    {
-      double thrust = 0;
-      foreach (ModuleEngines engine in allEngines)
-        thrust += engine.GetCurrentThrust();
-      return thrust;
-    }
-
     /*
     // Compute engine thrust if one set of symmetrical engines is shutdown
     // (primarily for a Falcon 9 landing to shutdown engines for slow touchdown)

@@ -367,13 +367,10 @@ namespace BoosterGuidance
         // prediction is for position of planet at current time compensating for
         // planet rotation
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
-        Debug.Log("Predicted: lat=" + lat + " lon=" + lon + " alt=" + alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
         RedrawPrediction(lat, lon, alt + 5);
       }
       info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s", controller.targetError, controller.targetT);
-      state.gearUp = true;
-      state.gearDown = false;
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;
       vessel.Autopilot.SAS.SetTargetOrientation(steer, false);

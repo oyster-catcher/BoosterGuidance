@@ -27,6 +27,7 @@ namespace BoosterGuidance
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
     public double maxAoA = 10;
+    public bool noCorrect = false;
 
     // Private parameters
     private double minError = float.MaxValue;
@@ -36,6 +37,7 @@ namespace BoosterGuidance
     private double logStartTime;
     private double logLastTime = 0;
     private double logInterval = 0.1;
+    private double noSteerAlt = 300; // Don't steer once < 300m
 
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
@@ -118,7 +120,7 @@ namespace BoosterGuidance
       double vy = Vector3d.Dot(v, up);
       double minThrust;
       double maxThrust;
-      ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
+      List<ModuleEngines> allEngines = KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
       double amin = minThrust / vessel.totalMass;
       double amax = maxThrust / vessel.totalMass;
       double throttleGain = 5.0 / (amax - amin); // correct 1 m/s error in 0.2 second
@@ -132,14 +134,19 @@ namespace BoosterGuidance
       steer = -Vector3d.Normalize(v);
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
 
-      // TODO: We need to assume no boostback, only powered descent
-      BLController tc = new BLController(this);
-      tc.aeroDescentAlt = poweredDescentAlt; // No aero descent
-      tc.phase = BLControllerPhase.Coasting;
-      predWorldPos = Simulate.ToGround(tgtAlt, vessel, body, tc, 2, out targetT);
-      Vector3d error = predWorldPos - tgt_r;
-      targetError = error.magnitude;
+      Vector3d error = Vector3d.zero;
+      predWorldPos = Vector3d.zero;
       attitudeError = 0;
+      if (!noCorrect)
+      {
+        BLController tc = new BLController(this);
+        tc.noCorrect = true; // Don't correct error so we don't require recursive calls to simulations
+        tc.phase = BLControllerPhase.Coasting;
+        predWorldPos = Simulate.ToGround(tgtAlt, vessel, body, tc, 2, out targetT);
+        error = predWorldPos - tgt_r;
+        attitudeError = 0;
+      }
+      targetError = error.magnitude;
 
       // BOOSTBACK
       if (phase == BLControllerPhase.BoostBack)
@@ -149,10 +156,13 @@ namespace BoosterGuidance
 
         attitudeError = Math.Acos(Vector3d.Dot(att, steer)) * 180 / Math.PI;
         //Debug.Log("Attitude error=" + attitudeError);
+        double dv = error.magnitude / targetT; // estimated delta V needed
+        // Want to reduce dV by max of 10%
         double ba = 0;
-        if (attitudeError < 90)
-          ba = 0.01 * Math.Max(10, error.magnitude) / Math.Min(targetT, 10);
+        if (attitudeError < 5+dv*0.5) // more accuracy needed when close to target
+          ba = Math.Max(0.3 * dv, 10 / targetT);
         throttle = Mathf.Clamp((float)((ba - amin) / (amax - amin)), minThrottle, 1);
+        Debug.Log("dv=" + dv + " ba=" + ba + " throttle=" + throttle);
         // Stop if error has grown significantly
         if ((targetError > minError * 1.2) || (targetError < 10))
         {
@@ -162,7 +172,6 @@ namespace BoosterGuidance
         if ((y < reentryBurnAlt) && (vy < 0))
           phase = BLControllerPhase.ReentryBurn;
       }
-
 
       // COASTING
       if (phase == BLControllerPhase.Coasting)
@@ -180,11 +189,7 @@ namespace BoosterGuidance
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        // This is like the aerodynamic adjustment but in the opposite direction
-        if (y > 50000) // TODO: Consider atmospheric drag
-          steer = -Vector3d.Normalize(v) - adj;
-        else
-          steer = -Vector3d.Normalize(v) + adj;
+        steer = -Vector3d.Normalize(v) + adj;
         if (v.magnitude > reentryBurnTargetSpeed)
           throttle = 1;
         else
@@ -215,8 +220,8 @@ namespace BoosterGuidance
       // POWERED DESCENT (suicide burn)
       if (phase == BLControllerPhase.PoweredDescent)
       {
-        // Aero-dynamically steer until velocity too low
-        if (vy < 0)
+        // Aero-dynamically steer until velocity too low or altitude too low
+        if ((vy < 0) && (y > noSteerAlt))
         {
           if (v.magnitude > 200)
             // Aero-dynamic steer
@@ -240,7 +245,7 @@ namespace BoosterGuidance
           if (logStartTime == 0)
             logStartTime = t;
           double x = ((r - tgt_r) - Vector3d.Dot(r - tgt_r, up) * up).magnitude; // remove vertical component to find downrange distance
-          Vector3d a = base.GetCurrentThrust() * att / vessel.totalMass;
+          Vector3d a = KSPUtils.GetCurrentThrust(allEngines) * att / vessel.totalMass;
           fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1}", t-logStartTime, phase, x, y, 0, 0, v.magnitude, 0, a.x, a.y, a.z, attitudeError, amin, amax);
           logLastTime = t;
         }
