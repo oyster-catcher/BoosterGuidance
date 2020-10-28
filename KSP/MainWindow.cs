@@ -15,17 +15,17 @@ namespace BoosterGuidance
     bool hidden = true;
     bool moreOptions = true;
     BLController controller = null;
-    Rect windowRect = new Rect(150, 150, 220, 480);
+    Rect windowRect = new Rect(150, 150, 220, 500);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     double tgtAlt = 0;
     EditableInt reentryBurnAlt = 70000;
     EditableInt reentryBurnTargetSpeed = 700;
-    EditableInt aeroDescentAlt = 50000;
-    EditableInt poweredDescentAlt = 10000;
+    //EditableInt aeroDescentAlt = 50000;
+    //EditableInt poweredDescentAlt = 10000;
     EditableInt maxAoA = 10;
-    EditableInt landingGearAlt = 100;
-    bool deployAirbrakes = true;
+    //EditableInt landingGearAlt = 100;
+    //bool deployAirbrakes = true;
     bool pickingPositionTarget = false;
     string info = "Disabled";
     private Vessel vessel = null;
@@ -133,6 +133,8 @@ namespace BoosterGuidance
         EnableGuidance(BLControllerPhase.Coasting);
       GUILayout.EndHorizontal();
 
+      // Re-Entry Burn
+      SetEnabledColors((phase == BLControllerPhase.ReentryBurn) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
       if (GUILayout.Button(new GUIContent("Re-Entry Burn", "Ignite engine on re-entry to reduce overheating")))
         EnableGuidance(BLControllerPhase.ReentryBurn);
@@ -155,17 +157,18 @@ namespace BoosterGuidance
       if (GUILayout.Button(new GUIContent("Aero Descent", "No thrust aerodynamic descent, steering with gridfins within atmosphere")))
         EnableGuidance(BLControllerPhase.AeroDescent);
       GUILayout.EndHorizontal();
- 
+ /*
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
       deployAirbrakes = GUILayout.Toggle(deployAirbrakes, new GUIContent("Deploy airbrakes", "Deploy airbrakes when this phase in enabled"));
       GUILayout.EndHorizontal();
-
+ */
+      /*
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Enable altitude", aeroDescentAlt, "m", 65);
       GUILayout.EndHorizontal();
-
+      */
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Max Angle-of-Attack", maxAoA, "°", 25);
@@ -181,31 +184,29 @@ namespace BoosterGuidance
       if (GUILayout.Button("Powered Descent"))
         EnableGuidance(BLControllerPhase.PoweredDescent);
       GUILayout.EndHorizontal();
-
+      /*
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Enable altitude", poweredDescentAlt, "m", 60);
       GUILayout.EndHorizontal();
-
+      */
+      /*
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Landing gear alt.", landingGearAlt, "m", 60);
       GUILayout.EndHorizontal();
-
+      */
       // Activate guidance
       SetEnabledColors(true); // back to normal
       GUILayout.BeginHorizontal();
       if (controller == null)
       {
-        BLController tmpController = new BLController(FlightGlobals.ActiveVessel);
-        tmpController.aeroDescentAlt = aeroDescentAlt;
-        tmpController.poweredDescentAlt = poweredDescentAlt;
-        double throttle;
-        Vector3d steer;
-        tmpController.GetControlOutputs(FlightGlobals.ActiveVessel, Time.time, out throttle, out steer);
-        string strphase = tmpController.PhaseStr();
-        if (GUILayout.Button("Enable " + strphase))
-          EnableGuidance(tmpController.phase);
+        //double throttle;
+        //Vector3d steer;
+        //controller.GetControlOutputs(FlightGlobals.ActiveVessel, Time.time, out throttle, out steer);
+        //string strphase = controller.PhaseStr();
+        if (GUILayout.Button("Enable Guidance"))
+          EnableGuidance(controller.phase);
       }
       else
       {
@@ -235,9 +236,9 @@ namespace BoosterGuidance
       double lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
       controller.reentryBurnAlt = reentryBurnAlt;
       controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
-      controller.aeroDescentAlt = aeroDescentAlt;
+      //controller.aeroDescentAlt = aeroDescentAlt;
       controller.maxAoA = maxAoA;
-      controller.poweredDescentAlt = poweredDescentAlt;
+      //controller.poweredDescentAlt = poweredDescentAlt;
       controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt - lowestY);
     }
 
@@ -321,6 +322,7 @@ namespace BoosterGuidance
       vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
       vessel.OnFlyByWire += new FlightInputCallback(Fly);
       // Initialise controller
+      //controller = new BLController(vessel, "vessel.dat");
       controller = new BLController(vessel);
       UpdateController(controller);
       controller.SetPhase(phase);
@@ -333,6 +335,7 @@ namespace BoosterGuidance
     {
       vessel.Autopilot.Disable();
       vessel.OnFlyByWire -= new FlightInputCallback(Fly);
+      controller.CloseLog();
       controller = null;
       vessel = null;
       info = "Guidance disabled!";

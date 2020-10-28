@@ -47,6 +47,12 @@
           <workingdir>${ProjectDir}</workingdir>
           <externalConsole>True</externalConsole>
         </Command>
+        <Command>
+          <type>AfterBuild</type>
+          <command>cp ${TargetFile} ~/KSP_RO/GameData/BoosterGuidance</command>
+          <workingdir>${ProjectDir}</workingdir>
+          <externalConsole>True</externalConsole>
+        </Command>
       </CustomCommands>
     </CustomCommands>
   </PropertyGroup>
@@ -125,7 +131,9 @@
     <None Include="TODO" />
     <None Include="README.md" />
     <None Include="KSP\Localization\en-us.cfg" />
-    <None Include="DESIGN.txt" />
+    <None Include="BoosterGuidanceIcon.png">
+      <Link>KSP\BoosterGuidanceIcon.png</Link>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
