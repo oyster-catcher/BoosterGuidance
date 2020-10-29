@@ -31,8 +31,8 @@ namespace BoosterGuidance
 
     // Private parameters
     private double minError = float.MaxValue;
-    private double reentryBurnSteerGain = 0.02;
-    private double steerGain = 0.05;
+    private double reentryBurnSteerGain = 0.0002;
+    private double steerGain = 0.0005;
     private System.IO.StreamWriter fp = null;
     private double logStartTime;
     private double logLastTime = 0;
@@ -42,6 +42,11 @@ namespace BoosterGuidance
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
     public BLControllerPhase phase = BLControllerPhase.BoostBack;
+
+    // Cache previous values - only calculate new at log interval
+    private double lastt = 0;
+    private double lastThrottle = 0;
+    private Vector3d lastSteer = Vector3d.zero;
 
     public BLController(Vessel vessel, string logFilename="")
     {
@@ -129,10 +134,16 @@ namespace BoosterGuidance
 
       Vector3d att = new Vector3d(vessel.transform.up.x, vessel.transform.up.y, vessel.transform.up.z);
 
+      if (t < lastt + logInterval)
+      {
+        steer = lastSteer;
+        throttle = lastThrottle;
+      }
+
       // No thrust - retrograde (default and Coasting phase
       throttle = 0;
       steer = -Vector3d.Normalize(v);
-      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
+      Vector3d tgt_r = Vector3d.zero;
 
       Vector3d error = Vector3d.zero;
       predWorldPos = Vector3d.zero;
@@ -142,7 +153,9 @@ namespace BoosterGuidance
         BLController tc = new BLController(this);
         tc.noCorrect = true; // Don't correct error so we don't require recursive calls to simulations
         tc.phase = BLControllerPhase.Coasting;
+        Debug.Log("Simulate (within GetControlOuputs)");
         predWorldPos = Simulate.ToGround(tgtAlt, vessel, body, tc, 2, out targetT);
+        tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
         error = predWorldPos - tgt_r;
         attitudeError = 0;
       }
@@ -166,7 +179,8 @@ namespace BoosterGuidance
         // Stop if error has grown significantly
         if ((targetError > minError * 1.2) || (targetError < 10))
         {
-          phase = BLControllerPhase.Coasting;
+          if (targetError < 200)
+            phase = BLControllerPhase.Coasting;
         }
         minError = Math.Min(targetError, minError);
         if ((y < reentryBurnAlt) && (vy < 0))
@@ -181,7 +195,7 @@ namespace BoosterGuidance
       }
 
       // Required adjustment to AoA in AERO DESCENT and POWERED DESCENT BURN
-      Vector3d adj = error * steerGain * 0.01;
+      Vector3d adj = error * steerGain;
       double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
       if (adj.magnitude > maxAdj)
         adj = Vector3d.Normalize(adj) * maxAdj;
@@ -189,7 +203,11 @@ namespace BoosterGuidance
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        steer = -Vector3d.Normalize(v) + adj;
+        adj = error * reentryBurnSteerGain;
+        if (adj.magnitude > maxAdj)
+          adj = Vector3d.Normalize(adj) * maxAdj;
+
+        steer = -Vector3d.Normalize(v) - adj;
         if (v.magnitude > reentryBurnTargetSpeed)
           throttle = 1;
         else
@@ -250,6 +268,11 @@ namespace BoosterGuidance
           logLastTime = t;
         }
       }
+      lastt = t;
+      steer = Vector3d.Normalize(steer);
+      // Cache
+      lastSteer = steer;
+      lastThrottle = throttle;
     }
   }
 }
