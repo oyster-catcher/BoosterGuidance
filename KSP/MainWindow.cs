@@ -234,12 +234,15 @@ namespace BoosterGuidance
     public void UpdateController(BLController controller)
     {
       double lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
-      controller.reentryBurnAlt = reentryBurnAlt;
-      controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
-      //controller.aeroDescentAlt = aeroDescentAlt;
-      controller.maxAoA = maxAoA;
-      //controller.poweredDescentAlt = poweredDescentAlt;
-      controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt - lowestY);
+      if (controller != null)
+      {
+        controller.reentryBurnAlt = reentryBurnAlt;
+        controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
+        //controller.aeroDescentAlt = aeroDescentAlt;
+        controller.maxAoA = maxAoA;
+        //controller.poweredDescentAlt = poweredDescentAlt;
+        controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt - lowestY);
+      }
     }
 
     void OnUpdate()
