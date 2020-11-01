@@ -22,9 +22,16 @@ namespace BoosterGuidance
     {
     }
 
-    virtual public void GetControlOutputs(Vessel vessel, double t,
-               out double throttle, out Vector3d steer)
+    virtual public void GetControlOutputs(Vessel vessel,
+               Vector3d r, Vector3d v, Vector3d att,
+               double y, double amin, double amax, double t,
+               CelestialBody body,
+               Vector3d tgt_r,
+               out double throttle, out Vector3d steer,
+               out bool shutdownOuterEngines,
+               bool log=false)
     {
+      shutdownOuterEngines = false;
       throttle = 0;
       steer = Vector3d.up;
     }
@@ -45,54 +52,5 @@ namespace BoosterGuidance
       tgtLongitude = longitude;
       tgtAlt = alt;
     }
-
-    /*
-    // Compute engine thrust if one set of symmetrical engines is shutdown
-    // (primarily for a Falcon 9 landing to shutdown engines for slow touchdown)
-    public List<ModuleEngines> ShutdownOuterEngines(Vessel vessel, float desiredThrust, bool log = false)
-    {
-      List<ModuleEngines> shutdown = new List<ModuleEngines>();
-
-      // Find engine parts and sort by closest to centre first
-      List<Tuple<double, ModuleEngines>> allEngines = new List<Tuple<double, ModuleEngines>>();
-      foreach (Part part in vessel.GetActiveParts())
-      {
-        Vector3 relpos = vessel.transform.InverseTransformPoint(part.transform.position);
-        part.isEngine(out List<ModuleEngines> engines);
-        double dist = Math.Sqrt(relpos.x * relpos.x + relpos.z * relpos.z);
-        foreach (ModuleEngines engine in engines)
-          allEngines.Add(new Tuple<double, ModuleEngines>(dist, engine));
-      }
-      allEngines.Sort();
-
-      // Loop through engines starting a closest to axis
-      // Accumulate minThrust, once minThrust exceeds desiredThrust shutdown this and all
-      // further out engines
-      float minThrust = 0, maxThrust = 0;
-      double shutdownDist = float.MaxValue;
-      foreach (var engDist in allEngines)
-      {
-        ModuleEngines engine = engDist.Item2;
-        if (engine.isOperational)
-        {
-          minThrust += engine.GetEngineThrust(engine.realIsp, 0);
-          maxThrust += engine.GetEngineThrust(engine.realIsp, 1);
-          if (shutdownDist == float.MaxValue)
-          {
-            if ((minThrust < desiredThrust) && (desiredThrust < maxThrust)) // good amount of thrust
-              shutdownDist = engDist.Item1 + 0.1f;
-            if (minThrust > desiredThrust)
-              shutdownDist = engDist.Item1 - 0.1f;
-          }
-        }
-        if (engDist.Item1 > shutdownDist)
-        {
-          engine.Shutdown();
-          shutdown.Add(engine);
-        }
-      }
-    }
-    return shutdown;
-    */
   }
 }

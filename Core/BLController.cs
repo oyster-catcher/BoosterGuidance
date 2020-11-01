@@ -26,18 +26,22 @@ namespace BoosterGuidance
     public double aeroDescentAlt = 60000; // Aerodynamic descent below this altitude
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
-    public double maxAoA = 10;
+    public double reentryBurnMaxAoA = 0;
+    public double aeroDescentMaxAoA = 0;
+    public double poweredDescentMaxAoA = 0;
+    public double suicideFactor = 0.5;
     public bool noCorrect = false;
 
     // Private parameters
     private double minError = float.MaxValue;
-    private double reentryBurnSteerGain = 0.0002;
+    private double reentryBurnSteerGain = 0.0001;
     private double steerGain = 0.0005;
     private System.IO.StreamWriter fp = null;
     private double logStartTime;
     private double logLastTime = 0;
     private double logInterval = 0.1;
     private double noSteerAlt = 300; // Don't steer once < 300m
+    private Trajectories.VesselAerodynamicModel aeroModel = null;
 
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
@@ -55,6 +59,8 @@ namespace BoosterGuidance
         fp = new System.IO.StreamWriter(logFilename);
         fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax");
       }
+      Debug.Log("[BoosterGuidance] time y vy dvy throttle");
+      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
     }
 
     ~BLController()
@@ -67,8 +73,15 @@ namespace BoosterGuidance
       tgtLatitude = v.tgtLatitude;
       tgtLongitude = v.tgtLongitude;
       tgtAlt = v.tgtAlt;
+      reentryBurnAlt = v.reentryBurnAlt;
+      reentryBurnMaxAoA = v.reentryBurnMaxAoA;
+      reentryBurnSteerGain = v.reentryBurnSteerGain;
+      reentryBurnTargetSpeed = v.reentryBurnTargetSpeed;
       poweredDescentAlt = v.poweredDescentAlt;
+      poweredDescentMaxAoA = v.poweredDescentMaxAoA;
       aeroDescentAlt = v.aeroDescentAlt;
+      aeroDescentMaxAoA = v.aeroDescentMaxAoA;
+      suicideFactor = v.suicideFactor;
     }
 
     public override bool Set(string k, string v)
@@ -113,26 +126,39 @@ namespace BoosterGuidance
       fp = null;
     }
 
-    public override void GetControlOutputs(Vessel vessel,
-                    double t,
-                    out double throttle, out Vector3d steer)
+    // Vector adjustment to steer vector (must be descending)
+    // If gain is positive steer aerodynamically (towards target)
+    // otherwise steer to fire thrust in opposite direction
+    private Vector3d GetSteerAdjust(Vector3d tgtError, double gain, double maxAoA)
     {
-      CelestialBody body = vessel.mainBody;
-      Vector3d r = vessel.GetWorldPos3D();
-      Vector3d v = vessel.GetSrfVelocity();
-      double y = vessel.altitude - tgtAlt;
-      Vector3d up = Vector3d.Normalize(r - body.position);
-      double vy = Vector3d.Dot(v, up);
-      double minThrust;
-      double maxThrust;
-      List<ModuleEngines> allEngines = KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
-      double amin = minThrust / vessel.totalMass;
-      double amax = maxThrust / vessel.totalMass;
-      double throttleGain = 5.0 / (amax - amin); // correct 1 m/s error in 0.2 second
-      float minThrottle = (minThrust > 0) ? 0.01f : 0; // assume RO and limited ignitions if limited throttling
-      targetError = 0;
+      Vector3d adj = tgtError * gain;
+      double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
+      if (adj.magnitude > maxAdj)
+        adj = Vector3d.Normalize(adj) * maxAdj;
+      return adj;
+    }
 
-      Vector3d att = new Vector3d(vessel.transform.up.x, vessel.transform.up.y, vessel.transform.up.z);
+    public override void GetControlOutputs(
+                    Vessel vessel,
+                    Vector3d r, // world pos
+                    Vector3d v, // world velocity
+                    Vector3d att, // attitude
+                    double alt, // altitude
+                    double amin, double amax,
+                    double t,
+                    CelestialBody body,
+                    Vector3d tgt_r, // target in world co-ordinates
+                    out double throttle, out Vector3d steer,
+                    out bool shutdownEnginesNow,
+                    bool log=false)
+    {
+      double y = alt - tgtAlt;
+      Vector3d up = Vector3d.Normalize(r - body.position);
+      Vector3d vel_air = v - body.getRFrmVel(r);
+      double vy = Vector3d.Dot(v, up); // TODO - Or vel_air?
+      double throttleGain = 5.0 / (amax - amin); // correct 1 m/s error in 0.2 second
+      float minThrottle = (amin > 0) ? 0.01f : 0; // assume RO and limited ignitions if limited throttling
+      targetError = 0;
 
       if (t < lastt + logInterval)
       {
@@ -140,10 +166,10 @@ namespace BoosterGuidance
         throttle = lastThrottle;
       }
 
-      // No thrust - retrograde (default and Coasting phase
+      // No thrust - retrograde relative to surface (default and Coasting phase
+      shutdownEnginesNow = false;
       throttle = 0;
-      steer = -Vector3d.Normalize(v);
-      Vector3d tgt_r = Vector3d.zero;
+      steer = -Vector3d.Normalize(vel_air);
 
       Vector3d error = Vector3d.zero;
       predWorldPos = Vector3d.zero;
@@ -152,10 +178,16 @@ namespace BoosterGuidance
       {
         BLController tc = new BLController(this);
         tc.noCorrect = true; // Don't correct error so we don't require recursive calls to simulations
-        tc.phase = BLControllerPhase.Coasting;
-        Debug.Log("Simulate (within GetControlOuputs)");
-        predWorldPos = Simulate.ToGround(tgtAlt, vessel, body, tc, 2, out targetT);
-        tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
+        if ((phase == BLControllerPhase.BoostBack) || (phase == BLControllerPhase.ReentryBurn))
+          tc.phase = BLControllerPhase.Coasting;
+        else
+          // Makes sure if in aero descent don't repeat Reentry Burn
+          tc.phase = BLControllerPhase.AeroDescent;
+        //Debug.Log("Simulate (within GetControlOuputs)");
+        predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, 0.5, tgt_r, out targetT);
+        // Use no controller - just fall, no thrust
+        //predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, null, 2, tgt_r, out targetT);
+        tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
         error = predWorldPos - tgt_r;
         attitudeError = 0;
       }
@@ -166,20 +198,16 @@ namespace BoosterGuidance
       {
         // Aim to close max of 20% of error in 1 second
         steer = -Vector3d.Normalize(error);
-
         attitudeError = Math.Acos(Vector3d.Dot(att, steer)) * 180 / Math.PI;
-        //Debug.Log("Attitude error=" + attitudeError);
         double dv = error.magnitude / targetT; // estimated delta V needed
-        // Want to reduce dV by max of 10%
         double ba = 0;
         if (attitudeError < 5+dv*0.5) // more accuracy needed when close to target
           ba = Math.Max(0.3 * dv, 10 / targetT);
         throttle = Mathf.Clamp((float)((ba - amin) / (amax - amin)), minThrottle, 1);
-        Debug.Log("dv=" + dv + " ba=" + ba + " throttle=" + throttle);
         // Stop if error has grown significantly
-        if ((targetError > minError * 1.2) || (targetError < 10))
+        if ((targetError > minError * 1.5) || (targetError < 10))
         {
-          if (targetError < 200)
+          if (targetError < 5000) // check if error changes dramatically but still far from target
             phase = BLControllerPhase.Coasting;
         }
         minError = Math.Min(targetError, minError);
@@ -196,30 +224,30 @@ namespace BoosterGuidance
 
       // Required adjustment to AoA in AERO DESCENT and POWERED DESCENT BURN
       Vector3d adj = error * steerGain;
-      double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
+      double maxAdj = Math.Sin(reentryBurnMaxAoA * Mathf.PI / 180);
       if (adj.magnitude > maxAdj)
         adj = Vector3d.Normalize(adj) * maxAdj;
 
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        adj = error * reentryBurnSteerGain;
-        if (adj.magnitude > maxAdj)
-          adj = Vector3d.Normalize(adj) * maxAdj;
-
-        steer = -Vector3d.Normalize(v) - adj;
+        steer = -Vector3d.Normalize(v) + GetSteerAdjust(error, -reentryBurnSteerGain, reentryBurnMaxAoA);
         if (v.magnitude > reentryBurnTargetSpeed)
-          throttle = 1;
+        {
+          throttle = HGUtils.LinearMap((float)y, (float)reentryBurnAlt, (float)reentryBurnAlt - 2000, 0, 1);
+          //throttle = HGUtils.Clamp((v.magnitude - reentryBurnTargetSpeed) * 0.1, 0, 1); // 10 m/s diff means throttle=1
+          Debug.Log("[BoosterGuidance] ReentryBurn y=" + y + " v=" + v.magnitude + " throttle=" + throttle);
+        }
         else
           phase = BLControllerPhase.AeroDescent;
       }
 
       // Desired speed in POWERED DESCENT
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
-      double av = maxThrust / vessel.totalMass - g;
+      double av = amax - g;
       double dvy = -touchdownSpeed;
       if (y > 0)
-        dvy = -Math.Sqrt(1.5 * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
+        dvy = -Math.Sqrt((1+suicideFactor) * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
       else
         dvy = -touchdownSpeed;
  
@@ -227,7 +255,7 @@ namespace BoosterGuidance
       // AERO DESCENT
       if (phase == BLControllerPhase.AeroDescent)
       {
-        steer = -Vector3d.Normalize(v) + adj;
+        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, steerGain, aeroDescentMaxAoA);
         float ddot = (float)Vector3d.Dot(Vector3d.Normalize(att), Vector3d.Normalize(steer));
         double att_err = Mathf.Acos(ddot) * 180 / Mathf.PI;
 
@@ -238,21 +266,27 @@ namespace BoosterGuidance
       // POWERED DESCENT (suicide burn)
       if (phase == BLControllerPhase.PoweredDescent)
       {
-        // Aero-dynamically steer until velocity too low or altitude too low
-        if ((vy < 0) && (y > noSteerAlt))
-        {
-          if (v.magnitude > 200)
-            // Aero-dynamic steer
-            steer = -Vector3d.Normalize(v) + adj;
-          else
-            // Just cancel velocity but ensure damped by keeping upright
-            steer = Vector3d.Normalize(5 * up - Vector3d.Normalize(v) - adj);
-        }
-
-         // dv based on time to impact
         throttle = HGUtils.Clamp((dvy - vy) * throttleGain + (g - amin) / (amax - amin), minThrottle, 1);
-        // TODO: Need to shutdown engines if thrust too highdvy
-        Debug.Log("[BoosterGuidance] t="+t+" y="+y+" dvy="+dvy+" vy="+vy+" throttle="+throttle);
+        if (log)
+          Debug.Log("[BoosterGuidance] y=" + y + " vy=" + vy + " dvy=" + dvy + " throttle=" + throttle);
+        // Aero-dynamically steer until velocity too low or altitude too low
+
+        // No steering
+        steer = Vector3d.Normalize(40*up - vel_air); // retrograde surface  - TODO: Add 5*up?
+
+        // Decide to shutdown engines for final touch down? (within 3 secs)
+        // Criteria should be if amin maintained with current engines we could not reach next target
+        // height
+        double minHeight = KSPUtils.MinHeightAtMinThrust(y, vy, amin, g);
+        // Criteria for shutting down engines
+        // - we could not reach ground at minimum thrust (would ascend)
+        // - falling less than 20m/s (otherwise can decide to shutdown engines when still high and travelling fast)
+        bool cant_reach_ground = (minHeight > 0) && (vy > -10);
+
+        // Shutdown engines requesting hovering thrust
+        if (cant_reach_ground)
+          //KSPUtils.ShutdownOuterEngines(vessel, (float)(g * vessel.totalMass), true);
+          shutdownEnginesNow = true;
       }
 
       // Logging

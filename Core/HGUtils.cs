@@ -87,7 +87,20 @@ namespace BoosterGuidance
     public static float LinearMap(float x, float inP1, float inP2, float outP1, float outP2)
     {
       float v = (x-inP1)/(inP2-inP1);
-      return outP1 + v*(outP2-outP1);
+      return Clamp(outP1 + v*(outP2-outP1), outP1, outP2);
+    }
+
+    // Linear scale remapping of x where inP1 goes to outP1
+    // inP2 goes to outP2
+    public static double LinearMap(double x, double inP1, double inP2, double outP1, double outP2)
+    {
+      double v = (x - inP1) / (inP2 - inP1);
+      return Clamp(outP1 + v * (outP2 - outP1), outP1, outP2);
+    }
+
+    public static float Clamp(float x, float min, float max)
+    {
+      return (x < min) ? min : ((x > max) ? max : x);
     }
 
     public static double Clamp(double x, double min, double max)

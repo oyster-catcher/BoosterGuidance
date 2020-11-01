@@ -13,27 +13,32 @@ namespace BoosterGuidance
 
     // private
     bool hidden = true;
-    bool moreOptions = true;
     BLController controller = null;
     Rect windowRect = new Rect(150, 150, 220, 500);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     double tgtAlt = 0;
+    // Boostbback
+    // Re-Entry Burn
     EditableInt reentryBurnAlt = 70000;
     EditableInt reentryBurnTargetSpeed = 700;
-    //EditableInt aeroDescentAlt = 50000;
-    //EditableInt poweredDescentAlt = 10000;
-    EditableInt maxAoA = 10;
-    //EditableInt landingGearAlt = 100;
-    //bool deployAirbrakes = true;
+    EditableInt reentryBurnMaxAoA = 10;
+    // Aero descent
+    EditableInt aeroDescentMaxAoA = 10;
+    // Powered descent
+    EditableInt poweredDescentMaxAoA = 10;
+    float suicideFactor = 0.5f;
+
+    bool showTargets = true;
     bool pickingPositionTarget = false;
     string info = "Disabled";
     private Vessel vessel = null;
-    float tgtSize = 3;
+    float tgtSize = 0.1f;
     Transform _transform = null;
     GameObject target_obj = null;
     GameObject pred_obj = null;
     double pickLat, pickLon, pickAlt;
+    double touchdownMargin = 20; // Slow to touchdown speed this much above target
 
     public void OnGUI()
     {
@@ -102,16 +107,14 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Size:", GUILayout.Width(30));
-      tgtSize = GUILayout.HorizontalSlider(tgtSize, 3, 12);
-      GUILayout.EndHorizontal();
-
-      GUILayout.BeginHorizontal();
       if (GUILayout.Button("Pick Target"))
         PickTarget();
       if (GUILayout.Button("Set Here"))
         SetTargetHere();
+      GUILayout.EndHorizontal();
 
+      GUILayout.BeginHorizontal();
+      showTargets = GUILayout.Toggle(showTargets, "Show targets");
       GUILayout.EndHorizontal();
 
       // Info box
@@ -150,32 +153,29 @@ namespace BoosterGuidance
       GuiUtils.SimpleTextBox("Target speed", reentryBurnTargetSpeed, "m/s", 40);
       GUILayout.EndHorizontal();
 
- 
+      GUILayout.BeginHorizontal();
+      GUILayout.Space(10);
+      GuiUtils.SimpleTextBox("Max Angle-of-Attack", reentryBurnMaxAoA, "°", 25);
+      if (GUILayout.Button("▼"))
+        reentryBurnMaxAoA -= 1;
+      if (GUILayout.Button("▲"))
+        reentryBurnMaxAoA += 1;
+      GUILayout.EndHorizontal();
+
       // Aero Descent
       SetEnabledColors((phase == BLControllerPhase.AeroDescent) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
       if (GUILayout.Button(new GUIContent("Aero Descent", "No thrust aerodynamic descent, steering with gridfins within atmosphere")))
         EnableGuidance(BLControllerPhase.AeroDescent);
       GUILayout.EndHorizontal();
- /*
+
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
-      deployAirbrakes = GUILayout.Toggle(deployAirbrakes, new GUIContent("Deploy airbrakes", "Deploy airbrakes when this phase in enabled"));
-      GUILayout.EndHorizontal();
- */
-      /*
-      GUILayout.BeginHorizontal();
-      GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Enable altitude", aeroDescentAlt, "m", 65);
-      GUILayout.EndHorizontal();
-      */
-      GUILayout.BeginHorizontal();
-      GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max Angle-of-Attack", maxAoA, "°", 25);
+      GuiUtils.SimpleTextBox("Max Angle-of-Attack", aeroDescentMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
-        maxAoA -= 1;
+        aeroDescentMaxAoA = Math.Max(0, aeroDescentMaxAoA-1);
       if (GUILayout.Button("▲"))
-        maxAoA += 1;
+        aeroDescentMaxAoA += 1;
       GUILayout.EndHorizontal();
 
       // Powered Descent
@@ -184,27 +184,28 @@ namespace BoosterGuidance
       if (GUILayout.Button("Powered Descent"))
         EnableGuidance(BLControllerPhase.PoweredDescent);
       GUILayout.EndHorizontal();
-      /*
+
+      GUILayout.BeginHorizontal();
+      GUILayout.Label("Suicide factor:");
+      // 0 means very conservative suicide burn (~40% less than fastest poss. velocity at height)
+      // 1 means perfect suicide burn
+      suicideFactor = GUILayout.HorizontalSlider(suicideFactor, 0, 1);
+      GUILayout.EndHorizontal();
+
       GUILayout.BeginHorizontal();
       GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Enable altitude", poweredDescentAlt, "m", 60);
+      GuiUtils.SimpleTextBox("Max Angle-of-Attack", poweredDescentMaxAoA, "°", 25);
+      if (GUILayout.Button("▼"))
+        poweredDescentMaxAoA = Math.Max(0, poweredDescentMaxAoA-1);
+      if (GUILayout.Button("▲"))
+        poweredDescentMaxAoA += 1;
       GUILayout.EndHorizontal();
-      */
-      /*
-      GUILayout.BeginHorizontal();
-      GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Landing gear alt.", landingGearAlt, "m", 60);
-      GUILayout.EndHorizontal();
-      */
+
       // Activate guidance
       SetEnabledColors(true); // back to normal
       GUILayout.BeginHorizontal();
       if (controller == null)
       {
-        //double throttle;
-        //Vector3d steer;
-        //controller.GetControlOutputs(FlightGlobals.ActiveVessel, Time.time, out throttle, out steer);
-        //string strphase = controller.PhaseStr();
         if (GUILayout.Button("Enable Guidance"))
           EnableGuidance(controller.phase);
       }
@@ -213,6 +214,8 @@ namespace BoosterGuidance
         if (GUILayout.Button("Disable Guidance"))
           DisableGuidance();
       }
+      if (GUILayout.Button("Log"))
+        SimulateLog();
       GUILayout.EndHorizontal();
 
       if (GUI.changed) // tgtSize might be changed
@@ -238,16 +241,35 @@ namespace BoosterGuidance
       {
         controller.reentryBurnAlt = reentryBurnAlt;
         controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
-        //controller.aeroDescentAlt = aeroDescentAlt;
-        controller.maxAoA = maxAoA;
-        //controller.poweredDescentAlt = poweredDescentAlt;
-        controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt - lowestY);
+        controller.reentryBurnMaxAoA = reentryBurnMaxAoA;
+        controller.aeroDescentMaxAoA = aeroDescentMaxAoA;
+        controller.poweredDescentMaxAoA = poweredDescentMaxAoA;
+        controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt - lowestY + touchdownMargin);
+        controller.suicideFactor = suicideFactor;
       }
+    }
+
+    void SimulateLog()
+    {
+      double T;
+      vessel = FlightGlobals.ActiveVessel;
+      var aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
+      _transform = RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+      BLController tc = new BLController(controller);
+      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
+      tc.noCorrect = true;
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, 0.2, tgt_r, out T, "simulate_with_control.dat", _transform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, 0.2, tgt_r, out T, "simulate_without_control.dat", _transform);
     }
 
     void OnUpdate()
     {
-      if (pickingPositionTarget)
+      // Redraw targets
+      if (!pickingPositionTarget)
+      {
+        RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+      }
+      else
       {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -269,6 +291,8 @@ namespace BoosterGuidance
             tgtLongitude = pickLon;
             tgtAlt = pickAlt;
             pickingPositionTarget = false;
+            string message = "Picked target";
+            ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
           }
         }
       }
@@ -277,6 +301,7 @@ namespace BoosterGuidance
 
     void PickTarget()
     {
+      showTargets = true;
       pickingPositionTarget = true;
       string message = "Click to select a target";
       ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
@@ -294,6 +319,8 @@ namespace BoosterGuidance
       pickLat = tgtLatitude;
       pickLon = tgtLongitude;
       pickAlt = tgtAlt;
+      string message = "Target set to vessel";
+      ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
     }
 
     Transform RedrawTarget(double lat, double lon, double alt)
@@ -301,8 +328,14 @@ namespace BoosterGuidance
       vessel = FlightGlobals.ActiveVessel;
       if (target_obj != null)
         Destroy(target_obj);
+      target_obj = null;
       Transform transform = GuiUtils.SetUpTransform(vessel.mainBody, lat, lon, alt);
-      target_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, tgt_color, Math.Pow(2, tgtSize), 0);
+      if (showTargets)
+      {
+        Vector3 heading = transform.position - Camera.main.transform.position;
+        float distance = Vector3.Dot(heading, Camera.main.transform.forward);
+        target_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, tgt_color, distance * tgtSize, 0);
+      }
       return transform;
     }
 
@@ -311,8 +344,14 @@ namespace BoosterGuidance
       vessel = FlightGlobals.ActiveVessel;
       if (pred_obj != null)
         Destroy(pred_obj);
+      pred_obj = null;
       Transform transform = GuiUtils.SetUpTransform(vessel.mainBody, lat, lon, alt);
-      pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, Math.Pow(2, tgtSize), 0);
+      if (showTargets)
+      {
+        Vector3 heading = transform.position - Camera.main.transform.position;
+        float distance = Vector3.Dot(heading, Camera.main.transform.forward);
+        pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, distance * tgtSize, 0);
+      }
       return transform;
     }
 
@@ -352,7 +391,29 @@ namespace BoosterGuidance
     {
       double throttle;
       Vector3d steer;
-      controller.GetControlOutputs(vessel, Time.time, out throttle, out steer);
+      double amin;
+      double amax;
+      double minThrust;
+      double maxThrust;
+
+      if (vessel.checkLanded())
+      {
+        state.mainThrottle = 0;
+        DisableGuidance();
+        return;
+      }
+
+      KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
+      amin = minThrust / vessel.totalMass;
+      amax = maxThrust / vessel.totalMass;
+      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
+      bool shutdownEnginesNow;
+      controller.GetControlOutputs(vessel, vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, amin, amax,
+        Time.time, vessel.mainBody, tgt_r, out throttle, out steer, out shutdownEnginesNow);
+
+      if (shutdownEnginesNow)
+        // Request hovering thrust
+        KSPUtils.ShutdownOuterEngines(vessel, (float)(FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()).magnitude * vessel.totalMass), true);
 
       if (_transform == null)
       {

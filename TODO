@@ -1,49 +1,24 @@
 Guides Boosters to landing site from orbit, aka. Falcon 9
 
-Does
-- Boostback to target: lat/lon or vessel
-- Coasting phase
-- Re-entry burn
-- Powered Descent
+- Update controller setting while active and GUI changes
+- Add re-entry burn settings
+- Ensure doesn't crash when maxThrust=0
+- Logging?
+- Test with RO. Consider minThrust, especially for boostback
+- Consider RO for powered descent
+- Apply air brakes
+- Deploy gear
+- Tidy up targets when crashed
+- Track target error when not under guidance?
+- Use km for altitudes?
+- Have flip speed to change steer direction
+- Turn off engines need landing otherwise take off again! Hit target within 10m!!!!!! on Realism Overhaul
+- Add target on map
+- Hide targets
+- Initialise aeroModel earlier to get benefit of cache
+- Fix bug where predicted target whizzes away!! then KSP hangs
+- Work out never giving up on boostback burn giving overshoot of target
+- Work out powered descent since doesn't consider aerodynamic drag slowing rocket anyway without thrust
 
-Parameters boostback
-- Min Boostback error? (or just get a close as can)
-- Use RCS to steer if available, otherwise use minimum thrust
-- Aim at this altitude above landing site
-
-Re-entry burn
-- Altitude for re-entry burn
-- Target max velocity
-
-Aero Descent
-- Altitude to apply air brakes
-- Gain on steering
-- Max Angle-of-Attack
-
-Powered Descent
-- Keep steering with aim direction until under given velocity
-- Once under velocity use thrust for steering, up to max angle
-
-Logging
-
-Other
-- Can toggle on and off for manual control
-- Show predicted target
-
-
-
-
-DESIGN
-
-Controller class
-Controller provides GetControlOutputs()
-
-BLController is Booster Landing controller
-
-Simulate - runs controller loop
-
-Vessel - has dryMass, fuel, attitude, minThrust, maxThrust, airBrakes, drag
-
-VesselSim - Runs a full simulation from a start point with logging
-
-Body - has position, radius, g (surface)
+NOTES:
+- KSPTrajectories. Look at ComputeForces in AerodynamicModel/VesselAerodynamicModel.cs to set AoA
