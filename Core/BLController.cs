@@ -21,7 +21,7 @@ namespace BoosterGuidance
   public class BLController : Controller
   {
     // Public parameters
-    public float touchdownSpeed = 1;
+    public float touchdownSpeed = 5;
     public double poweredDescentAlt = 5000; // Powered descent below this altitude
     public double aeroDescentAlt = 60000; // Aerodynamic descent below this altitude
     public double reentryBurnAlt = 70000;
@@ -79,6 +79,7 @@ namespace BoosterGuidance
       reentryBurnTargetSpeed = v.reentryBurnTargetSpeed;
       poweredDescentAlt = v.poweredDescentAlt;
       poweredDescentMaxAoA = v.poweredDescentMaxAoA;
+      aeroModel = v.aeroModel;
       aeroDescentAlt = v.aeroDescentAlt;
       aeroDescentMaxAoA = v.aeroDescentMaxAoA;
       suicideFactor = v.suicideFactor;
@@ -177,16 +178,12 @@ namespace BoosterGuidance
       if (!noCorrect)
       {
         BLController tc = new BLController(this);
-        tc.noCorrect = true; // Don't correct error so we don't require recursive calls to simulations
-        if ((phase == BLControllerPhase.BoostBack) || (phase == BLControllerPhase.ReentryBurn))
+        tc.noCorrect = true;
+        // Only simulate phases beyond boostback to boostback minimizes error and simulate includes just
+        // the remaining phases and doesn't try to redo reentry burn for instance
+        if (phase == BLControllerPhase.BoostBack)
           tc.phase = BLControllerPhase.Coasting;
-        else
-          // Makes sure if in aero descent don't repeat Reentry Burn
-          tc.phase = BLControllerPhase.AeroDescent;
-        //Debug.Log("Simulate (within GetControlOuputs)");
-        predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, 0.5, tgt_r, out targetT);
-        // Use no controller - just fall, no thrust
-        //predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, null, 2, tgt_r, out targetT);
+        predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
         tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
         error = predWorldPos - tgt_r;
         attitudeError = 0;
@@ -231,12 +228,12 @@ namespace BoosterGuidance
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        steer = -Vector3d.Normalize(v) + GetSteerAdjust(error, -reentryBurnSteerGain, reentryBurnMaxAoA);
+        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, -reentryBurnSteerGain, reentryBurnMaxAoA);
         if (v.magnitude > reentryBurnTargetSpeed)
         {
           throttle = HGUtils.LinearMap((float)y, (float)reentryBurnAlt, (float)reentryBurnAlt - 2000, 0, 1);
           //throttle = HGUtils.Clamp((v.magnitude - reentryBurnTargetSpeed) * 0.1, 0, 1); // 10 m/s diff means throttle=1
-          Debug.Log("[BoosterGuidance] ReentryBurn y=" + y + " v=" + v.magnitude + " throttle=" + throttle);
+          //Debug.Log("[BoosterGuidance] ReentryBurn y=" + y + " v=" + v.magnitude + " throttle=" + throttle);
         }
         else
           phase = BLControllerPhase.AeroDescent;
@@ -269,10 +266,26 @@ namespace BoosterGuidance
         throttle = HGUtils.Clamp((dvy - vy) * throttleGain + (g - amin) / (amax - amin), minThrottle, 1);
         if (log)
           Debug.Log("[BoosterGuidance] y=" + y + " vy=" + vy + " dvy=" + dvy + " throttle=" + throttle);
-        // Aero-dynamically steer until velocity too low or altitude too low
 
         // No steering
-        steer = Vector3d.Normalize(40*up - vel_air); // retrograde surface  - TODO: Add 5*up?
+        steer = Vector3d.Normalize(40*up - vel_air); // retrograde surface + upright component for damping
+
+        if (!noCorrect)
+        {
+          // Which way to steer? Compare aerodynamic lift vs thrust from engines to give sideways force
+          Vector3d Faero = aeroModel.GetForces(body, r, vel_air, Math.PI); // 0 degrees (retrograde)
+          Vector3d FsideAero = aeroModel.GetForces(body, r, vel_air, Math.PI + 5 * Math.PI / 180); // 5 degrees
+          double sideFA = (FsideAero - FsideAero * Vector3d.Dot(Vector3d.Normalize(Faero), Vector3d.Normalize(Faero))).magnitude; // just leave sideways component
+          double thrust = minThrust + throttle * (maxThrust - minThrust);
+          double sideFT = thrust * Math.Sin(5 * Math.PI / 180); // sideways component of thrust at 5 degrees
+
+          if (sideFT > sideFA)
+            // Steer so engine thrust pushes in correct direction (works when going fast?)
+            steer = steer + GetSteerAdjust(error, -steerGain, poweredDescentMaxAoA);
+          else
+            // Steer aerodynamically as this has more effect
+            steer = steer + GetSteerAdjust(error, steerGain, poweredDescentMaxAoA);
+        }
 
         // Decide to shutdown engines for final touch down? (within 3 secs)
         // Criteria should be if amin maintained with current engines we could not reach next target
@@ -281,11 +294,10 @@ namespace BoosterGuidance
         // Criteria for shutting down engines
         // - we could not reach ground at minimum thrust (would ascend)
         // - falling less than 20m/s (otherwise can decide to shutdown engines when still high and travelling fast)
-        bool cant_reach_ground = (minHeight > 0) && (vy > -10);
+        bool cant_reach_ground = (minHeight > 0) && (vy > -20);
 
         // Shutdown engines requesting hovering thrust
         if (cant_reach_ground)
-          //KSPUtils.ShutdownOuterEngines(vessel, (float)(g * vessel.totalMass), true);
           shutdownEnginesNow = true;
       }
 
