@@ -84,23 +84,28 @@ namespace BoosterGuidance
       return minHeight;
     }
 
+    static int Closest(KeyValuePair<double, ModuleEngines> a, KeyValuePair<double, ModuleEngines> b)
+    {
+      return a.Key.CompareTo(b.Key);
+    }
+
     // Compute engine thrust if one set of symmetrical engines is shutdown
     // (primarily for a Falcon 9 landing to shutdown engines for slow touchdown)
     public static List<ModuleEngines> ShutdownOuterEngines(Vessel vessel, float desiredThrust, bool log = false)
     {
       List<ModuleEngines> shutdown = new List<ModuleEngines>();
-
+      Debug.Log("ShutdownOuterEngines desiredThrust=" + desiredThrust + " mass=" + vessel.totalMass);
       // Find engine parts and sort by closest to centre first
-      List<(double, ModuleEngines)> allEngines = new List<(double, ModuleEngines)>();
+      List<KeyValuePair<double, ModuleEngines>> allEngines = new List<KeyValuePair<double, ModuleEngines>>();
       foreach (Part part in vessel.GetActiveParts())
       {
         Vector3 relpos = vessel.transform.InverseTransformPoint(part.transform.position);
         part.isEngine(out List<ModuleEngines> engines);
         double dist = Math.Sqrt(relpos.x * relpos.x + relpos.z * relpos.z);
         foreach (ModuleEngines engine in engines)
-          allEngines.Add((dist, engine));
+          allEngines.Add(new KeyValuePair<double, ModuleEngines>(dist, engine));
       }
-      allEngines.Sort();
+      allEngines.Sort(Closest);
 
       // Loop through engines starting a closest to axis
       // Accumulate minThrust, once minThrust exceeds desiredThrust shutdown this and all
@@ -109,7 +114,7 @@ namespace BoosterGuidance
       double shutdownDist = float.MaxValue;
       foreach (var engDist in allEngines)
       {
-        ModuleEngines engine = engDist.Item2;
+        ModuleEngines engine = engDist.Value;
         if (engine.isOperational)
         {
           minThrust += engine.GetEngineThrust(engine.realIsp, 0);
@@ -117,12 +122,12 @@ namespace BoosterGuidance
           if (shutdownDist == float.MaxValue)
           {
             if ((minThrust < desiredThrust) && (desiredThrust < maxThrust)) // good amount of thrust
-              shutdownDist = engDist.Item1 + 0.1f;
+              shutdownDist = engDist.Key + 0.1f;
             if (minThrust > desiredThrust)
-              shutdownDist = engDist.Item1 - 0.1f;
+              shutdownDist = engDist.Key - 0.1f;
           }
 
-          if (engDist.Item1 > shutdownDist)
+          if (engDist.Key > shutdownDist)
           {
             if (log)
               Debug.Log("[BoosterGuidance] ComputeShutdownMinMaxThrust(): minThrust=" + minThrust + " desiredThrust=" + desiredThrust + " SHUTDOWN");
@@ -131,7 +136,7 @@ namespace BoosterGuidance
           }
           else
             if (log)
-            Debug.Log("[BoosterGuidance] ComputeShutdownMinMaxThrust(): minThrust=" + minThrust + " desiredThrust=" + desiredThrust + " KEEP");
+              Debug.Log("[BoosterGuidance] ComputeShutdownMinMaxThrust(): minThrust=" + minThrust + " desiredThrust=" + desiredThrust + " KEEP");
         }
       }
       Debug.Log(shutdown.Count + " engines shutdown");
