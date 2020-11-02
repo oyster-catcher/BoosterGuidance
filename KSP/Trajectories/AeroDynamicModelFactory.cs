@@ -31,14 +31,14 @@ namespace Trajectories
                 try
                 {
                     switch (loadedAssembly.name)
-                    {
+                    {/* TODO - Can't get this to link
                         case "FerramAerospaceResearch":
                             var FARAPIType = loadedAssembly.assembly.GetType("FerramAerospaceResearch.FARAPI");
 
                                 var FARAPI_CalculateVesselAeroForces = FARAPIType.GetMethodEx("CalculateVesselAeroForces", BindingFlags.Public | BindingFlags.Static, new Type[] { typeof(Vessel), typeof(Vector3).MakeByRefType(), typeof(Vector3).MakeByRefType(), typeof(Vector3), typeof(double) });
 
                             return new FARModel(ship, body, FARAPI_CalculateVesselAeroForces);
-
+                     */
                         //case "MyModAssembly":
                         // implement here your atmo mod detection
                         // return new MyModModel(ship, body, any other parameter);
