@@ -1,24 +1,15 @@
 Guides Boosters to landing site from orbit, aka. Falcon 9
 
-- Update controller setting while active and GUI changes
-- Add re-entry burn settings
 - Ensure doesn't crash when maxThrust=0
-- Logging?
+- Get logging working properly
 - Test with RO. Consider minThrust, especially for boostback
-- Consider RO for powered descent
 - Apply air brakes
 - Deploy gear
 - Tidy up targets when crashed
-- Track target error when not under guidance?
-- Use km for altitudes?
-- Have flip speed to change steer direction
 - Turn off engines need landing otherwise take off again! Hit target within 10m!!!!!! on Realism Overhaul
 - Add target on map
-- Hide targets
 - Initialise aeroModel earlier to get benefit of cache
-- Fix bug where predicted target whizzes away!! then KSP hangs
-- Work out never giving up on boostback burn giving overshoot of target
-- Work out powered descent since doesn't consider aerodynamic drag slowing rocket anyway without thrust
+- Test whether we can enable guidance on multiple vessels (prob. within 2km) to enable Falcon Heavy simulataneous boostback!
 
 NOTES:
 - KSPTrajectories. Look at ComputeForces in AerodynamicModel/VesselAerodynamicModel.cs to set AoA
