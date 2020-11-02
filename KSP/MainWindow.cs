@@ -14,7 +14,7 @@ namespace BoosterGuidance
     // private
     bool hidden = true;
     BLController controller = null;
-    Rect windowRect = new Rect(150, 150, 220, 500);
+    Rect windowRect = new Rect(150, 150, 220, 512);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     double tgtAlt = 0;
@@ -38,7 +38,7 @@ namespace BoosterGuidance
     GameObject target_obj = null;
     GameObject pred_obj = null;
     double pickLat, pickLon, pickAlt;
-    double touchdownMargin = 20; // Slow to touchdown speed this much above target
+    double touchdownMargin = 30; // Slow to touchdown speed this much above target
 
     public void OnGUI()
     {
@@ -189,7 +189,7 @@ namespace BoosterGuidance
       GUILayout.Label("Suicide factor:");
       // 0 means very conservative suicide burn (~40% less than fastest poss. velocity at height)
       // 1 means perfect suicide burn
-      suicideFactor = GUILayout.HorizontalSlider(suicideFactor, 0, 1);
+      suicideFactor = GUILayout.HorizontalSlider(suicideFactor, 0, 1, GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -258,8 +258,8 @@ namespace BoosterGuidance
       BLController tc = new BLController(controller);
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       tc.noCorrect = true;
-      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, 0.2, tgt_r, out T, "simulate_with_control.dat", _transform);
-      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, 0.2, tgt_r, out T, "simulate_without_control.dat", _transform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, "simulate_with_control.dat", _transform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, "simulate_without_control.dat", _transform);
     }
 
     void OnUpdate()
@@ -398,6 +398,8 @@ namespace BoosterGuidance
 
       if (vessel.checkLanded())
       {
+        string msg = "Landed!";
+        ScreenMessages.PostScreenMessage(msg, 3.0f, ScreenMessageStyle.UPPER_CENTER);
         state.mainThrottle = 0;
         DisableGuidance();
         return;
@@ -412,8 +414,11 @@ namespace BoosterGuidance
         Time.time, vessel.mainBody, tgt_r, out throttle, out steer, out shutdownEnginesNow);
 
       if (shutdownEnginesNow)
+      {
+        Debug.Log("[BoosterGuidance] shutdownEnginesNow=true");
         // Request hovering thrust
         KSPUtils.ShutdownOuterEngines(vessel, (float)(FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()).magnitude * vessel.totalMass), true);
+      }
 
       if (_transform == null)
       {
