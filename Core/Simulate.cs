@@ -49,11 +49,11 @@ namespace BoosterGuidance
       float ang;
       Quaternion bodyRotation;
 
-      double dt = 2; // above atmosphere
+      double dt = 10; // above atmosphere
       while ((y > tgtAlt) && (T < maxT))
       {
         if (y < 100000) // inside atmosphere (Kerbin)
-          dt = 0.1;
+          dt = 1;
         float lastAng = (float)((-1) * body.angularVelocity.magnitude / Math.PI * 180.0);
         Quaternion lastBodyRot = Quaternion.AngleAxis(lastAng, body.angularVelocity.normalized);
         Vector3d vel_air = v - body.getRFrmVel(r + body.position);
@@ -92,13 +92,6 @@ namespace BoosterGuidance
             a = Vector3d.zero;
         }
         Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI); // retrograde
-        if (f != null)
-        {
-          Vector3d F5 = aeroModel.GetForces(body, r, vel_air, 5 * Math.PI / 180); // 5 degrees
-          double sideFA = (F5 - F5 * Vector3d.Dot(Vector3d.Normalize(F5), Vector3d.Normalize(F))).magnitude; // just leave sideways component
-          double sideFT = maxThrust * Math.Sin(5 * Math.PI / 180); // sideways component of thrust at 5 degrees
-          Debug.Log("[BoosterGuidance] y=" + y + " speed=" + (vel_air.magnitude) + " sidea(aero)=" + (sideFA / vessel.totalMass) + " sidea(maxthrust)=" + (sideFT / vessel.totalMass));
-        }
 
         r = r + v * dt;
         lastv = v;
