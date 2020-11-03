@@ -21,7 +21,7 @@ namespace BoosterGuidance
   public class BLController : Controller
   {
     // Public parameters
-    public float touchdownSpeed = 5;
+    public float touchdownSpeed = 1.5f;
     public double poweredDescentAlt = 5000; // Powered descent below this altitude
     public double aeroDescentAlt = 60000; // Aerodynamic descent below this altitude
     public double reentryBurnAlt = 70000;
@@ -29,17 +29,19 @@ namespace BoosterGuidance
     public double reentryBurnMaxAoA = 0;
     public double aeroDescentMaxAoA = 0;
     public double poweredDescentMaxAoA = 0;
-    public double suicideFactor = 0.5;
+    public double suicideFactor = 0.8;
     public bool noCorrect = false;
 
     // Private parameters
     private double minError = float.MaxValue;
     private double reentryBurnSteerGain = 0.0001;
-    private double steerGain = 0.0005;
+    private double steerGain = 0.0008;
+    private double poweredSteerGain = 0.0003;
     private System.IO.StreamWriter fp = null;
     private double logStartTime;
     private double logLastTime = 0;
     private double logInterval = 0.1;
+    private Transform logTransform;
     private double noSteerAlt = 300; // Don't steer once < 300m
     private Trajectories.VesselAerodynamicModel aeroModel = null;
 
@@ -52,20 +54,14 @@ namespace BoosterGuidance
     private double lastThrottle = 0;
     private Vector3d lastSteer = Vector3d.zero;
 
-    public BLController(Vessel vessel, string logFilename="")
+    public BLController(Vessel vessel)
     {
-      if (logFilename != "")
-      {
-        fp = new System.IO.StreamWriter(logFilename);
-        fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax");
-      }
-      Debug.Log("[BoosterGuidance] time y vy dvy throttle");
-      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
+       aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
     }
 
     ~BLController()
     {
-      CloseLog();
+      StopLogging();
     }
 
     public BLController(BLController v)
@@ -121,9 +117,20 @@ namespace BoosterGuidance
       return "n/a";
     }
 
-    public void CloseLog()
+    public void StartLogging(string filename, Transform transform)
     {
-      fp.Close();
+      if (filename != "")
+      {
+        logTransform = transform;
+        fp = new System.IO.StreamWriter(filename);
+        fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax Fhor_aero Fhor_thrust");
+      }
+    }
+
+    public void StopLogging()
+    {
+      if (fp != null)
+        fp.Close();
       fp = null;
     }
 
@@ -156,8 +163,8 @@ namespace BoosterGuidance
       double y = alt - tgtAlt;
       Vector3d up = Vector3d.Normalize(r - body.position);
       Vector3d vel_air = v - body.getRFrmVel(r);
-      double vy = Vector3d.Dot(v, up); // TODO - Or vel_air?
-      double throttleGain = 5.0 / (amax - amin); // correct 1 m/s error in 0.2 second
+      double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
+      double throttleGain = 7.0 / (amax - amin); // correct 1 m/s error in ~0.15 second
       float minThrottle = (amin > 0) ? 0.01f : 0; // assume RO and limited ignitions if limited throttling
       targetError = 0;
 
@@ -229,12 +236,8 @@ namespace BoosterGuidance
       if (phase == BLControllerPhase.ReentryBurn)
       {
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, -reentryBurnSteerGain, reentryBurnMaxAoA);
-        if (v.magnitude > reentryBurnTargetSpeed)
-        {
+        if (vel_air.magnitude > reentryBurnTargetSpeed)
           throttle = HGUtils.LinearMap((float)y, (float)reentryBurnAlt, (float)reentryBurnAlt - 2000, 0, 1);
-          //throttle = HGUtils.Clamp((v.magnitude - reentryBurnTargetSpeed) * 0.1, 0, 1); // 10 m/s diff means throttle=1
-          //Debug.Log("[BoosterGuidance] ReentryBurn y=" + y + " v=" + v.magnitude + " throttle=" + throttle);
-        }
         else
           phase = BLControllerPhase.AeroDescent;
       }
@@ -242,9 +245,11 @@ namespace BoosterGuidance
       // Desired speed in POWERED DESCENT
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
       double av = amax - g;
+      if (av < 0)
+        av = 0.1; // pretend we have more thrust to look like we are doing something rather than giving up!!
       double dvy = -touchdownSpeed;
       if (y > 0)
-        dvy = -Math.Sqrt((1+suicideFactor) * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
+        dvy = -Math.Sqrt((1 + suicideFactor) * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
       else
         dvy = -touchdownSpeed;
  
@@ -256,35 +261,39 @@ namespace BoosterGuidance
         float ddot = (float)Vector3d.Dot(Vector3d.Normalize(att), Vector3d.Normalize(steer));
         double att_err = Mathf.Acos(ddot) * 180 / Mathf.PI;
 
+        //Debug.Log("[BoosterGuidance] Check y=" + y + " vy=" + vy + " dvy=" + dvy+" av="+av+" suicideFactor="+suicideFactor);
         if (vy < dvy) // Going too fast for suicide burn
+        {
           phase = BLControllerPhase.PoweredDescent;
+        }
       }
 
       // POWERED DESCENT (suicide burn)
+      double sideFA = 0;
+      double sideFT = 0;
       if (phase == BLControllerPhase.PoweredDescent)
       {
         throttle = HGUtils.Clamp((dvy - vy) * throttleGain + (g - amin) / (amax - amin), minThrottle, 1);
-        if (log)
-          Debug.Log("[BoosterGuidance] y=" + y + " vy=" + vy + " dvy=" + dvy + " throttle=" + throttle);
+        //Debug.Log("[BoosterGuidance] y=" + y + " vy=" + vy + " dvy=" + dvy + " throttle=" + throttle);
 
         // No steering
-        steer = Vector3d.Normalize(40*up - vel_air); // retrograde surface + upright component for damping
+        steer = Vector3d.Normalize(20*up - vel_air); // retrograde surface + upright component for damping
 
         if (!noCorrect)
         {
           // Which way to steer? Compare aerodynamic lift vs thrust from engines to give sideways force
           Vector3d Faero = aeroModel.GetForces(body, r, vel_air, Math.PI); // 0 degrees (retrograde)
           Vector3d FsideAero = aeroModel.GetForces(body, r, vel_air, Math.PI + 5 * Math.PI / 180); // 5 degrees
-          double sideFA = (FsideAero - FsideAero * Vector3d.Dot(Vector3d.Normalize(Faero), Vector3d.Normalize(Faero))).magnitude; // just leave sideways component
+          sideFA = (FsideAero - FsideAero * Vector3d.Dot(Vector3d.Normalize(Faero), Vector3d.Normalize(Faero))).magnitude; // just leave sideways component
           double thrust = minThrust + throttle * (maxThrust - minThrust);
-          double sideFT = thrust * Math.Sin(5 * Math.PI / 180); // sideways component of thrust at 5 degrees
+          sideFT = thrust * Math.Sin(5 * Math.PI / 180); // sideways component of thrust at 5 degrees
 
           if (sideFT > sideFA)
             // Steer so engine thrust pushes in correct direction (works when going fast?)
-            steer = steer + GetSteerAdjust(error, -steerGain, poweredDescentMaxAoA);
+            steer = steer + GetSteerAdjust(error, -poweredSteerGain, poweredDescentMaxAoA);
           else
             // Steer aerodynamically as this has more effect
-            steer = steer + GetSteerAdjust(error, steerGain, poweredDescentMaxAoA);
+            steer = steer + GetSteerAdjust(error, poweredSteerGain, poweredDescentMaxAoA);
         }
 
         // Decide to shutdown engines for final touch down? (within 3 secs)
@@ -308,9 +317,11 @@ namespace BoosterGuidance
         {
           if (logStartTime == 0)
             logStartTime = t;
-          double x = ((r - tgt_r) - Vector3d.Dot(r - tgt_r, up) * up).magnitude; // remove vertical component to find downrange distance
-          Vector3d a = KSPUtils.GetCurrentThrust(allEngines) * att / vessel.totalMass;
-          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1}", t-logStartTime, phase, x, y, 0, 0, v.magnitude, 0, a.x, a.y, a.z, attitudeError, amin, amax);
+          Vector3d a = att * (amin + throttle * (amax - amin)); // this assumes engine is ignited though
+          Vector3d tr = logTransform.InverseTransformPoint(r);
+          Vector3d tv = logTransform.InverseTransformVector(vel_air);
+          Vector3d ta = logTransform.InverseTransformVector(a);
+          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F1} {15:F1}", t-logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, attitudeError, a.x, a.y, a.z, attitudeError, amin, amax, sideFA, sideFT);
           logLastTime = t;
         }
       }
