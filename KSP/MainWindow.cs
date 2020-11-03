@@ -14,7 +14,7 @@ namespace BoosterGuidance
     // private
     bool hidden = true;
     BLController controller = null;
-    Rect windowRect = new Rect(150, 150, 220, 512);
+    Rect windowRect = new Rect(150, 150, 220, 516);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     double tgtAlt = 0;
@@ -27,9 +27,10 @@ namespace BoosterGuidance
     EditableInt aeroDescentMaxAoA = 10;
     // Powered descent
     EditableInt poweredDescentMaxAoA = 10;
-    float suicideFactor = 0.5f;
+    float suicideFactor = 0.8f;
 
     bool showTargets = true;
+    bool logging = false;
     bool pickingPositionTarget = false;
     string info = "Disabled";
     private Vessel vessel = null;
@@ -115,6 +116,12 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       showTargets = GUILayout.Toggle(showTargets, "Show targets");
+      bool prevLogging = logging;
+      logging = GUILayout.Toggle(logging, "Logging");
+      if ((!prevLogging) && (logging))
+        StartLogging();
+      if ((prevLogging) && (!logging))
+        StopLogging();
       GUILayout.EndHorizontal();
 
       // Info box
@@ -214,8 +221,7 @@ namespace BoosterGuidance
         if (GUILayout.Button("Disable Guidance"))
           DisableGuidance();
       }
-      if (GUILayout.Button("Log"))
-        SimulateLog();
+
       GUILayout.EndHorizontal();
 
       if (GUI.changed) // tgtSize might be changed
@@ -260,6 +266,19 @@ namespace BoosterGuidance
       tc.noCorrect = true;
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, "simulate_with_control.dat", _transform);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, "simulate_without_control.dat", _transform);
+    }
+
+    void StartLogging()
+    {
+      SimulateLog(); // one off simulate down to ground
+      if (controller != null)
+        controller.StartLogging("vessel.dat", _transform);
+    }
+
+    void StopLogging()
+    {
+      if (controller != null)
+        controller.StopLogging();
     }
 
     void OnUpdate()
@@ -377,7 +396,7 @@ namespace BoosterGuidance
     {
       vessel.Autopilot.Disable();
       vessel.OnFlyByWire -= new FlightInputCallback(Fly);
-      controller.CloseLog();
+      controller.StopLogging();
       controller = null;
       vessel = null;
       info = "Guidance disabled!";
