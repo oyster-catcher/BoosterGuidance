@@ -18,13 +18,17 @@ namespace BoosterGuidance
 
     public void Start()
     {
-      //DebugHelper.Debug("EngineFlightControl:Start");
-      //Instance = this;
-      GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
-      OnGUIAppLauncherReady();
+      GameEvents.onGUIApplicationLauncherReady.Add(delegate
+      {
+        CreateStockToolbarButton();
+      });
+      GameEvents.onGUIApplicationLauncherUnreadifying.Add(delegate
+      {
+        DestroyStockToolbarButton();
+      });
     }
 
-    private void OnGUIAppLauncherReady()
+    private void CreateStockToolbarButton()
     {
       Localizer.Init();
       if (ApplicationLauncher.Ready && _appLauncherButton == null)
@@ -35,11 +39,19 @@ namespace BoosterGuidance
             () => { },
             () => { },
             () => { },
+            //ApplicationLauncher.AppScenes.MAPVIEW | ApplicationLauncher.AppScenes.FLIGHT,
             ApplicationLauncher.AppScenes.FLIGHT,
             GameDatabase.Instance.GetTexture("BoosterGuidance/BoosterGuidanceIcon", false)
             );
       }
       mainw = new MainWindow();
+    }
+
+    private void DestroyStockToolbarButton()
+    {
+      Debug.Log("DestroyStockToolbarButton");
+      ApplicationLauncher.Instance.RemoveModApplication(_appLauncherButton);
+      _appLauncherButton = null;
     }
 
     private void ShowHideMasterWindow()
