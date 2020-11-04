@@ -324,6 +324,12 @@ def extract_items(line, lists=[]):
           d[k] = [v]
   return d
 
+def tryfloat(x):
+  try:
+    return float(x)
+  except ValueError:
+    return x
+
 def read_data(fname, d):
   """Reads column data file, values space or tab separated. First line in column names.
      Comments lines with hash can contain key=value pairs which will be returned in d"""
@@ -339,7 +345,7 @@ def read_data(fname, d):
       fields = line.split(None)
     else:
       try:
-        data = [float(x) for x in line.split(" ")]
+        data = [tryfloat(x) for x in line.split(" ")]
         if len(data)==len(fields):
           dat.append( dict(zip(fields,data)) )
       except:
