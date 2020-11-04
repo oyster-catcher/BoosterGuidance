@@ -33,7 +33,7 @@ namespace BoosterGuidance
     bool logging = false;
     bool pickingPositionTarget = false;
     string info = "Disabled";
-    private Vessel vessel = null;
+    //private Vessel vessel = null;
     float tgtSize = 0.1f;
     Transform _transform = null;
     GameObject target_obj = null;
@@ -72,6 +72,7 @@ namespace BoosterGuidance
     void WindowFunction(int windowID)
     {
       OnUpdate();
+      info = FlightGlobals.ActiveVessel.name;
       SetEnabledColors(true);
       // Close button
       if (GUI.Button(new Rect(windowRect.width - 18, 2, 16, 16), ""))
@@ -230,7 +231,6 @@ namespace BoosterGuidance
           UpdateController(controller);
         RedrawTarget(pickLat, pickLon, pickAlt);
       }
-
       GUI.DragWindow();
     }
 
@@ -242,7 +242,7 @@ namespace BoosterGuidance
 
     public void UpdateController(BLController controller)
     {
-      double lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
+      double lowestY = KSPUtils.FindLowestPointOnVessel(controller.vessel);
       if (controller != null)
       {
         controller.reentryBurnAlt = reentryBurnAlt;
@@ -258,7 +258,9 @@ namespace BoosterGuidance
     void SimulateLog()
     {
       double T;
-      vessel = FlightGlobals.ActiveVessel;
+      if (controller == null)
+        return;
+      var vessel = controller.vessel;
       var aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
       _transform = RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
       BLController tc = new BLController(controller);
@@ -297,7 +299,7 @@ namespace BoosterGuidance
           pickingPositionTarget = false;
         }
         RaycastHit hit;
-        vessel = FlightGlobals.ActiveVessel;
+        Vessel vessel = FlightGlobals.ActiveVessel;
         if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, out hit))
         {
           // Moved or picked
@@ -331,7 +333,7 @@ namespace BoosterGuidance
     {
       tgtLatitude = FlightGlobals.ActiveVessel.latitude;
       tgtLongitude = FlightGlobals.ActiveVessel.longitude;
-      vessel = FlightGlobals.ActiveVessel;
+      Vessel vessel = FlightGlobals.ActiveVessel;
       double lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
       tgtAlt = vessel.altitude + lowestY;
       RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
@@ -344,7 +346,7 @@ namespace BoosterGuidance
 
     Transform RedrawTarget(double lat, double lon, double alt)
     {
-      vessel = FlightGlobals.ActiveVessel;
+      Vessel vessel = FlightGlobals.ActiveVessel;
       if (target_obj != null)
         Destroy(target_obj);
       target_obj = null;
@@ -360,51 +362,57 @@ namespace BoosterGuidance
 
     Transform RedrawPrediction(double lat, double lon, double alt)
     {
-      vessel = FlightGlobals.ActiveVessel;
-      if (pred_obj != null)
-        Destroy(pred_obj);
-      pred_obj = null;
-      Transform transform = GuiUtils.SetUpTransform(vessel.mainBody, lat, lon, alt);
-      if (showTargets)
+      if (controller != null)
       {
-        Vector3 heading = transform.position - Camera.main.transform.position;
-        float distance = Vector3.Dot(heading, Camera.main.transform.forward);
-        pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, distance * tgtSize, 0);
+        if (pred_obj != null)
+          Destroy(pred_obj);
+        pred_obj = null;
+        Transform transform = GuiUtils.SetUpTransform(controller.vessel.mainBody, lat, lon, alt);
+        if (showTargets)
+        {
+          Vector3 heading = transform.position - Camera.main.transform.position;
+          float distance = Vector3.Dot(heading, Camera.main.transform.forward);
+          pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, distance * tgtSize, 0);
+        }
+        return transform;
       }
-      return transform;
+      return null;
     }
 
     void EnableGuidance(BLControllerPhase phase)
     {
-      if (controller != null)
-        vessel.OnFlyByWire -= new FlightInputCallback(Fly);
-      _transform = RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
-      vessel = FlightGlobals.ActiveVessel;
-      vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
-      vessel.OnFlyByWire += new FlightInputCallback(Fly);
-      // Initialise controller
-      //controller = new BLController(vessel, "vessel.dat");
-      controller = new BLController(vessel);
-      UpdateController(controller);
-      controller.SetPhase(phase);
-      string info = "Enabled "+ controller.PhaseStr();
-      ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      if (controller == null)
+      {
+        Vessel vessel = FlightGlobals.ActiveVessel;
+        _transform = RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+        vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
+        // Initialise controller
+        controller = new BLController(vessel);
+        UpdateController(controller);
+        vessel.OnFlyByWire += new FlightInputCallback(Fly); // 1st vessel
+        controller.SetPhase(phase);
+        string info = "Enabled " + controller.PhaseStr();
+        ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      }
     }
 
 
     void DisableGuidance()
     {
-      vessel.Autopilot.Disable();
-      vessel.OnFlyByWire -= new FlightInputCallback(Fly);
-      controller.StopLogging();
-      controller = null;
-      vessel = null;
-      info = "Guidance disabled!";
-      ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
-      if (pred_obj != null)
-        Destroy(pred_obj);
+      if (controller != null)
+      {
+        Vessel vessel = controller.vessel;
+        vessel.Autopilot.Disable();
+        vessel.OnFlyByWire -= new FlightInputCallback(Fly);
+        controller.StopLogging();
+        controller = null;
+        vessel = null;
+        info = "Guidance disabled!";
+        ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+        if (pred_obj != null)
+          Destroy(pred_obj);
+      }
     }
-
 
     public void Fly(FlightCtrlState state)
     {
@@ -415,12 +423,18 @@ namespace BoosterGuidance
       double minThrust;
       double maxThrust;
 
+      if (controller == null)
+        return;
+
+      Vessel vessel = controller.vessel;
       if (vessel.checkLanded())
       {
         string msg = "Landed!";
         ScreenMessages.PostScreenMessage(msg, 3.0f, ScreenMessageStyle.UPPER_CENTER);
         state.mainThrottle = 0;
         DisableGuidance();
+        // Find distance from target
+        info = string.Format("Landed {0:F1}m from target", controller.targetError);
         return;
       }
 

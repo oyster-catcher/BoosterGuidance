@@ -11,6 +11,8 @@ namespace BoosterGuidance
     protected double maxThrust = 10000;
     protected double tgtLatitude, tgtLongitude, tgtAlt;
     protected List<ModuleEngines> allEngines = new List<ModuleEngines>();
+
+    public Vessel vessel = null; // Vessel being controlled
     public double targetT = 0; // Time to land
     public double targetError = 0; // Distance from target to landing point in m
     public double attitudeError = 0; // Error in desired attitude in degrees

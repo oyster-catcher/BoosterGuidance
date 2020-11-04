@@ -49,11 +49,11 @@ namespace BoosterGuidance
       float ang;
       Quaternion bodyRotation;
 
-      double dt = 10; // above atmosphere
+      double dt = 4; // above atmosphere
       while ((y > tgtAlt) && (T < maxT))
       {
         if (y < 100000) // inside atmosphere (Kerbin)
-          dt = 1;
+          dt = 0.5;
         float lastAng = (float)((-1) * body.angularVelocity.magnitude / Math.PI * 180.0);
         Quaternion lastBodyRot = Quaternion.AngleAxis(lastAng, body.angularVelocity.normalized);
         Vector3d vel_air = v - body.getRFrmVel(r + body.position);

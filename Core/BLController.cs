@@ -34,7 +34,7 @@ namespace BoosterGuidance
 
     // Private parameters
     private double minError = float.MaxValue;
-    private double reentryBurnSteerGain = 0.0001;
+    private double reentryBurnSteerGain = 0.0008;
     private double steerGain = 0.0008;
     private double poweredSteerGain = 0.0003;
     private System.IO.StreamWriter fp = null;
@@ -54,9 +54,10 @@ namespace BoosterGuidance
     private double lastThrottle = 0;
     private Vector3d lastSteer = Vector3d.zero;
 
-    public BLController(Vessel vessel)
+    public BLController(Vessel a_vessel)
     {
-       aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
+      vessel = a_vessel;
+      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
     }
 
     ~BLController()
@@ -66,6 +67,7 @@ namespace BoosterGuidance
 
     public BLController(BLController v)
     {
+      vessel = v.vessel;
       tgtLatitude = v.tgtLatitude;
       tgtLongitude = v.tgtLongitude;
       tgtAlt = v.tgtAlt;
@@ -303,7 +305,8 @@ namespace BoosterGuidance
         // Criteria for shutting down engines
         // - we could not reach ground at minimum thrust (would ascend)
         // - falling less than 20m/s (otherwise can decide to shutdown engines when still high and travelling fast)
-        bool cant_reach_ground = (minHeight > 0) && (vy > -20);
+        //Debug.Log("[BoosterGuidance] y=" + y + " minHeight=" + minHeight + " vy=" + vy + " vel_air=" + (vel_air.magnitude)+" amin="+amin+" g="+g);
+        bool cant_reach_ground = (minHeight > 0) && (vel_air.magnitude < 20);
 
         // Shutdown engines requesting hovering thrust
         if (cant_reach_ground)
