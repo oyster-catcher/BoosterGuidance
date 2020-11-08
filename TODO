@@ -1,15 +1,12 @@
 Guides Boosters to landing site from orbit, aka. Falcon 9
 
-- Ensure doesn't crash when maxThrust=0
-- Get logging working properly
-- Test with RO. Consider minThrust, especially for boostback
 - Apply air brakes
 - Deploy gear
 - Tidy up targets when crashed
-- Turn off engines need landing otherwise take off again! Hit target within 10m!!!!!! on Realism Overhaul
 - Add target on map
-- Initialise aeroModel earlier to get benefit of cache
-- Test whether we can enable guidance on multiple vessels (prob. within 2km) to enable Falcon Heavy simulataneous boostback!
+- On RO picking target jumps around. Store double's?
+- Don't add icon twice
+- Consider air resitance and terminal velocity meaning thrust can be applied later than appears?
 
 NOTES:
 - KSPTrajectories. Look at ComputeForces in AerodynamicModel/VesselAerodynamicModel.cs to set AoA

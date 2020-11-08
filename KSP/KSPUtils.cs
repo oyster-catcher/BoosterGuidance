@@ -3,6 +3,8 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using KSP;
+using ModuleWheels;
 
 namespace BoosterGuidance
 {
@@ -141,6 +143,29 @@ namespace BoosterGuidance
       }
       Debug.Log(shutdown.Count + " engines shutdown");
       return shutdown;
+    }
+
+    bool DeployLandingGears(Vessel vessel)
+    {
+      bool deployed = false;
+      for (int i = 0; i < vessel.parts.Count; i++)
+      {
+        Part p = vessel.parts[i];
+        /*
+        if (p.HasModule<ModuleWheelDeployment>())
+        {
+          foreach (ModuleWheelDeployment wd in p.FindModulesImplementing<ModuleWheelDeployment>())
+          {
+            if (wd.fsm.CurrentState == wd.st_retracted || wd.fsm.CurrentState == wd.st_retracting)
+            {
+              wd.EventToggle();
+              deployed = true;
+            }
+          }
+        }
+        */
+      }
+      return deployed;
     }
   }
 }

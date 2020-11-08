@@ -9,9 +9,10 @@ namespace BoosterGuidance
   {
     protected double minThrust = 0;
     protected double maxThrust = 10000;
-    protected double tgtLatitude, tgtLongitude, tgtAlt;
     protected List<ModuleEngines> allEngines = new List<ModuleEngines>();
 
+    public double tgtLatitude, tgtLongitude, tgtAlt;
+    public bool enabled = false;
     public Vessel vessel = null; // Vessel being controlled
     public double targetT = 0; // Time to land
     public double targetError = 0; // Distance from target to landing point in m
@@ -46,13 +47,6 @@ namespace BoosterGuidance
     virtual public bool Set(string key, string val)
     {
       return false;
-    }
-
-    virtual public void SetTarget(double latitude, double longitude, double alt)
-    {
-      tgtLatitude = latitude;
-      tgtLongitude = longitude;
-      tgtAlt = alt;
     }
   }
 }

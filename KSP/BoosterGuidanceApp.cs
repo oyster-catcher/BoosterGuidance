@@ -12,12 +12,13 @@ namespace BoosterGuidance
   public delegate bool TryParse<T>(string str, out T value);
 
   [KSPAddon(KSPAddon.Startup.Flight, false)]
-  public class BoosterGuidanceCore : PartModule
+  public class BoosterGuidanceCore : MonoBehaviour
   {
     MainWindow mainw;
 
-    public void Start()
+    public void Awake()
     {
+      Debug.Log("[BoosterGuidance] Awake");
       GameEvents.onGUIApplicationLauncherReady.Add(delegate
       {
         CreateStockToolbarButton();
@@ -31,10 +32,11 @@ namespace BoosterGuidance
     private void CreateStockToolbarButton()
     {
       Localizer.Init();
-      if (ApplicationLauncher.Ready && _appLauncherButton == null)
+      if ((ApplicationLauncher.Ready) && (_appLauncherButton == null))
       {
-        _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(ShowHideMasterWindow ,
-            ShowHideMasterWindow,
+        Debug.Log("[BoosterGuidance] AddModApplication");
+        _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(OnStockTrue,
+            OnStockFalse,
             () => { },
             () => { },
             () => { },
@@ -43,20 +45,25 @@ namespace BoosterGuidance
             ApplicationLauncher.AppScenes.FLIGHT,
             GameDatabase.Instance.GetTexture("BoosterGuidance/BoosterGuidanceIcon", false)
             );
+        mainw = new MainWindow();
       }
-      mainw = new MainWindow();
     }
 
     private void DestroyStockToolbarButton()
     {
-      Debug.Log("DestroyStockToolbarButton");
+      Debug.Log("[BoosterGuidance] DestroyStockToolbarButton");
       ApplicationLauncher.Instance.RemoveModApplication(_appLauncherButton);
       _appLauncherButton = null;
     }
 
-    private void ShowHideMasterWindow()
+    private void OnStockTrue()
     {
-      mainw.ToggleVisibility();
+      mainw.Show();
+    }
+
+    private void OnStockFalse()
+    {
+      mainw.Hide();
     }
 
     private void OnGUI()
@@ -67,6 +74,7 @@ namespace BoosterGuidance
     public void OnDestroy()
     {
       Debug.Log("[BoosterGuidance] OnDestroy()");
+      DestroyStockToolbarButton();
     }
 
     public static BoosterGuidanceCore Instance;
