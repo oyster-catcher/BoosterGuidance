@@ -146,10 +146,13 @@ namespace BoosterGuidance
       // TODO - Need to be specific to controller so works when switching vessel
       bool prevLogging = logging;
       logging = GUILayout.Toggle(logging, "Logging");
-      if ((!prevLogging) && (logging))
+      if ((!prevLogging) && (logging)) // logging switched on
         StartLogging();
-      if ((prevLogging) && (!logging))
+      if ((prevLogging) && (!logging)) // logging switched off
+      {
+        Debug.Log("[BoosterGuidance] prevLogging=" + prevLogging + " logging=" + logging);
         StopLogging();
+      }
       GUILayout.EndHorizontal();
 
       // Info box
@@ -526,6 +529,7 @@ namespace BoosterGuidance
         // Free up slot
         if (i != -1)
           flying[i] = null;
+        Debug.Log("[BoosterGuidance] DistbleGuidance");
         controller.StopLogging();
         controller.phase = BLControllerPhase.Unset;
         if (controller == activeController)
@@ -629,15 +633,7 @@ namespace BoosterGuidance
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
         RedrawPrediction(lat, lon, alt + 1); // 1m above ground to avoid getting hidden
-        if (controller.phase != BLControllerPhase.PoweredDescent)
-          info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s", controller.targetError, controller.targetT);
-        else
-        {
-          if (controller.steerWithThrust)
-            info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s Str: thrust", controller.targetError, controller.targetT);
-          else
-            info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s Str: aero", controller.targetError, controller.targetT);
-        }
+        info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s", controller.targetError, controller.targetT);
       }
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;

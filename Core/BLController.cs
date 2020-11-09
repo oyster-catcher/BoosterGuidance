@@ -53,7 +53,6 @@ namespace BoosterGuidance
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
     public BLControllerPhase phase = BLControllerPhase.Unset;
-    public bool steerWithThrust = false;
 
     // Cache previous values - only calculate new at log interval
     private double lastt = 0;
@@ -136,7 +135,7 @@ namespace BoosterGuidance
 
     public void StartLogging(string filename, Transform transform)
     {
-      if (filename != "")
+      if ((filename != "") && (fp == null))
       {
         logTransform = transform;
         fp = new System.IO.StreamWriter(filename);
@@ -146,9 +145,11 @@ namespace BoosterGuidance
 
     public void StopLogging()
     {
-      Debug.Log("[BoosterGuidance] StopLogging()");
       if (fp != null)
+      {
+        Debug.Log("[BoosterGuidance] StopLogging()");
         fp.Close();
+      }
       fp = null;
     }
 
@@ -199,7 +200,7 @@ namespace BoosterGuidance
       targetError = 0;
 
       if (amax > 0) // check in case out of fuel or something
-        throttleGain = 7.0 / (amax - amin);
+        throttleGain = 50.0 / (amax - amin); // cancel velocity error in 0.02 secs
 
       if (t < lastt + logInterval)
       {
@@ -303,7 +304,17 @@ namespace BoosterGuidance
       // POWERED DESCENT (suicide burn)
       if (phase == BLControllerPhase.PoweredDescent)
       {
-        throttle = HGUtils.Clamp((dvy - vy) * throttleGain + (g - amin) / (amax - amin), minThrottle, 1);
+        if (amax > 0)
+        {
+          double err_dv = vy - dvy; // +ve is velocity too high
+          //Debug.Log("[BoosterGuidance] err_dv=" + err_dv);
+          double da = g - (20 * err_dv); // required accel to change vy, cancel out g (only works if vertical)
+          throttle = (da - amin) / (amax - amin);
+          throttle = HGUtils.Clamp(throttle, minThrottle, 1);
+          //Debug.Log("[BoosterGuidance] throttle=" + throttle);
+          if (!noCorrect)
+            Debug.Log("[BoosterGuidance] y=" + y + " vy=" + vy + " dvy=" + dvy + " err_dv=" + err_dv + " da=" + da + " throttle=" + throttle);
+        }
         if (!noCorrect)
           gain = poweredDescentSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
 
@@ -320,7 +331,7 @@ namespace BoosterGuidance
         // Criteria for shutting down engines
         // - we could not reach ground at minimum thrust (would ascend)
         // - falling less than 20m/s (otherwise can decide to shutdown engines when still high and travelling fast)
-        //Debug.Log("[BoosterGuidance] y=" + y + " minHeight=" + minHeight + " vy=" + vy + " vel_air=" + (vel_air.magnitude)+" amin="+amin+" g="+g);
+        Debug.Log("[BoosterGuidance] y=" + y + " minHeight=" + minHeight + " vy=" + vy + " vel_air=" + (vel_air.magnitude)+" amin="+amin+" g="+g);
         bool cant_reach_ground = (minHeight > 0) && (vel_air.magnitude < 20);
 
         // Shutdown engines requesting hovering thrust
