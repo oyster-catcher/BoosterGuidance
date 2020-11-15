@@ -21,7 +21,7 @@ namespace BoosterGuidance
   public class BLController : Controller
   {
     // Public parameters
-    public float touchdownSpeed = 1.5f;
+    public float touchdownSpeed = 3;
     public double poweredDescentAlt = 5000; // Powered descent below this altitude
     public double aeroDescentAlt = 60000; // Aerodynamic descent below this altitude
     public double reentryBurnAlt = 70000;
@@ -33,7 +33,7 @@ namespace BoosterGuidance
     public bool noCorrect = false;
     public double lowestY = 0;
     public double transitionToThrustSteer = 600; // Steer via thrust under this speed
-    public double liftFactor = 0.04; // Proportion of drag as lift at 1 degree angle-of-attack
+    public double liftFactor = 0.05; // Proportion of drag as lift at 1 degree angle-of-attack
     public double reentryBurnSteerGain = 0.1;
     public double aeroDescentSteerGain = 0.12;
     public double poweredDescentSteerGain = 0.2;
@@ -47,8 +47,8 @@ namespace BoosterGuidance
     private Transform logTransform;
     private double noSteerAlt = 200; // Don't steer once < 200m
     private Trajectories.VesselAerodynamicModel aeroModel = null;
-    private bool deployGears = true;
-    private double touchdownMargin = 10;
+    //private bool deployGears = true;
+    private double touchdownMargin = 20;
 
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
@@ -139,7 +139,7 @@ namespace BoosterGuidance
       {
         logTransform = transform;
         fp = new System.IO.StreamWriter(filename);
-        fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax");
+        fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax steer_gain target_error");
       }
     }
 
@@ -159,21 +159,24 @@ namespace BoosterGuidance
     private Vector3d GetSteerAdjust(Vector3d tgtError, double gain, double maxAoA)
     {
       Vector3d adj = tgtError * gain * Math.PI / 180;
-      double maxAdj = Math.Sin(maxAoA * Mathf.PI / 180);
+      double maxAdj = maxAoA / 45.0; // approx as 45 degress sideways component to unit vector is 1
       if (adj.magnitude > maxAdj)
         adj = Vector3d.Normalize(adj) * maxAdj;
       return adj;
     }
 
+    // liftFactor is the proportion of the atmospheric drag which is turned into lift at an angle-of-attack of 45 degrees
+    // a rough estimation is that is 50%. Perhaps it should always be 50%?
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y)
     {
       Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI); // 180 degrees (retrograde);
-      double sideFA = liftFactor * Faero.magnitude; // liftFactor proportion of drag is lift force available by aerodynamic steering at 1 degrees
+      double sideFA = liftFactor * Faero.magnitude; // liftFactor proportion of drag is lift force available by aerodynamic steering at 45 degrees
       double thrust = minThrust + throttle * (maxThrust - minThrust);
-      double sideFT = thrust * Math.Sin(Math.PI / 180); // sideways component of thrust at 1 degrees
+      double sideFT = 0.1 * thrust * Math.Sin(45 * Math.PI / 180); // sideways component of thrust at 45 degrees
       double gain = (sideFA - sideFT) / vessel.totalMass;
-      //if (!noCorrect)
-      //  Debug.Log("[BoosterGuidance] "+ phase + " y=" + y + " vy=" + (vel_air.magnitude) + " sideFT=" + sideFT + " sideFA=" + sideFA + " gain=" + gain);
+      if (!noCorrect)
+        Debug.Log("[BoosterGuidance] "+ phase + " y=" + y + " vy=" + (vel_air.magnitude) + " sideFT=" + sideFT + " sideFA=" + sideFA + " throttle=" + throttle + " gain=" + gain + "liftFactor=" + liftFactor);
+      // Should vary between 1 = max aero dynamic steering (fast), and -1 = max thrust steering (slow)
       return gain;
     }
 
@@ -196,7 +199,8 @@ namespace BoosterGuidance
       Vector3d vel_air = v - body.getRFrmVel(r);
       double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
       double throttleGain = 0;
-      float minThrottle = (amin > 0) ? 0.01f : 0; // assume RO and limited ignitions if limited throttling
+      //float minThrottle = (amin > 0) ? 0.01f : 0; // assume RO and limited ignitions if limited throttling
+      float minThrottle = 0.01f;
       targetError = 0;
 
       if (amax > 0) // check in case out of fuel or something
@@ -266,12 +270,16 @@ namespace BoosterGuidance
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        if (!noCorrect)
-          gain = reentryBurnSteerGain * CalculateSteerGain(1, vel_air, r, y);
-
+        gain = -reentryBurnSteerGain; // override as gain is wrong at high speeds (always steer with thrust)
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, reentryBurnMaxAoA);
         if (vel_air.magnitude > reentryBurnTargetSpeed)
+        {
           throttle = HGUtils.LinearMap((float)y, (float)reentryBurnAlt, (float)reentryBurnAlt - 2000, 0, 1);
+          if (amax > 30)
+            throttle = 30 / amax; // reduce throttle for high thrust engines to 30m/s/s2
+          if (!noCorrect)
+            gain = reentryBurnSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
+        }
         else
           phase = BLControllerPhase.AeroDescent;
       }
@@ -291,7 +299,7 @@ namespace BoosterGuidance
       if (phase == BLControllerPhase.AeroDescent)
       {
         gain = poweredDescentSteerGain * CalculateSteerGain(0, vel_air, r, y);
-        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, aeroDescentSteerGain, aeroDescentMaxAoA);
+        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, aeroDescentMaxAoA);
         float ddot = (float)Vector3d.Dot(Vector3d.Normalize(att), Vector3d.Normalize(steer));
         double att_err = Mathf.Acos(ddot) * 180 / Mathf.PI;
 
@@ -307,23 +315,26 @@ namespace BoosterGuidance
         if (amax > 0)
         {
           double err_dv = vy - dvy; // +ve is velocity too high
-          //Debug.Log("[BoosterGuidance] err_dv=" + err_dv);
           double da = g - (20 * err_dv); // required accel to change vy, cancel out g (only works if vertical)
           throttle = (da - amin) / (amax - amin);
           throttle = HGUtils.Clamp(throttle, minThrottle, 1);
-          //Debug.Log("[BoosterGuidance] throttle=" + throttle);
           if (!noCorrect)
             Debug.Log("[BoosterGuidance] y=" + y + " vy=" + vy + " dvy=" + dvy + " err_dv=" + err_dv + " da=" + da + " throttle=" + throttle);
         }
-        if (!noCorrect)
-          gain = poweredDescentSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
-
-        // Steer retrograde with added up component to damp oscillations at slow speed near ground
-        steer = Vector3d.Normalize(20*up - vel_air);
-        // Add on steering component if required
         if ((!noCorrect) && (alt > noSteerAlt))
-          steer = steer + GetSteerAdjust(error, gain, poweredDescentMaxAoA);
-
+        {
+          gain = poweredDescentSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
+          // Steer retrograde with added up component to damp oscillations at slow speed near ground
+          //steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, poweredDescentMaxAoA);
+          steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, gain, poweredDescentMaxAoA);
+        }
+        else
+        {
+          // Just cancel velocity with significant upwards component to stay upright
+          steer = -Vector3d.Normalize(vel_air - 40 * up);
+          Debug.Log("[BoosterGuidance] y=" + y + " vel_air=" + vel_air + " up=" + up + " steer=" + steer);
+        }
+    
         // Decide to shutdown engines for final touch down? (within 3 secs)
         // Criteria should be if amin maintained with current engines we could not reach next target
         // height
@@ -331,7 +342,7 @@ namespace BoosterGuidance
         // Criteria for shutting down engines
         // - we could not reach ground at minimum thrust (would ascend)
         // - falling less than 20m/s (otherwise can decide to shutdown engines when still high and travelling fast)
-        Debug.Log("[BoosterGuidance] y=" + y + " minHeight=" + minHeight + " vy=" + vy + " vel_air=" + (vel_air.magnitude)+" amin="+amin+" g="+g);
+        //Debug.Log("[BoosterGuidance] y=" + y + " minHeight=" + minHeight + " vy=" + vy + " vel_air=" + (vel_air.magnitude)+" amin="+amin+" g="+g);
         bool cant_reach_ground = (minHeight > 0) && (vel_air.magnitude < 20);
 
         // Shutdown engines requesting hovering thrust
@@ -350,7 +361,7 @@ namespace BoosterGuidance
           Vector3d tr = logTransform.InverseTransformPoint(r);
           Vector3d tv = logTransform.InverseTransformVector(vel_air);
           Vector3d ta = logTransform.InverseTransformVector(a);
-          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, attitudeError, a.x, a.y, a.z, attitudeError, amin, amax);
+          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F2} {15:F1}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, attitudeError, a.x, a.y, a.z, attitudeError, amin, amax, gain, targetError);
           logLastTime = t;
         }
       }

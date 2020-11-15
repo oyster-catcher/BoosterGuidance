@@ -168,149 +168,75 @@ namespace BoosterGuidance
 
     public static class GuiUtils
     {
-        public static void SimpleTextBox(string leftLabel, IEditable ed, string rightLabel = "", float width = 100, GUIStyle rightLabelStyle=null)
+        public static void SimpleTextBox(string leftLabel, IEditable ed, string rightLabel = "", float width = 100, GUIStyle rightLabelStyle = null)
         {
-            if (rightLabelStyle == null)
-                rightLabelStyle = GUI.skin.label;
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(leftLabel, rightLabelStyle, GUILayout.ExpandWidth(true));
-            ed.text = GUILayout.TextField(ed.text, GUILayout.ExpandWidth(true), GUILayout.Width(width));
-            GUILayout.Label(rightLabel, GUILayout.ExpandWidth(false));
-            GUILayout.EndHorizontal();
+          if (rightLabelStyle == null)
+            rightLabelStyle = GUI.skin.label;
+          GUILayout.BeginHorizontal();
+          GUILayout.Label(leftLabel, rightLabelStyle, GUILayout.ExpandWidth(true));
+          ed.text = GUILayout.TextField(ed.text, GUILayout.ExpandWidth(true), GUILayout.Width(width));
+          GUILayout.Label(rightLabel, GUILayout.ExpandWidth(false));
+          GUILayout.EndHorizontal();
         }
 
         public static void SimpleLabel(string leftLabel, string rightLabel = "")
         {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(leftLabel, GUILayout.ExpandWidth(true));
-            GUILayout.Label(rightLabel, GUILayout.ExpandWidth(false));
-            GUILayout.EndHorizontal();
+          GUILayout.BeginHorizontal();
+          GUILayout.Label(leftLabel, GUILayout.ExpandWidth(true));
+          GUILayout.Label(rightLabel, GUILayout.ExpandWidth(false));
+          GUILayout.EndHorizontal();
         }
 
         public static void SimpleLabelInt(string leftLabel, int rightValue)
         {
-            SimpleLabel(leftLabel, rightValue.ToString());
+          SimpleLabel(leftLabel, rightValue.ToString());
         }
 
         public static int ArrowSelector(int index, int numIndices, Action centerGuiAction)
         {
-            if (numIndices == 0) return index;
+          if (numIndices == 0) return index;
 
-            GUILayout.BeginHorizontal();
-            if (numIndices > 1 && GUILayout.Button("<", GUILayout.ExpandWidth(false))) index = (index - 1 + numIndices) % numIndices;
-            centerGuiAction();
-            if (numIndices > 1 && GUILayout.Button(">", GUILayout.ExpandWidth(false))) index = (index + 1) % numIndices;
-            GUILayout.EndHorizontal();
+          GUILayout.BeginHorizontal();
+          if (numIndices > 1 && GUILayout.Button("<", GUILayout.ExpandWidth(false))) index = (index - 1 + numIndices) % numIndices;
+          centerGuiAction();
+          if (numIndices > 1 && GUILayout.Button(">", GUILayout.ExpandWidth(false))) index = (index + 1) % numIndices;
+          GUILayout.EndHorizontal();
 
-            return index;
+          return index;
         }
 
         public static int ArrowSelector(int index, int modulo, string label, bool expandWidth = true)
         {
-            Action drawLabel = () => GUILayout.Label(label, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, stretchWidth = expandWidth });
-            return ArrowSelector(index, modulo, drawLabel);
+          Action drawLabel = () => GUILayout.Label(label, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, stretchWidth = expandWidth });
+          return ArrowSelector(index, modulo, drawLabel);
         }
-
-        public static int HoursPerDay { get { return GameSettings.KERBIN_TIME ? 6 : 24; } }
-        public static int DaysPerYear { get { return GameSettings.KERBIN_TIME ? 426 : 365; } }
-
-        public static string TimeToDHMS(double seconds, int decimalPlaces = 0)
+       
+        // Quad should be described a,b,c,d in anti-clockwise order when looking at it
+        static void AddQuad(Vector3[] vertices, ref int vi, int[] triangles, ref int ti,
+                      Vector3d a, Vector3d b, Vector3d c, Vector3d d,
+                      bool double_sided = false)
         {
-            if (double.IsInfinity(seconds) || double.IsNaN(seconds)) return "Inf";
-
-            string ret = "";
-            bool showSecondsDecimals = decimalPlaces > 0;
-
-            try
-            {
-                string[] units = { "y", "d", "h", "m", "s" };
-                long[] intervals = { KSPUtil.dateTimeFormatter.Year, KSPUtil.dateTimeFormatter.Day, 3600, 60, 1 };
-
-                if (seconds < 0)
-                {
-                    ret += "-";
-                    seconds *= -1;
-                }
-
-                for (int i = 0; i < units.Length; i++)
-                {
-                    long n = (long)(seconds / intervals[i]);
-                    bool first = ret.Length < 2;
-                    if (!first || (n != 0) || (i == units.Length - 1 && ret == ""))
-                    {
-                        if (!first) ret += " ";
-
-                        if (showSecondsDecimals && seconds < 60 && i == units.Length - 1) ret += seconds.ToString("00." + new string('0', decimalPlaces));
-                        else if (first) ret += n.ToString();
-                        else ret += n.ToString(i == 1 ? "000" : "00");
-
-                        ret += units[i];
-                    }
-                    seconds -= n * intervals[i];
-                }
-
-            }
-            catch (Exception)
-            {
-                return "NaN";
-            }
-            return ret;
-        }
-
-        public static bool TryParseDHMS(string s, out double seconds)
-        {
-            string[] units = { "y", "d", "h", "m", "s" };
-            int[] intervals = { KSPUtil.dateTimeFormatter.Year, KSPUtil.dateTimeFormatter.Day, 3600, 60, 1 };
-
-            s = s.Trim(' ');
-            bool minus = (s.StartsWith("-"));
-
-            seconds = 0;
-            bool parsedSomething = false;
-            for (int i = 0; i < units.Length; i++)
-            {
-                s = s.Trim(' ', ',', '-');
-                int unitPos = s.IndexOf(units[i]);
-                if (unitPos != -1)
-                {
-                    double value;
-                    if (!double.TryParse(s.Substring(0, unitPos), out value)) return false;
-                    seconds += value * intervals[i];
-                    s = s.Substring(unitPos + 1);
-                    parsedSomething = true;
-                }
-            }
-
-            if (minus) seconds = -seconds;
-
-            return parsedSomething;
-        }
-      // Quad should be described a,b,c,d in anti-clockwise order when looking at it
-      static void AddQuad(Vector3[] vertices, ref int vi, int[] triangles, ref int ti,
-                    Vector3d a, Vector3d b, Vector3d c, Vector3d d,
-                    bool double_sided = false)
-      {
-        vertices[vi + 0] = a;
-        vertices[vi + 1] = b;
-        vertices[vi + 2] = c;
-        vertices[vi + 3] = d;
-        triangles[ti++] = vi;
-        triangles[ti++] = vi + 2;
-        triangles[ti++] = vi + 1;
-        triangles[ti++] = vi;
-        triangles[ti++] = vi + 3;
-        triangles[ti++] = vi + 2;
-        if (double_sided)
-        {
+          vertices[vi + 0] = a;
+          vertices[vi + 1] = b;
+          vertices[vi + 2] = c;
+          vertices[vi + 3] = d;
           triangles[ti++] = vi;
+          triangles[ti++] = vi + 2;
           triangles[ti++] = vi + 1;
-          triangles[ti++] = vi + 2;
           triangles[ti++] = vi;
-          triangles[ti++] = vi + 2;
           triangles[ti++] = vi + 3;
+          triangles[ti++] = vi + 2;
+          if (double_sided)
+          {
+            triangles[ti++] = vi;
+            triangles[ti++] = vi + 1;
+            triangles[ti++] = vi + 2;
+            triangles[ti++] = vi;
+            triangles[ti++] = vi + 2;
+            triangles[ti++] = vi + 3;
+          }
+          vi += 4;
         }
-        vi += 4;
-      }
 
       // pos is ground position, but draw up to height
       static public GameObject DrawTarget(Vector3d pos, Transform a_transform, Color color, double size, float height)
@@ -456,7 +382,7 @@ namespace BoosterGuidance
     {
       double clampedLongitude = MuUtils.ClampDegrees180(longitude);
       return AngleToDMS(latitude) + (latitude > 0 ? " N" : " S") + (newline ? "\n" : ", ")
-           + AngleToDMS(clampedLongitude) + (clampedLongitude > 0 ? " E" : " W");
+            + AngleToDMS(clampedLongitude) + (clampedLongitude > 0 ? " E" : " W");
     }
 
     public string ToStringDMS(bool newline = false)
@@ -473,7 +399,4 @@ namespace BoosterGuidance
       return String.Format("{0:0}° {1:00}' {2:00}\"", degrees, minutes, seconds);
     }
   }
-
-
- 
 }

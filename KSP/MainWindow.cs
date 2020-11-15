@@ -17,23 +17,23 @@ namespace BoosterGuidance
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 580);
+    Rect windowRect = new Rect(150, 150, 220, 612);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
-    double tgtAlt = 0;
+    EditableInt tgtAlt = 0;
     // Boostbback
     // Re-Entry Burn
     EditableInt reentryBurnAlt = 70000;
     EditableInt reentryBurnTargetSpeed = 700;
     EditableInt reentryBurnMaxAoA = 10;
-    float reentryBurnSteerGain = 0.001f;
+    float reentryBurnSteerGain = 0.001f; // angle to steer = gain * targetError(in m)
     // Aero descent
     EditableInt aeroDescentMaxAoA = 10;
-    float aeroDescentSteerGain = 0.05f;
+    float aeroDescentSteerGain = 0.1f;
     // Powered descent
-    EditableInt liftFactor = 1;
+    EditableInt liftFactor = 100;
     EditableInt poweredDescentMaxAoA = 10;
-    float poweredDescentSteerGain = 0.03f;
+    float poweredDescentSteerGain = 0.005f;
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -41,7 +41,7 @@ namespace BoosterGuidance
     bool pickingPositionTarget = false;
     string info = "Disabled";
     //private Vessel vessel = null;
-    float tgtSize = 0.1f;
+    float tgtSize = 0.03f;
     GameObject target_obj = null;
     GameObject pred_obj = null;
     double pickLat, pickLon, pickAlt;
@@ -100,6 +100,7 @@ namespace BoosterGuidance
             activeController = new BLController(activeController); // Clone existing
           else
             activeController = new BLController();
+          UpdateController(activeController); // Update from window settings
           activeController.AttachVessel(FlightGlobals.ActiveVessel);
           controllers[FlightGlobals.ActiveVessel] = activeController;
         }
@@ -139,6 +140,10 @@ namespace BoosterGuidance
         PickTarget();
       if (GUILayout.Button("Set Here"))
         SetTargetHere();
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Target altitude", tgtAlt, "m", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -214,8 +219,13 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
+      //GUILayout.Space(10);
+      GuiUtils.SimpleTextBox("Lift prop at 45 degrees", liftFactor, "%", 35);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
       GUILayout.Label("Gain", GUILayout.Width(30));
-      aeroDescentSteerGain = GUILayout.HorizontalSlider(aeroDescentSteerGain, 0, 0.1f);
+      aeroDescentSteerGain = GUILayout.HorizontalSlider(aeroDescentSteerGain, 0, 0.2f);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -236,7 +246,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Gain", GUILayout.Width(30));
-      poweredDescentSteerGain = GUILayout.HorizontalSlider(poweredDescentSteerGain, 0, 0.1f);
+      poweredDescentSteerGain = GUILayout.HorizontalSlider(poweredDescentSteerGain, 0, 0.01f);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -310,8 +320,7 @@ namespace BoosterGuidance
       poweredDescentMaxAoA = (int)controller.poweredDescentMaxAoA;
       tgtLatitude = controller.tgtLatitude;
       tgtLongitude = controller.tgtLongitude;
-      tgtAlt = controller.tgtAlt;
-      //transitionToThrustSteer = (int)controller.transitionToThrustSteer;
+      tgtAlt = (int)controller.tgtAlt;
       liftFactor = (int)(controller.liftFactor * 100);
     }
 
@@ -327,8 +336,8 @@ namespace BoosterGuidance
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       tc.noCorrect = true;
       string name = activeController.vessel.name;
-      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, name+".simulate_without_boostback.dat", logTransform);
-      //Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, "simulate_without_control.dat", logTransform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, "simulate_without_boostback.dat", logTransform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, "simulate_without_control.dat", logTransform);
     }
 
     void StartLogging()
@@ -376,7 +385,7 @@ namespace BoosterGuidance
           {
             tgtLatitude = pickLat;
             tgtLongitude = pickLon;
-            tgtAlt = pickAlt;
+            tgtAlt = (int)pickAlt;
             pickingPositionTarget = false;
             string message = "Picked target";
             ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
@@ -400,11 +409,8 @@ namespace BoosterGuidance
     {
       tgtLatitude = FlightGlobals.ActiveVessel.latitude;
       tgtLongitude = FlightGlobals.ActiveVessel.longitude;
-      tgtAlt = FlightGlobals.ActiveVessel.altitude;
+      tgtAlt = (int)FlightGlobals.ActiveVessel.altitude;
       RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
-      //pickLat = tgtLatitude;
-      //pickLon = tgtLongitude;
-      //pickAlt = tgtAlt;
       string message = "Target set to vessel";
       ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
     }
