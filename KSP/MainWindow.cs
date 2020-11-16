@@ -17,7 +17,7 @@ namespace BoosterGuidance
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 612);
+    Rect windowRect = new Rect(150, 150, 220, 628);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
@@ -29,11 +29,12 @@ namespace BoosterGuidance
     float reentryBurnSteerGain = 0.001f; // angle to steer = gain * targetError(in m)
     // Aero descent
     EditableInt aeroDescentMaxAoA = 10;
-    float aeroDescentSteerGain = 0.1f;
+    float aeroDescentSteerKp = 0.02f;
+    float aeroDescentSteerKd = 0;
     // Powered descent
     EditableInt liftFactor = 100;
     EditableInt poweredDescentMaxAoA = 10;
-    float poweredDescentSteerGain = 0.005f;
+    float poweredDescentSteerGain = 0.02f;
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -41,10 +42,16 @@ namespace BoosterGuidance
     bool pickingPositionTarget = false;
     string info = "Disabled";
     //private Vessel vessel = null;
-    float tgtSize = 0.03f;
+    float minTgtSize = 20;
+    float tgtScale = 0.03f;
     GameObject target_obj = null;
     GameObject pred_obj = null;
     double pickLat, pickLon, pickAlt;
+
+    // GUI Elements
+    Color red = new Color(1, 0, 0, 0.5f);
+    GameObject steer_obj = null;
+    LineRenderer steer_line = null;
 
     public void OnGUI()
     {
@@ -224,8 +231,13 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Gain", GUILayout.Width(30));
-      aeroDescentSteerGain = GUILayout.HorizontalSlider(aeroDescentSteerGain, 0, 0.2f);
+      GUILayout.Label("Kp", GUILayout.Width(30));
+      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 0.04f);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GUILayout.Label("Kd", GUILayout.Width(30));
+      aeroDescentSteerKd = GUILayout.HorizontalSlider(aeroDescentSteerKd, 0, 1);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -244,9 +256,10 @@ namespace BoosterGuidance
         EnableGuidance(BLControllerPhase.PoweredDescent);
       GUILayout.EndHorizontal();
 
+      /*
       GUILayout.BeginHorizontal();
       GUILayout.Label("Gain", GUILayout.Width(30));
-      poweredDescentSteerGain = GUILayout.HorizontalSlider(poweredDescentSteerGain, 0, 0.01f);
+      poweredDescentSteerGain = GUILayout.HorizontalSlider(poweredDescentSteerGain, 0, 0.04f);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -257,6 +270,7 @@ namespace BoosterGuidance
       if (GUILayout.Button("▲"))
         poweredDescentMaxAoA += 1;
       GUILayout.EndHorizontal();
+      */
 
       // Activate guidance
       SetEnabledColors(true); // back to normal
@@ -297,16 +311,16 @@ namespace BoosterGuidance
         controller.reentryBurnAlt = reentryBurnAlt;
         controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
         controller.reentryBurnSteerGain = reentryBurnSteerGain;
-        controller.reentryBurnMaxAoA = reentryBurnMaxAoA;
-        controller.aeroDescentSteerGain = aeroDescentSteerGain;
-        controller.aeroDescentMaxAoA = aeroDescentMaxAoA;
-        controller.poweredDescentSteerGain = poweredDescentSteerGain;
+        //controller.poweredDescentSteerGain = poweredDescentSteerGain;
         controller.poweredDescentMaxAoA = poweredDescentMaxAoA;
         controller.tgtLatitude = tgtLatitude;
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
         controller.liftFactor = liftFactor * 0.01;
+        controller.aeroDescentSteerKp = aeroDescentSteerKp;
+        controller.pid_aero = new PIDclamp("aero", aeroDescentSteerKp, aeroDescentSteerKd, 0, aeroDescentMaxAoA);
+        controller.pid_powered = new PIDclamp("powered", aeroDescentSteerKp, aeroDescentSteerKd, 0, aeroDescentMaxAoA);
       }
     }
 
@@ -316,7 +330,9 @@ namespace BoosterGuidance
       reentryBurnAlt = (int)controller.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)controller.reentryBurnTargetSpeed;
       reentryBurnMaxAoA = (int)controller.reentryBurnMaxAoA;
-      aeroDescentMaxAoA = (int)controller.aeroDescentMaxAoA;
+      // TODO: Read from PID
+      aeroDescentSteerKp = (float)controller.aeroDescentSteerKp;
+      //aeroDescentMaxAoA = (int)controller.aeroDescentMaxAoA;
       poweredDescentMaxAoA = (int)controller.poweredDescentMaxAoA;
       tgtLatitude = controller.tgtLatitude;
       tgtLongitude = controller.tgtLongitude;
@@ -427,7 +443,8 @@ namespace BoosterGuidance
       {
         Vector3 heading = transform.position - Camera.main.transform.position;
         float distance = Vector3.Dot(heading, Camera.main.transform.forward);
-        target_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, tgt_color, distance * tgtSize, 0);
+        // TODO: Use transform to change size rather than redrawing
+        target_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, tgt_color, Mathf.Max(distance * tgtScale, minTgtSize), 0);
       }
       return transform;
     }
@@ -444,7 +461,7 @@ namespace BoosterGuidance
         {
           Vector3 heading = transform.position - Camera.main.transform.position;
           float distance = Vector3.Dot(heading, Camera.main.transform.forward);
-          pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, distance * tgtSize, 0);
+          pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, Mathf.Max(distance * tgtScale, minTgtSize), 0);
         }
         return transform;
       }
@@ -609,6 +626,9 @@ namespace BoosterGuidance
       bool shutdownEnginesNow;
       controller.GetControlOutputs(vessel, vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, amin, amax,
         Time.time, vessel.mainBody, tgt_r, out throttle, out steer, out shutdownEnginesNow);
+
+      //
+      GuiUtils.DrawVector(ref steer_obj, ref steer_line, Vector3d.zero, steer*40, null, red, showTargets);
 
       if (shutdownEnginesNow)
       {

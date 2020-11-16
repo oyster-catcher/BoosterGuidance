@@ -23,11 +23,11 @@ namespace BoosterGuidance
     // Public parameters
     public float touchdownSpeed = 3;
     public double poweredDescentAlt = 5000; // Powered descent below this altitude
+    public double aeroDescentSteerKp = 0.01f;
     public double aeroDescentAlt = 60000; // Aerodynamic descent below this altitude
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
     public double reentryBurnMaxAoA = 10;
-    public double aeroDescentMaxAoA = 10;
     public double poweredDescentMaxAoA = 10;
     public double suicideFactor = 0.8;
     public bool noCorrect = false;
@@ -35,8 +35,8 @@ namespace BoosterGuidance
     public double transitionToThrustSteer = 600; // Steer via thrust under this speed
     public double liftFactor = 0.05; // Proportion of drag as lift at 1 degree angle-of-attack
     public double reentryBurnSteerGain = 0.1;
-    public double aeroDescentSteerGain = 0.12;
-    public double poweredDescentSteerGain = 0.2;
+    public PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
+    public PIDclamp pid_powered = new PIDclamp("poweredSteer", 1, 0, 0, 10);
 
     // Private parameters
     private double minError = float.MaxValue;
@@ -53,6 +53,7 @@ namespace BoosterGuidance
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
     public BLControllerPhase phase = BLControllerPhase.Unset;
+    double steerGain = 0;
 
     // Cache previous values - only calculate new at log interval
     private double lastt = 0;
@@ -88,11 +89,9 @@ namespace BoosterGuidance
       reentryBurnSteerGain = v.reentryBurnSteerGain;
       reentryBurnTargetSpeed = v.reentryBurnTargetSpeed;
       poweredDescentAlt = v.poweredDescentAlt;
-      poweredDescentMaxAoA = v.poweredDescentMaxAoA;
       aeroModel = v.aeroModel;
-      aeroDescentSteerGain = v.aeroDescentSteerGain;
+      aeroDescentSteerKp = v.aeroDescentSteerKp;
       aeroDescentAlt = v.aeroDescentAlt;
-      aeroDescentMaxAoA = v.aeroDescentMaxAoA;
       suicideFactor = v.suicideFactor;
       liftFactor = v.liftFactor;
     }
@@ -163,6 +162,11 @@ namespace BoosterGuidance
       if (adj.magnitude > maxAdj)
         adj = Vector3d.Normalize(adj) * maxAdj;
       return adj;
+    }
+
+    private Vector3d GetSteerAdjust(Vector3d tgtError, double ang)
+    {
+      return Vector3d.Normalize(tgtError) * ang / 45.0;
     }
 
     // liftFactor is the proportion of the atmospheric drag which is turned into lift at an angle-of-attack of 45 degrees
@@ -266,17 +270,18 @@ namespace BoosterGuidance
 
       // Set default gains for steering
       double gain = 0;
+      steerGain = 0;
 
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        gain = -reentryBurnSteerGain; // override as gain is wrong at high speeds (always steer with thrust)
-        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, reentryBurnMaxAoA);
+        steerGain = -reentryBurnSteerGain; // override as gain is wrong at high speeds (always steer with thrust)
+        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, steerGain, reentryBurnMaxAoA);
         if (vel_air.magnitude > reentryBurnTargetSpeed)
         {
           throttle = HGUtils.LinearMap((float)y, (float)reentryBurnAlt, (float)reentryBurnAlt - 2000, 0, 1);
-          if (amax > 30)
-            throttle = 30 / amax; // reduce throttle for high thrust engines to 30m/s/s2
+          if (amax > 50)
+            throttle = 50 / amax; // reduce throttle for high thrust engines to 50m/s/s2
           if (!noCorrect)
             gain = reentryBurnSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
         }
@@ -298,8 +303,13 @@ namespace BoosterGuidance
       // AERO DESCENT
       if (phase == BLControllerPhase.AeroDescent)
       {
-        gain = poweredDescentSteerGain * CalculateSteerGain(0, vel_air, r, y);
-        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, aeroDescentMaxAoA);
+        //aeroDescentSteerGain = CalculateSteerGain(0, vel_air, r, y)
+        //gain = poweredDescentSteerGain * steerGain;
+        pid_aero.kp = aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y);
+        steerGain = CalculateSteerGain(0, vel_air, r, y);
+        double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
+        //steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, aeroDescentMaxAoA);
+        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang);
         float ddot = (float)Vector3d.Dot(Vector3d.Normalize(att), Vector3d.Normalize(steer));
         double att_err = Mathf.Acos(ddot) * 180 / Mathf.PI;
 
@@ -323,10 +333,15 @@ namespace BoosterGuidance
         }
         if ((!noCorrect) && (alt > noSteerAlt))
         {
-          gain = poweredDescentSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
+          //gain = poweredDescentSteerGain * CalculateSteerGain(throttle, vel_air, r, y);
+          pid_powered.kp = aeroDescentSteerKp * CalculateSteerGain(throttle, vel_air, r, y);
+          steerGain = CalculateSteerGain(throttle, vel_air, r, y);
+          double ang = pid_powered.Update(error.magnitude, Time.deltaTime);
+          //steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, aeroDescentMaxAoA);
+          steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
           //steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, gain, poweredDescentMaxAoA);
-          steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, gain, poweredDescentMaxAoA);
+          steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, ang);
         }
         else
         {
@@ -361,7 +376,7 @@ namespace BoosterGuidance
           Vector3d tr = logTransform.InverseTransformPoint(r);
           Vector3d tv = logTransform.InverseTransformVector(vel_air);
           Vector3d ta = logTransform.InverseTransformVector(a);
-          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F2} {15:F1}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, attitudeError, a.x, a.y, a.z, attitudeError, amin, amax, gain, targetError);
+          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F2} {15:F1}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, attitudeError, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError);
           logLastTime = t;
         }
       }

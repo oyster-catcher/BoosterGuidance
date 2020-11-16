@@ -7,6 +7,11 @@ Guides Boosters to landing site from orbit, aka. Falcon 9
 - On RO picking target jumps around. Store double's?
 - Don't add icon twice
 - Consider air resitance and terminal velocity meaning thrust can be applied later than appears?
+- Report whether landing is possible (useful when changing number of engines activated and considering fuel load)
+- Smoothly apply and release thrust in re-entry burn to steer evenly
+- make sure orientation is correct before starting re-entry burn
+- Make it work on map view
+- Prevent target becoming too small
 
 NOTES:
 - KSPTrajectories. Look at ComputeForces in AerodynamicModel/VesselAerodynamicModel.cs to set AoA
