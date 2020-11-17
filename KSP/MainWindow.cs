@@ -14,6 +14,8 @@ namespace BoosterGuidance
 
     // private
     bool hidden = true;
+    private static GuiUtils.TargetingCross targetingCross;
+    private static GuiUtils.TargetingCross predictedCross;
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
@@ -29,12 +31,11 @@ namespace BoosterGuidance
     float reentryBurnSteerGain = 0.001f; // angle to steer = gain * targetError(in m)
     // Aero descent
     EditableInt aeroDescentMaxAoA = 10;
-    float aeroDescentSteerKp = 0.02f;
+    float aeroDescentSteerKp = 100;
     float aeroDescentSteerKd = 0;
     // Powered descent
-    EditableInt liftFactor = 100;
     EditableInt poweredDescentMaxAoA = 10;
-    float poweredDescentSteerGain = 0.02f;
+    float poweredDescentSteerKp = 40;
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -42,10 +43,9 @@ namespace BoosterGuidance
     bool pickingPositionTarget = false;
     string info = "Disabled";
     //private Vessel vessel = null;
+    float mapTgtSize = 100000;
     float minTgtSize = 20;
     float tgtScale = 0.03f;
-    GameObject target_obj = null;
-    GameObject pred_obj = null;
     double pickLat, pickLon, pickAlt;
 
     // GUI Elements
@@ -53,10 +53,36 @@ namespace BoosterGuidance
     GameObject steer_obj = null;
     LineRenderer steer_line = null;
 
+    public MainWindow()
+    {
+      Awake();
+    }
+
     public void OnGUI()
     {
       if (!hidden)
+      {
         windowRect = GUI.Window(0, windowRect, WindowFunction, "Booster Guidance");
+      }
+    }
+
+    public void Awake()
+    {
+      Debug.Log("Awake");
+      targetingCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
+      targetingCross.SetColor(Color.yellow);
+      predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
+      predictedCross.SetColor(Color.red);
+    }
+
+    public void OnDestroy()
+    {
+      if (targetingCross != null)
+        Destroy(targetingCross);
+      targetingCross = null;
+      if (predictedCross != null)
+        Destroy(predictedCross);
+      predictedCross = null;
     }
 
     void SetEnabledColors(bool phaseEnabled)
@@ -114,11 +140,19 @@ namespace BoosterGuidance
         Debug.Log("[BoosterGuidance] Switched vessel name=" + activeController.vessel.name + " enabled=" + activeController.enabled);
         // Pick up settings from controller
         UpdateWindow(activeController); // update window for controller attached to vessel
-        RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+        RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         currentVessel = FlightGlobals.ActiveVessel;
       }
       BLControllerPhase phase = activeController.phase;
 
+      // Check for target being set
+      if (FlightGlobals.ActiveVessel.targetObject != null)
+      {
+        Vessel target = FlightGlobals.ActiveVessel.targetObject.GetVessel();
+        tgtLatitude = target.latitude;
+        tgtLongitude = target.longitude;
+        tgtAlt = (int)target.altitude;
+      }
       // Target:
 
       // Draw any Controls inside the window here
@@ -226,18 +260,8 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Lift prop at 45 degrees", liftFactor, "%", 35);
-      GUILayout.EndHorizontal();
-
-      GUILayout.BeginHorizontal();
-      GUILayout.Label("Kp", GUILayout.Width(30));
-      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 0.04f);
-      GUILayout.EndHorizontal();
-
-      GUILayout.BeginHorizontal();
-      GUILayout.Label("Kd", GUILayout.Width(30));
-      aeroDescentSteerKd = GUILayout.HorizontalSlider(aeroDescentSteerKd, 0, 1);
+      GUILayout.Label("Steer Kp", GUILayout.Width(60));
+      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 200);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -256,10 +280,9 @@ namespace BoosterGuidance
         EnableGuidance(BLControllerPhase.PoweredDescent);
       GUILayout.EndHorizontal();
 
-      /*
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Gain", GUILayout.Width(30));
-      poweredDescentSteerGain = GUILayout.HorizontalSlider(poweredDescentSteerGain, 0, 0.04f);
+      GUILayout.Label("Steer Kp", GUILayout.Width(60));
+      poweredDescentSteerKp = GUILayout.HorizontalSlider(poweredDescentSteerKp, 0, 200);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -270,7 +293,6 @@ namespace BoosterGuidance
       if (GUILayout.Button("▲"))
         poweredDescentMaxAoA += 1;
       GUILayout.EndHorizontal();
-      */
 
       // Activate guidance
       SetEnabledColors(true); // back to normal
@@ -311,16 +333,14 @@ namespace BoosterGuidance
         controller.reentryBurnAlt = reentryBurnAlt;
         controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
         controller.reentryBurnSteerGain = reentryBurnSteerGain;
-        //controller.poweredDescentSteerGain = poweredDescentSteerGain;
         controller.poweredDescentMaxAoA = poweredDescentMaxAoA;
         controller.tgtLatitude = tgtLatitude;
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
-        controller.liftFactor = liftFactor * 0.01;
         controller.aeroDescentSteerKp = aeroDescentSteerKp;
         controller.pid_aero = new PIDclamp("aero", aeroDescentSteerKp, aeroDescentSteerKd, 0, aeroDescentMaxAoA);
-        controller.pid_powered = new PIDclamp("powered", aeroDescentSteerKp, aeroDescentSteerKd, 0, aeroDescentMaxAoA);
+        controller.pid_powered = new PIDclamp("powered", poweredDescentSteerKp, aeroDescentSteerKd, 0, poweredDescentMaxAoA);
       }
     }
 
@@ -332,12 +352,10 @@ namespace BoosterGuidance
       reentryBurnMaxAoA = (int)controller.reentryBurnMaxAoA;
       // TODO: Read from PID
       aeroDescentSteerKp = (float)controller.aeroDescentSteerKp;
-      //aeroDescentMaxAoA = (int)controller.aeroDescentMaxAoA;
       poweredDescentMaxAoA = (int)controller.poweredDescentMaxAoA;
       tgtLatitude = controller.tgtLatitude;
       tgtLongitude = controller.tgtLongitude;
       tgtAlt = (int)controller.tgtAlt;
-      liftFactor = (int)(controller.liftFactor * 100);
     }
 
     void SimulateLog()
@@ -347,7 +365,7 @@ namespace BoosterGuidance
         return;
       var vessel = activeController.vessel;
       var aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
-      Transform logTransform = RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+      Transform logTransform = RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
       BLController tc = new BLController(activeController);
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       tc.noCorrect = true;
@@ -361,7 +379,7 @@ namespace BoosterGuidance
       SimulateLog(); // one off simulate down to ground
       if (activeController != null)
       {
-        Transform logTransform = RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+        Transform logTransform = RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         string name = activeController.vessel.name;
         activeController.StartLogging(name+".actual.dat", logTransform);
       }
@@ -379,14 +397,15 @@ namespace BoosterGuidance
       if (!pickingPositionTarget)
       {
         // Need to redraw as size changes (may be less often)
-        RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+        //Debug.Log("RedrawTarget mapView="+MapView.MapIsEnabled);
+        RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
       }
       else
       {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
           // Previous position
-          RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+          RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
           pickingPositionTarget = false;
         }
         RaycastHit hit;
@@ -395,7 +414,7 @@ namespace BoosterGuidance
         {
           // Moved or picked
           vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
-          RedrawTarget(pickLat, pickLon, pickAlt);
+          RedrawTarget(vessel.mainBody, pickLat, pickLon, pickAlt);
 
           if (Input.GetMouseButton(0))  // Picked
           {
@@ -426,45 +445,24 @@ namespace BoosterGuidance
       tgtLatitude = FlightGlobals.ActiveVessel.latitude;
       tgtLongitude = FlightGlobals.ActiveVessel.longitude;
       tgtAlt = (int)FlightGlobals.ActiveVessel.altitude;
-      RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
+      RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
       string message = "Target set to vessel";
       ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
     }
 
-    Transform RedrawTarget(double lat, double lon, double alt)
+    Transform RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
-      //Debug.Log("[BoosterGuidance] RedrawTarget() lat=" + lat + " lon=" + lon);
-      Vessel vessel = FlightGlobals.ActiveVessel;
-      if (target_obj != null)
-        Destroy(target_obj);
-      target_obj = null;
-      Transform transform = GuiUtils.SetUpTransform(vessel.mainBody, lat, lon, alt);
-      if (showTargets)
-      {
-        Vector3 heading = transform.position - Camera.main.transform.position;
-        float distance = Vector3.Dot(heading, Camera.main.transform.forward);
-        // TODO: Use transform to change size rather than redrawing
-        target_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, tgt_color, Mathf.Max(distance * tgtScale, minTgtSize), 0);
-      }
+      Transform transform = GuiUtils.SetUpTransform(body, lat, lon, alt);
+      targetingCross.enabled = showTargets;
+      targetingCross.SetLatLonAlt(body, lat, lon, alt);
       return transform;
     }
+    
 
-    Transform RedrawPrediction(double lat, double lon, double alt)
+    Transform RedrawPrediction(CelestialBody body, double lat, double lon, double alt)
     {
-      if (activeController != null)
-      {
-        if (pred_obj != null)
-          Destroy(pred_obj);
-        pred_obj = null;
-        Transform transform = GuiUtils.SetUpTransform(activeController.vessel.mainBody, lat, lon, alt);
-        if (showTargets)
-        {
-          Vector3 heading = transform.position - Camera.main.transform.position;
-          float distance = Vector3.Dot(heading, Camera.main.transform.forward);
-          pred_obj = GuiUtils.DrawTarget(Vector3d.zero, transform, pred_color, Mathf.Max(distance * tgtScale, minTgtSize), 0);
-        }
-        return transform;
-      }
+      predictedCross.enabled = showTargets && (activeController != null);
+      predictedCross.SetLatLonAlt(body, lat, lon, alt);
       return null;
     }
     
@@ -494,7 +492,7 @@ namespace BoosterGuidance
       {
         Debug.Log("[BoosterGuidance] Enable Guidance for vessel " + FlightGlobals.ActiveVessel.name);
         Vessel vessel = FlightGlobals.ActiveVessel;
-        RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+        RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
         activeController.AttachVessel(vessel);
 
@@ -537,8 +535,7 @@ namespace BoosterGuidance
         Vessel vessel = controller.vessel;
         vessel.Autopilot.Disable();
         int i = GetSlotFromVessel(vessel);
-        Debug.Log("[BoosterGuidance] DisableGuidance() slot " + i);
-        Debug.Log("[BoosterGuidance] DisableGuidance()");
+        Debug.Log("[BoosterGuidance] DisableGuidance() slot=" + i);
         if (i == 0)
           vessel.OnFlyByWire -= new FlightInputCallback(Fly0);
         if (i == 1)
@@ -552,14 +549,12 @@ namespace BoosterGuidance
         // Free up slot
         if (i != -1)
           flying[i] = null;
-        Debug.Log("[BoosterGuidance] DistbleGuidance");
         controller.StopLogging();
         controller.phase = BLControllerPhase.Unset;
         if (controller == activeController)
         {
           ScreenMessages.PostScreenMessage("Guidance disabled!", 3.0f, ScreenMessageStyle.UPPER_CENTER);
-          if (pred_obj != null)
-            Destroy(pred_obj);
+          predictedCross.enabled = false;
         }
         controller.enabled = false;
       }
@@ -646,7 +641,7 @@ namespace BoosterGuidance
         if (activeController == controller)
         {
           UpdateWindow(controller);
-          RedrawTarget(tgtLatitude, tgtLongitude, tgtAlt);
+          RedrawTarget(controller.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         }
       }
 
@@ -658,7 +653,7 @@ namespace BoosterGuidance
         // planet rotation
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
-        RedrawPrediction(lat, lon, alt + 1); // 1m above ground to avoid getting hidden
+        RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above ground to avoid getting hidden
         info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s", controller.targetError, controller.targetT);
       }
       state.mainThrottle = (float)throttle;

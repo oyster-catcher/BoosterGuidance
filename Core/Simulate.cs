@@ -50,10 +50,15 @@ namespace BoosterGuidance
       Quaternion bodyRotation;
 
       double dt = 4; // above atmosphere
+      //double decay = 0.1; // decay acceleration by 10% in 1 second to smooth out acceleration
       while ((y > tgtAlt) && (T < maxT))
       {
         if (y < 100000) // inside atmosphere (Kerbin)
-          dt = 0.5;
+          dt = 1;
+        if (y < 10000)
+          dt = 0.2;
+        if (a.magnitude > 0)
+          dt = 0.1;
         float lastAng = (float)((-1) * body.angularVelocity.magnitude / Math.PI * 180.0);
         Quaternion lastBodyRot = Quaternion.AngleAxis(lastAng, body.angularVelocity.normalized);
         Vector3d vel_air = v - body.getRFrmVel(r + body.position);
@@ -81,18 +86,21 @@ namespace BoosterGuidance
         {
           bool shutdownEnginesNow;
           controller.GetControlOutputs(vessel, r + body.position, v, att, y, amin, amax, T, body, tgt_r, out throttle, out steer, out shutdownEnginesNow, logFilename != "");
-          if (shutdownEnginesNow)
-          {
-            amin = amin * 0.33; // TODO: Hack so we can land, assumes Falcon 9 shutting down 2 outer engines, leaving one
-            amax = amax * 0.33;
-          }
+          //if (shutdownEnginesNow)
+          //{
+          //  amin = amin * 0.33; // TODO: Hack so we can land, assumes Falcon 9 shutting down 2 outer engines, leaving one
+          //  amax = amax * 0.33;
+          //}
+          Vector3d a2 = Vector3d.zero;
           if (throttle > 0)
-            a = steer * (amin + throttle * (amax - amin));
-          else
-            a = Vector3d.zero;
+            a2 = steer * (amin + throttle * (amax - amin));
+          //double q = Math.Pow(decay, dt);
+          //a = a * (1 - q) + a2 * q;
+          a = a2;
         }
         Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI); // retrograde
 
+        // Equations of motion
         r = r + v * dt;
         lastv = v;
         v = v + (F / vessel.totalMass) * dt;

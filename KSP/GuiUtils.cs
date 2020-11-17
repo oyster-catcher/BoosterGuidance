@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.UI;
+using Trajectories;
 using Object = UnityEngine.Object;
 
 namespace BoosterGuidance
@@ -214,108 +215,6 @@ namespace BoosterGuidance
       return ArrowSelector(index, modulo, drawLabel);
     }
 
-    // Quad should be described a,b,c,d in anti-clockwise order when looking at it
-    static void AddQuad(Vector3[] vertices, ref int vi, int[] triangles, ref int ti,
-                  Vector3d a, Vector3d b, Vector3d c, Vector3d d,
-                  bool double_sided = false)
-    {
-      vertices[vi + 0] = a;
-      vertices[vi + 1] = b;
-      vertices[vi + 2] = c;
-      vertices[vi + 3] = d;
-      triangles[ti++] = vi;
-      triangles[ti++] = vi + 2;
-      triangles[ti++] = vi + 1;
-      triangles[ti++] = vi;
-      triangles[ti++] = vi + 3;
-      triangles[ti++] = vi + 2;
-      if (double_sided)
-      {
-        triangles[ti++] = vi;
-        triangles[ti++] = vi + 1;
-        triangles[ti++] = vi + 2;
-        triangles[ti++] = vi;
-        triangles[ti++] = vi + 2;
-        triangles[ti++] = vi + 3;
-      }
-      vi += 4;
-    }
-
-    // pos is ground position, but draw up to height
-    static public GameObject DrawTarget(Vector3d pos, Transform a_transform, Color color, double size, float height)
-    {
-      double[] r = new double[] { size * 0.5, size * 0.55, size * 0.95, size };
-      Vector3d gpos = pos;
-      Vector3d tpos = pos + new Vector3d(0, height, 0);
-
-      Vector3d vx = new Vector3d(1, 0, 0);
-      Vector3d vz = new Vector3d(0, 0, 1);
-
-      GameObject o = new GameObject();
-      o.transform.SetParent(a_transform, false);
-      MeshFilter meshf = o.AddComponent<MeshFilter>();
-      MeshRenderer meshr = o.AddComponent<MeshRenderer>();
-      meshr.material = new Material(Shader.Find("KSP/Alpha/Unlit Transparent"));
-      meshr.material.color = color;
-      meshr.receiveShadows = false;
-
-      Mesh mesh = new Mesh();
-      Vector3[] vertices = new Vector3[36 * 4 + 4 + 4 + 4 + 8];
-      int[] triangles = new int[(36 * 2 * 2 - 8 + 2 + 2 + 2 + 4 + 4) * 3]; // take away gaps
-      int i, j;
-      int v = 0, t = 0;
-      for (j = 0; j < 4; j++) // four concentric rings
-      {
-        for (i = 0; i < 36; i++)
-        {
-          float a = -(i * 10) * Mathf.PI / 180.0f;
-          vertices[v++] = gpos + vx * Mathf.Sin(a) * r[j] + vz * Mathf.Cos(a) * r[j];
-        }
-      }
-      for (j = 0; j < 2; j++)
-      {
-        int start = j * 72;
-        for (i = 0; i < 36; i++)
-        {
-          if ((j == 1) || (i % 9 != 0)) // make 4 gaps in inner ring
-          {
-            triangles[t++] = start + i;
-            triangles[t++] = start + (i + 1) % 36;
-            triangles[t++] = start + 36 + i % 36;
-
-            triangles[t++] = start + (i + 1) % 36;
-            triangles[t++] = start + 36 + (i + 1) % 36;
-            triangles[t++] = start + 36 + i % 36;
-          }
-        }
-      }
-      // Add cross across centre
-      Vector3 cx = vx * size * 0.03;
-      Vector3 cz = vz * size * 0.03;
-      float cs = 8;
-      AddQuad(vertices, ref v, triangles, ref t,
-              tpos - cx * cs - cz, tpos + cx * cs - cz, tpos + cx * cs + cz, tpos - cx * cs + cz);
-      // One side
-      AddQuad(vertices, ref v, triangles, ref t,
-              tpos - cx + cz, tpos + cx + cz, tpos + cx + cz * cs, tpos - cx + cz * cs);
-      // Other size
-      AddQuad(vertices, ref v, triangles, ref t,
-              tpos - cx - cz * cs, tpos + cx - cz * cs, tpos + cx - cz, tpos - cx - cz);
-
-      // Draw quads from cross at actual height to the rings on the ground
-      cx = vx * size * 0.01;
-      cz = vz * size * 0.01;
-      AddQuad(vertices, ref v, triangles, ref t,
-              gpos - cx, gpos + cx, tpos + cx, tpos - cx, true);
-      AddQuad(vertices, ref v, triangles, ref t,
-              gpos - cz, gpos + cz, tpos + cz, tpos - cz, true);
-
-      mesh.vertices = vertices;
-      mesh.triangles = triangles;
-      meshf.mesh = mesh;
-      mesh.RecalculateNormals();
-      return o;
-    }
 
     static public Transform SetUpTransform(CelestialBody body, double latitude, double longitude, double alt)
     {
@@ -338,12 +237,6 @@ namespace BoosterGuidance
       return o_transform;
     }
 
-    static public GameObject DrawTargetOnSurface(CelestialBody body, double latitude, double longitude, double alt)
-    {
-      Transform transform = SetUpTransform(body, latitude, longitude, alt);
-      return DrawTarget(Vector3d.zero, transform, new Color(1, 1, 0, 0.5f), 100, 0);
-    }
-
     public static bool GetMouseHit(CelestialBody body, Rect notRect, out RaycastHit hit)
     {
       hit = new RaycastHit();
@@ -352,6 +245,7 @@ namespace BoosterGuidance
 
       // Cast a ray from screen point
       Ray ray = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
+      //Ray ray = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
       return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, 1 << 15);
     }
 
@@ -389,6 +283,59 @@ namespace BoosterGuidance
       {
         line.SetPosition(0, r_from);
         line.SetPosition(1, r_to);
+      }
+    }
+
+    public class TargetingCross : MonoBehaviour
+    {
+      public const double markerSize = 2.0d; // in meters
+
+      // these were static
+      public double impactLat = 0d;
+      public double impactLon = 0d;
+      public double impactAlt = 0d;
+      private Vector3 screen_point;
+      private Vector3 cam_pos;
+      private double cross_dist = 0d;
+      private Color color = Color.green;
+
+      public Vector3? ImpactPosition { get; internal set; }
+      public CelestialBody ImpactBody { get; internal set; }
+      public Color Color { get; internal set; }
+
+      public void SetLatLonAlt(CelestialBody body, double lat, double lon, double alt)
+      {
+        ImpactBody = body;
+        impactLat = lat;
+        impactLon = lon;
+        impactAlt = alt;
+        ImpactPosition = ImpactBody.GetWorldSurfacePosition(impactLat, impactLon, impactAlt) - ImpactBody.position;
+      }
+
+      public void SetColor(Color a_color)
+      {
+        color = a_color;
+      }
+
+      public void OnPostRender()
+      {
+        if (ImpactBody == null)
+          return;
+
+        if (!enabled)
+          return;
+
+        // only draw if visible on the camera
+        screen_point = PlanetariumCamera.Camera.WorldToViewportPoint(ImpactPosition.Value + ImpactBody.position);
+        //if (!(screen_point.z > 0 && screen_point.x > -2 && screen_point.x < 2 && screen_point.y > -2 && screen_point.y < 2))
+        //  return;
+
+        // resize marker in respect to distance from camera.
+        cam_pos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - ImpactBody.position;
+        cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
+
+        // draw ground marker at this position
+        GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, System.Math.Min(markerSize * cross_dist, 1500.0d));
       }
     }
   }
@@ -438,5 +385,7 @@ namespace BoosterGuidance
 
       return String.Format("{0:0}° {1:00}' {2:00}\"", degrees, minutes, seconds);
     }
+
+  
   }
 }

@@ -14,7 +14,7 @@ namespace BoosterGuidance
   [KSPAddon(KSPAddon.Startup.Flight, false)]
   public class BoosterGuidanceCore : MonoBehaviour
   {
-    MainWindow mainw;
+    static MainWindow mainw;
 
     public void Awake()
     {
@@ -41,8 +41,8 @@ namespace BoosterGuidance
             () => { },
             () => { },
             () => { },
-            //ApplicationLauncher.AppScenes.MAPVIEW | ApplicationLauncher.AppScenes.FLIGHT,
-            ApplicationLauncher.AppScenes.FLIGHT,
+            ApplicationLauncher.AppScenes.MAPVIEW | ApplicationLauncher.AppScenes.FLIGHT,
+            //ApplicationLauncher.AppScenes.FLIGHT,
             GameDatabase.Instance.GetTexture("BoosterGuidance/BoosterGuidanceIcon", false)
             );
         mainw = new MainWindow();
@@ -78,6 +78,6 @@ namespace BoosterGuidance
     }
 
     public static BoosterGuidanceCore Instance;
-    private ApplicationLauncherButton _appLauncherButton;
+    private static ApplicationLauncherButton _appLauncherButton;
   }
 }

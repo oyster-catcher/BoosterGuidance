@@ -129,6 +129,7 @@
     <Compile Include="KSP\Trajectories\AeroDynamicModelFactory.cs" />
     <Compile Include="KSP\Trajectories\FARModel.cs" />
     <Compile Include="KSP\Trajectories\StockModel.cs" />
+    <Compile Include="KSP\Trajectories\GLUtils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TODO" />
