@@ -47,6 +47,7 @@ namespace BoosterGuidance
     float minTgtSize = 20;
     float tgtScale = 0.03f;
     double pickLat, pickLon, pickAlt;
+    bool trackTarget = true; // Continuously track target until params changed
 
     // GUI Elements
     Color red = new Color(1, 0, 0, 0.5f);
@@ -146,12 +147,16 @@ namespace BoosterGuidance
       BLControllerPhase phase = activeController.phase;
 
       // Check for target being set
-      if (FlightGlobals.ActiveVessel.targetObject != null)
+      if ((FlightGlobals.ActiveVessel.targetObject != null) && (trackTarget))
       {
         Vessel target = FlightGlobals.ActiveVessel.targetObject.GetVessel();
         tgtLatitude = target.latitude;
         tgtLongitude = target.longitude;
         tgtAlt = (int)target.altitude;
+      }
+      if (FlightGlobals.ActiveVessel.targetObject == null)
+      {
+        trackTarget = false;
       }
       // Target:
 
@@ -184,8 +189,14 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
+      EditableInt preTgtAlt = tgtAlt;
       GuiUtils.SimpleTextBox("Target altitude", tgtAlt, "m", 65);
       GUILayout.EndHorizontal();
+
+      // Was target changed manually?
+      // if so stop tracking target as this would override the changes
+      if (tgtAlt != preTgtAlt)
+        trackTarget = false;
 
       GUILayout.BeginHorizontal();
       showTargets = GUILayout.Toggle(showTargets, "Show targets");
@@ -561,31 +572,26 @@ namespace BoosterGuidance
     }
     public void Fly0(FlightCtrlState state)
     {
-      //Debug.Log("Fly0 " + controllers[0].vessel.name);
       Fly(flying[0], state);
     }
 
     public void Fly1(FlightCtrlState state)
     {
-      //Debug.Log("Fly1 " + controllers[1].vessel.name);
       Fly(flying[1], state);
     }
 
     public void Fly2(FlightCtrlState state)
     {
-      //Debug.Log("Fly2 " + controllers[2].vessel.name);
       Fly(flying[2], state);
     }
 
     public void Fly3(FlightCtrlState state)
     {
-      //Debug.Log("Fly3 " + controllers[3].vessel.name);
       Fly(flying[3], state);
     }
 
     public void Fly4(FlightCtrlState state)
     {
-      //Debug.Log("Fly4 " + controllers[4].vessel.name);
       Fly(flying[4], state);
     }
 
@@ -627,7 +633,7 @@ namespace BoosterGuidance
 
       if (shutdownEnginesNow)
       {
-        Debug.Log("[BoosterGuidance] shutdownEnginesNow=true");
+        Debug.Log("[BoosterGuidance] Shutting down outer engines");
         // Request hovering thrust
         KSPUtils.ShutdownOuterEngines(vessel, (float)(FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()).magnitude * vessel.totalMass), true);
       }

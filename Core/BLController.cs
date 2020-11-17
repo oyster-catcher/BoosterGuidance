@@ -184,8 +184,8 @@ namespace BoosterGuidance
         gain = vessel.totalMass / (sideFA - sideFT);
       if (Math.Abs(gain) > steerDeadZoneGain)
         gain = 0;
-      if (!noCorrect)
-        Debug.Log("[BoosterGuidance] "+ phase + " y=" + y + " vy=" + (vel_air.magnitude) + " sideFT=" + sideFT + " sideFA=" + sideFA + " throttle=" + throttle + " gain=" + gain + "liftFactor=" + liftFactor);
+      //if (!noCorrect)
+      //  Debug.Log("[BoosterGuidance] "+ phase + " y=" + y + " vy=" + (vel_air.magnitude) + " sideFT=" + sideFT + " sideFA=" + sideFA + " throttle=" + throttle + " gain=" + gain + "liftFactor=" + liftFactor);
       // Should vary between 1 = max aero dynamic steering (fast), and -1 = max thrust steering (slow)
       return gain;
     }
