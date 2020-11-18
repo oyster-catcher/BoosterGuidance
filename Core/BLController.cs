@@ -48,7 +48,7 @@ namespace BoosterGuidance
     private Trajectories.VesselAerodynamicModel aeroModel = null;
     //private bool deployGears = true;
     private double touchdownMargin = 20;
-    private double liftFactor = 10;
+    private double liftFactor = 15;
     private double steerDeadZoneGain = 0.008;
 
     // Outputs

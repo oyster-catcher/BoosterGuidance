@@ -335,7 +335,10 @@ namespace BoosterGuidance
         cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
 
         // draw ground marker at this position
-        GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, System.Math.Min(markerSize * cross_dist, 1500.0d));
+        if (!MapView.MapIsEnabled)
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, System.Math.Min(markerSize * cross_dist, 15000));
+        else
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0);
       }
     }
   }

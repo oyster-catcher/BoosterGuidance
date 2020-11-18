@@ -1,6 +1,5 @@
 ﻿using System;
 using UnityEngine;
-using KSP;
 
 namespace BoosterGuidance
 {
@@ -25,6 +24,8 @@ namespace BoosterGuidance
       Vector3d tgt_r, out double T, string logFilename="", Transform logTransform=null, double maxT=600)
       // logTransform is transform at the current time
     {
+      System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
+      timer.Start();
       System.IO.StreamWriter f = null;
       if (logFilename != "")
       {
@@ -50,15 +51,14 @@ namespace BoosterGuidance
       Quaternion bodyRotation;
 
       double dt = 4; // above atmosphere
-      //double decay = 0.1; // decay acceleration by 10% in 1 second to smooth out acceleration
       while ((y > tgtAlt) && (T < maxT))
       {
         if (y < 100000) // inside atmosphere (Kerbin)
-          dt = 1;
+          dt = 2;
         if (y < 10000)
-          dt = 0.2;
+          dt = 1;
         if (a.magnitude > 0)
-          dt = 0.1;
+          dt = 0.5;
         float lastAng = (float)((-1) * body.angularVelocity.magnitude / Math.PI * 180.0);
         Quaternion lastBodyRot = Quaternion.AngleAxis(lastAng, body.angularVelocity.normalized);
         Vector3d vel_air = v - body.getRFrmVel(r + body.position);
@@ -129,6 +129,7 @@ namespace BoosterGuidance
       ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
       bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
       r = bodyRotation * r ;
+      Debug.Log("[BoosterGuidance] Simulate time=" + timer.ElapsedMilliseconds+"(ms)");
       return r + body.position;
     }
   }

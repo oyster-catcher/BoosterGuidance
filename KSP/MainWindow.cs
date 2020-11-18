@@ -23,7 +23,6 @@ namespace BoosterGuidance
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
-    // Boostbback
     // Re-Entry Burn
     EditableInt reentryBurnAlt = 70000;
     EditableInt reentryBurnTargetSpeed = 700;
@@ -42,10 +41,6 @@ namespace BoosterGuidance
     bool logging = false;
     bool pickingPositionTarget = false;
     string info = "Disabled";
-    //private Vessel vessel = null;
-    float mapTgtSize = 100000;
-    float minTgtSize = 20;
-    float tgtScale = 0.03f;
     double pickLat, pickLon, pickAlt;
     bool trackTarget = true; // Continuously track target until params changed
 
@@ -153,11 +148,11 @@ namespace BoosterGuidance
         tgtLatitude = target.latitude;
         tgtLongitude = target.longitude;
         tgtAlt = (int)target.altitude;
+        trackTarget = false; // Only pick up co-ordinates once
       }
       if (FlightGlobals.ActiveVessel.targetObject == null)
-      {
-        trackTarget = false;
-      }
+        trackTarget = true; // start tracking again when a new target is selected
+
       // Target:
 
       // Draw any Controls inside the window here

@@ -45,7 +45,7 @@ namespace Trajectories
             //if (height < body.Radius) { height = body.Radius; }
             //Vector3d center = body.position + height * up;
 
-            Vector3d center = body.GetWorldSurfacePosition(latitude, longitude, alt + 2);
+            Vector3d center = body.GetWorldSurfacePosition(latitude, longitude, alt + 0.5f);
             Vector3d camPos = map ? ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) : (Vector3d)FlightCamera.fetch.mainCamera.transform.position;
 
             //if (IsOccluded(center, body, camPos)) return;
