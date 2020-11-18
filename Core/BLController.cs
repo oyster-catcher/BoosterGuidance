@@ -49,7 +49,7 @@ namespace BoosterGuidance
     //private bool deployGears = true;
     private double touchdownMargin = 20;
     private double liftFactor = 15;
-    private double steerDeadZoneGain = 0.008;
+    //private double steerDeadZoneGain = 0.008;
 
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
@@ -182,8 +182,8 @@ namespace BoosterGuidance
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
         gain = vessel.totalMass / (sideFA - sideFT);
-      if (Math.Abs(gain) > steerDeadZoneGain)
-        gain = 0;
+      //if (Math.Abs(gain) > steerDeadZoneGain)
+      //  gain = 0;
       //if (!noCorrect)
       //  Debug.Log("[BoosterGuidance] "+ phase + " y=" + y + " vy=" + (vel_air.magnitude) + " sideFT=" + sideFT + " sideFA=" + sideFA + " throttle=" + throttle + " gain=" + gain + "liftFactor=" + liftFactor);
       // Should vary between 1 = max aero dynamic steering (fast), and -1 = max thrust steering (slow)
@@ -209,12 +209,11 @@ namespace BoosterGuidance
       Vector3d vel_air = v - body.getRFrmVel(r);
       double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
       double throttleGain = 0;
-      //float minThrottle = (amin > 0) ? 0.01f : 0; // assume RO and limited ignitions if limited throttling
       float minThrottle = 0.01f;
       targetError = 0;
 
       if (amax > 0) // check in case out of fuel or something
-        throttleGain = 50.0 / (amax - amin); // cancel velocity error in 0.02 secs
+        throttleGain = 10.0 / (amax - amin); // cancel velocity error in 0.1 secs
 
       if (t < lastt + logInterval)
       {
@@ -388,6 +387,11 @@ namespace BoosterGuidance
       }
       lastt = t;
       steer = Vector3d.Normalize(steer);
+
+      // Interpolate with current attitude
+      //steer = Vector3d.RotateTowards(att, steer, 5 * (Mathf.PI / 180), float.MaxValue); // rotate by 5 degrees maximum
+      steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation
+
       // Cache
       lastSteer = steer;
       lastThrottle = throttle;

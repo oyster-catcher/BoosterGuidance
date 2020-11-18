@@ -97,6 +97,7 @@ namespace BoosterGuidance
           //double q = Math.Pow(decay, dt);
           //a = a * (1 - q) + a2 * q;
           a = a2;
+          att = steer; // assume attitude is always correct
         }
         Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI); // retrograde
 
