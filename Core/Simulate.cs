@@ -50,15 +50,11 @@ namespace BoosterGuidance
       float ang;
       Quaternion bodyRotation;
 
-      double dt = 4; // above atmosphere
+      double dt = 2; // above atmosphere
       while ((y > tgtAlt) && (T < maxT))
       {
-        if (y < 100000) // inside atmosphere (Kerbin)
-          dt = 2;
-        if (y < 10000)
-          dt = 1;
-        if (a.magnitude > 0)
-          dt = 0.5;
+        if ((controller!=null) && (y < controller.reentryBurnAlt + 4000)) // inside atmosphere (Kerbin)
+          dt = 0.25;
         float lastAng = (float)((-1) * body.angularVelocity.magnitude / Math.PI * 180.0);
         Quaternion lastBodyRot = Quaternion.AngleAxis(lastAng, body.angularVelocity.normalized);
         Vector3d vel_air = v - body.getRFrmVel(r + body.position);
@@ -130,7 +126,7 @@ namespace BoosterGuidance
       ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
       bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
       r = bodyRotation * r ;
-      Debug.Log("[BoosterGuidance] Simulate time=" + timer.ElapsedMilliseconds+"(ms)");
+      //Debug.Log("[BoosterGuidance] Simulate time=" + timer.ElapsedMilliseconds+"(ms)");
       return r + body.position;
     }
   }

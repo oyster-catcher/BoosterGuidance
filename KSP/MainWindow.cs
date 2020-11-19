@@ -27,14 +27,14 @@ namespace BoosterGuidance
     EditableInt reentryBurnAlt = 70000;
     EditableInt reentryBurnTargetSpeed = 700;
     EditableInt reentryBurnMaxAoA = 10;
-    float reentryBurnSteerGain = 0.001f; // angle to steer = gain * targetError(in m)
+    float reentryBurnSteerGain = 0.004f; // angle to steer = gain * targetError(in m)
     // Aero descent
     EditableInt aeroDescentMaxAoA = 10;
-    float aeroDescentSteerKp = 100;
+    float aeroDescentSteerKp = 250;
     float aeroDescentSteerKd = 0;
     // Powered descent
     EditableInt poweredDescentMaxAoA = 10;
-    float poweredDescentSteerKp = 40;
+    float poweredDescentSteerKp = 250;
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -64,7 +64,6 @@ namespace BoosterGuidance
 
     public void Awake()
     {
-      Debug.Log("Awake");
       targetingCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
       targetingCross.SetColor(Color.yellow);
       predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
@@ -73,12 +72,16 @@ namespace BoosterGuidance
 
     public void OnDestroy()
     {
+      Debug.Log("OnDestroy");
       if (targetingCross != null)
         Destroy(targetingCross);
       targetingCross = null;
       if (predictedCross != null)
         Destroy(predictedCross);
       predictedCross = null;
+      if (steer_obj != null)
+        Destroy(steer_obj);
+      steer_obj = null;
     }
 
     void SetEnabledColors(bool phaseEnabled)
@@ -267,7 +270,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer Kp", GUILayout.Width(60));
-      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 200);
+      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 500);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -288,7 +291,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer Kp", GUILayout.Width(60));
-      poweredDescentSteerKp = GUILayout.HorizontalSlider(poweredDescentSteerKp, 0, 200);
+      poweredDescentSteerKp = GUILayout.HorizontalSlider(poweredDescentSteerKp, 0, 500);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -344,9 +347,13 @@ namespace BoosterGuidance
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
+        controller.poweredDescentSteerKp = poweredDescentSteerKp;
         controller.aeroDescentSteerKp = aeroDescentSteerKp;
-        controller.pid_aero = new PIDclamp("aero", aeroDescentSteerKp, aeroDescentSteerKd, 0, aeroDescentMaxAoA);
-        controller.pid_powered = new PIDclamp("powered", poweredDescentSteerKp, aeroDescentSteerKd, 0, poweredDescentMaxAoA);
+        // Note that the Kp gain in the PIDs below is set by combining the relevant Kp from above
+        // and a gain factor based on air resistance an throttle to determine whether to steer
+        // aerodynamically or by thrust, and how sensitive the vessel is to that
+        controller.pid_aero = new PIDclamp("aero", 1, 0, 0, aeroDescentMaxAoA);
+        controller.pid_powered = new PIDclamp("powered", 1, 0, 0, poweredDescentMaxAoA);
       }
     }
 
@@ -560,7 +567,11 @@ namespace BoosterGuidance
         if (controller == activeController)
         {
           ScreenMessages.PostScreenMessage("Guidance disabled!", 3.0f, ScreenMessageStyle.UPPER_CENTER);
+          Destroy(predictedCross);
           predictedCross.enabled = false;
+          if (steer_obj != null)
+            Destroy(steer_obj);
+          steer_obj = null;
         }
         controller.enabled = false;
       }
