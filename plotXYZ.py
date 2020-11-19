@@ -117,10 +117,7 @@ def plot(labels,xmin,xmax,ymin,ymax,zmin,zmax,
   ax6.grid()
 
   # Throttle
-  if timevsfuel:
-    P.subplot2grid((3,5),(0,2), colspan=1, rowspan=1)
-  else:
-    P.subplot2grid((3,5),(0,2), colspan=2, rowspan=1)
+  P.subplot2grid((3,5),(0,2), colspan=1, rowspan=1)
   ax7 = P.gca()
   ax7.set_xlabel("time")
   ax7.set_ylabel("mag(accel)")
@@ -128,15 +125,14 @@ def plot(labels,xmin,xmax,ymin,ymax,zmin,zmax,
   ax7.set_ylim([0,accelmax*1.1])
   ax7.grid()
 
-  # T vs fuel
-  if timevsfuel:
-    P.subplot2grid((3,5),(0,3), colspan=1, rowspan=1)
-    ax8 = P.gca()
-    ax8.set_xlabel("time")
-    ax8.set_ylabel("fuel")
-    ax8.grid()
-  else:
-    ax8 = None
+  # target error
+  P.subplot2grid((3,5),(0,3), colspan=1, rowspan=1)
+  ax8 = P.gca()
+  ax8.set_xlabel("time")
+  ax8.set_ylabel("target error")
+  ax8.set_xlim([0,tmax])
+  ax8.set_ylim([0,1000])
+  ax8.grid()
 
   # Attitude error
   P.subplot2grid((3,5),(0,4), colspan=1, rowspan=1)
@@ -254,9 +250,10 @@ def plot(labels,xmin,xmax,ymin,ymax,zmin,zmax,
     plot_times(ax7, thrust_times, color=col)
 
     if ax8:
-      ax8.set_xlim([0,sln_Tmax])
-      ax8.set_ylim([sln_fuelmin,sln_fuelmax])
-      plot_scatter(ax8,solutions,'T','fuel',color=col)
+      try:
+        plot_line(ax8,data,'time','target_error')
+      except KeyError:
+        pass
 
     plot_line(ax9,data,'time','att_err',color=col)
     plot_markers(ax9,data,'time','att_err',[marktime],color=colors[di],markersize=10,alpha=0.5)
