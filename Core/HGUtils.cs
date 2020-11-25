@@ -107,5 +107,19 @@ namespace BoosterGuidance
     {
       return (x < min) ? min : ((x > max) ? max : x);
     }
+
+    public static double angle_between(Vector3d a, Vector3d b)
+    {
+      double dcos = Vector3d.Dot(a.normalized, b.normalized);
+      if ((dcos > -1) && (dcos < 1))
+        return Math.Acos(dcos) * 180 / Math.PI;
+      else
+      {
+        if (dcos > 1)
+          return 0;
+        else
+          return 180;
+      }
+    }
   }
 }
