@@ -154,7 +154,6 @@ namespace Trajectories
             {
                 // need checks on shielded components
                 Part p = _vessel.Parts[i];
-                Debug.Log("[Trajectories] part=" + p.name + " dragModel="+p.dragModel);
                 if (p.ShieldedFromAirstream || p.Rigidbody == null)
                 {
                     continue;
