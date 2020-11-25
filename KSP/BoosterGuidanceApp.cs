@@ -52,7 +52,8 @@ namespace BoosterGuidance
     private void DestroyStockToolbarButton()
     {
       Debug.Log("[BoosterGuidance] DestroyStockToolbarButton");
-      ApplicationLauncher.Instance.RemoveModApplication(_appLauncherButton);
+      if (_appLauncherButton != null)
+        ApplicationLauncher.Instance.RemoveModApplication(_appLauncherButton);
       _appLauncherButton = null;
     }
 
