@@ -24,8 +24,6 @@ namespace BoosterGuidance
       Vector3d tgt_r, out double T, string logFilename="", Transform logTransform=null, double maxT=600)
       // logTransform is transform at the current time
     {
-      System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
-      timer.Start();
       System.IO.StreamWriter f = null;
       if (logFilename != "")
       {
@@ -50,7 +48,8 @@ namespace BoosterGuidance
       float ang;
       Quaternion bodyRotation;
 
-      double dt = 2; // above atmosphere
+      double dt = 4; // above atmosphere
+      double throttle = 0;
       while ((y > tgtAlt) && (T < maxT))
       {
         if ((controller!=null) && (y < controller.reentryBurnAlt + 4000)) // inside atmosphere (Kerbin)
@@ -76,23 +75,20 @@ namespace BoosterGuidance
           ta = logTransform.InverseTransformVector(ta);
           f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F1}", T, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, vel_air.magnitude));
         }
-        double throttle = 0;
+        throttle = 0;
         Vector3d steer = Vector3d.zero;
         if (controller != null)
         {
           bool shutdownEnginesNow;
           controller.GetControlOutputs(vessel, r + body.position, v, att, y, amin, amax, T, body, tgt_r, out throttle, out steer, out shutdownEnginesNow, logFilename != "");
-          //if (shutdownEnginesNow)
-          //{
-          //  amin = amin * 0.33; // TODO: Hack so we can land, assumes Falcon 9 shutting down 2 outer engines, leaving one
-          //  amax = amax * 0.33;
-          //}
-          Vector3d a2 = Vector3d.zero;
+          if (shutdownEnginesNow)
+          {
+            amin = amin * 0.33; // TODO: Hack so we can land, assumes Falcon 9 shutting down 2 outer engines, leaving one
+            amax = amax * 0.33;
+          }
+          a = Vector3d.zero;
           if (throttle > 0)
-            a2 = steer * (amin + throttle * (amax - amin));
-          //double q = Math.Pow(decay, dt);
-          //a = a * (1 - q) + a2 * q;
-          a = a2;
+            a = steer * (amin + throttle * (amax - amin));
           att = steer; // assume attitude is always correct
         }
         Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI); // retrograde
@@ -126,8 +122,76 @@ namespace BoosterGuidance
       ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
       bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
       r = bodyRotation * r ;
-      //Debug.Log("[BoosterGuidance] Simulate time=" + timer.ElapsedMilliseconds+"(ms)");
       return r + body.position;
+    }
+
+    // Simulate trajectory to ground and work out point to fire landing burn assuming air resistance will help slow the vessel down
+    // This point will be MUCH later than thrust would be applied minus air resistance
+    static public double CalculatePoweredDescentAlt(double tgtAlt, Vessel vessel, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body,
+      double maxT = 600, string filename="")
+    {
+      double T = 0;
+      Vector3d r = vessel.GetWorldPos3D() - body.position;
+      Vector3d v = vessel.GetObtVelocity();
+      Vector3d a = Vector3d.zero;
+      double minThrust, maxThrust;
+      KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
+      double y = r.magnitude - body.Radius;
+      double amin = minThrust / vessel.totalMass;
+      double amax = maxThrust / vessel.totalMass;
+      double poweredDescentAlt = y;
+
+      double suicideFactor = 0.8;
+      double touchdownSpeed = 1;
+
+      System.IO.StreamWriter f = null;
+      if (filename != "")
+      {
+        f = new System.IO.StreamWriter(filename);
+        f.WriteLine("time y vy dvy");
+      }
+
+      double dt = 0.5;
+      while ((y > tgtAlt) && (T < maxT))
+      {
+        double R = r.magnitude;
+        Vector3d g = r * (-body.gravParameter / (R * R * R));
+
+        float lastAng = (float)((-1) * body.angularVelocity.magnitude / Math.PI * 180.0);
+        Quaternion lastBodyRot = Quaternion.AngleAxis(lastAng, body.angularVelocity.normalized);
+        Vector3d vel_air = v - body.getRFrmVel(r + body.position);
+        Vector3d steer = Vector3d.zero;
+        Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI); // retrograde
+
+        // Calculate suicide burn velocity
+        double av = amax - g.magnitude;
+        if (av < 0)
+          av = 0.1; // pretend we have more thrust to look like we are doing something rather than giving up!!
+        // dvy in 3 seconds time (allowing time for engine start up)
+        double dvy3 = Math.Sqrt((1 + suicideFactor) * av * ((y - tgtAlt) - vel_air.magnitude * 3)) + touchdownSpeed;
+
+        // Find latest point when velocity is less than desired velocity
+        // as it means it is too high in the next time step meaning this is the time to
+        // apply landing burn thrust
+
+        if (dvy3 > vel_air.magnitude)
+          poweredDescentAlt = y;
+        if (f != null)
+          f.WriteLine(string.Format("{0} {1:F1} {1:F1} {2:F1}", T, y, vel_air.magnitude, dvy3));
+
+        // Equations of motion
+        r = r + v * dt;
+        v = v + (F / vessel.totalMass) * dt;
+        v = v + (g + a) * dt;
+        y = r.magnitude - body.Radius;
+
+        T = T + dt;
+      }
+      if (T > maxT)
+        Debug.Log("[BoosterGuidance] Simulation time exceeds maxT=" + maxT);
+      if (f != null)
+        f.Close();
+      return poweredDescentAlt;
     }
   }
 }
