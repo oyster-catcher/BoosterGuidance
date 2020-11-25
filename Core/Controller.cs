@@ -14,12 +14,11 @@ namespace BoosterGuidance
     public double tgtLatitude, tgtLongitude, tgtAlt;
     public bool enabled = false;
     public Vessel vessel = null; // Vessel being controlled
+
+    // Outputs for reading
     public double targetT = 0; // Time to land
     public double targetError = 0; // Distance from target to landing point in m
     public double attitudeError = 0; // Error in desired attitude in degrees
-
-    // RO
-    //List<ModuleEngines> shutdown = new List<ModuleEngines>();
 
     public Controller()
     {
