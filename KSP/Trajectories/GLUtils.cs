@@ -41,23 +41,13 @@ namespace Trajectories
         public static void DrawGroundMarker(CelestialBody body, double latitude, double longitude, double alt, Color c, bool map, double rotation = 0, double radius = 0)
         {
             Vector3d up = body.GetSurfaceNVector(latitude, longitude);
-            //var height = body.pqsController.GetSurfaceHeight(QuaternionD.AngleAxis(longitude, Vector3d.down) * QuaternionD.AngleAxis(latitude, Vector3d.forward) * Vector3d.right);
-            //if (height < body.Radius) { height = body.Radius; }
-            //Vector3d center = body.position + height * up;
-
             Vector3d center = body.GetWorldSurfacePosition(latitude, longitude, alt + 0.5f);
-            Vector3d camPos = map ? ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) : (Vector3d)FlightCamera.fetch.mainCamera.transform.position;
-
-            //if (IsOccluded(center, body, camPos)) return;
-
             Vector3d north = Vector3d.Exclude(up, body.transform.up).normalized;
-
-            if (radius <= 0) { radius = map ? body.Radius / 15 : 5; }
 
             if (!map)
             {
                 Vector3 centerPoint = FlightCamera.fetch.mainCamera.WorldToViewportPoint(center);
-                if (centerPoint.z < 0)
+                if ((centerPoint.z < 0) || (centerPoint.x < -1) || (centerPoint.x > 1) || (centerPoint.y < -1) || (centerPoint.y > 1))
                     return;
             }
 
