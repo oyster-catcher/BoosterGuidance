@@ -6,6 +6,7 @@ using UnityEngine.Profiling;
 
 namespace BoosterGuidance
 {
+  [KSPAddon(KSPAddon.Startup.Flight, false)]
   public class MainWindow : MonoBehaviour
   {
     // constants
@@ -15,11 +16,11 @@ namespace BoosterGuidance
     // private
     bool hidden = true;
     private static GuiUtils.TargetingCross targetingCross;
-    private static GuiUtils.TargetingCross predictedCross;
+    private static GuiUtils.PredictionCross predictedCross;
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 596);
+    Rect windowRect = new Rect(150, 150, 220, 588);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
@@ -31,10 +32,10 @@ namespace BoosterGuidance
     // Aero descent
     EditableInt aeroDescentMaxAoA = 10;
     float aeroDescentSteerKp = 250;
-    float aeroDescentSteerKd = 0;
     // Powered descent
+    //EditableInt poweredDescentMaxAlt = 5000;
     EditableInt poweredDescentMaxAoA = 10;
-    float poweredDescentSteerKp = 250;
+    float poweredDescentSteerKp = 3;
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -46,12 +47,10 @@ namespace BoosterGuidance
 
     // GUI Elements
     Color red = new Color(1, 0, 0, 0.5f);
-    GameObject steer_obj = null;
-    LineRenderer steer_line = null;
 
     public MainWindow()
     {
-      Awake();
+      //Awake();
     }
 
     public void OnGUI()
@@ -64,24 +63,23 @@ namespace BoosterGuidance
 
     public void Awake()
     {
+      Debug.Log("[BoosterGuidance] MainWindow::Awake");
       targetingCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
       targetingCross.SetColor(Color.yellow);
-      predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
+      targetingCross.enabled = true;
+      predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.PredictionCross>();
       predictedCross.SetColor(Color.red);
+      predictedCross.enabled = false;
     }
 
     public void OnDestroy()
     {
       Debug.Log("OnDestroy");
-      if (targetingCross != null)
-        Destroy(targetingCross);
-      targetingCross = null;
-      if (predictedCross != null)
-        Destroy(predictedCross);
-      predictedCross = null;
-      if (steer_obj != null)
-        Destroy(steer_obj);
-      steer_obj = null;
+      targetingCross.enabled = false;
+      predictedCross.enabled = false;
+      //if (steer_obj != null)
+      //  Destroy(steer_obj);
+      //steer_obj = null;
     }
 
     void SetEnabledColors(bool phaseEnabled)
@@ -127,7 +125,7 @@ namespace BoosterGuidance
         }
         catch (KeyNotFoundException e)
         {
-          Debug.Log("[BoosterGuidance] KeyNotFound activeController="+activeController);
+          Debug.Log("[BoosterGuidance] KeyNotFound "+e.ToString()+" activeController="+activeController);
           if (activeController != null)
             activeController = new BLController(activeController); // Clone existing
           else
@@ -237,12 +235,10 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      //GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Enable altitude", reentryBurnAlt, "m", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      //GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Target speed", reentryBurnTargetSpeed, "m/s", 40);
       GUILayout.EndHorizontal();
 
@@ -254,7 +250,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max Angle-of-Attack", reentryBurnMaxAoA, "°", 25);
+      GuiUtils.SimpleTextBox("Max AoA", reentryBurnMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
         reentryBurnMaxAoA -= 1;
       if (GUILayout.Button("▲"))
@@ -269,13 +265,13 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Steer Kp", GUILayout.Width(60));
+      GUILayout.Label("Gain", GUILayout.Width(60));
       aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 500);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max Angle-of-Attack", aeroDescentMaxAoA, "°", 25);
+      GuiUtils.SimpleTextBox("Max attack", aeroDescentMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
         aeroDescentMaxAoA = Math.Max(0, aeroDescentMaxAoA-1);
       if (GUILayout.Button("▲"))
@@ -289,14 +285,22 @@ namespace BoosterGuidance
         EnableGuidance(BLControllerPhase.PoweredDescent);
       GUILayout.EndHorizontal();
 
+      /*
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Steer Kp", GUILayout.Width(60));
-      poweredDescentSteerKp = GUILayout.HorizontalSlider(poweredDescentSteerKp, 0, 500);
+      GuiUtils.SimpleTextBox("Enable altitude", poweredDescentMaxAlt, "m", 65);
+      if (GUILayout.Button("Calc"))
+        poweredDescentMaxAlt = (int)activeController.CalculatePoweredDescentAlt();
+      GUILayout.EndHorizontal();
+      */
+
+      GUILayout.BeginHorizontal();
+      GUILayout.Label("Gain", GUILayout.Width(60));
+      poweredDescentSteerKp = GUILayout.HorizontalSlider(poweredDescentSteerKp, 0, 10);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max Angle-of-Attack", poweredDescentMaxAoA, "°", 25);
+      GuiUtils.SimpleTextBox("Max attack", poweredDescentMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
         poweredDescentMaxAoA = Math.Max(0, poweredDescentMaxAoA-1);
       if (GUILayout.Button("▲"))
@@ -347,6 +351,7 @@ namespace BoosterGuidance
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
+        //controller.poweredDescentMaxAlt = poweredDescentMaxAlt;
         controller.poweredDescentSteerKp = poweredDescentSteerKp;
         controller.aeroDescentSteerKp = aeroDescentSteerKp;
         // Note that the Kp gain in the PIDs below is set by combining the relevant Kp from above
@@ -365,6 +370,7 @@ namespace BoosterGuidance
       reentryBurnMaxAoA = (int)controller.reentryBurnMaxAoA;
       // TODO: Read from PID
       aeroDescentSteerKp = (float)controller.aeroDescentSteerKp;
+      //poweredDescentMaxAlt = (int)controller.poweredDescentMaxAlt;
       poweredDescentMaxAoA = (int)controller.poweredDescentMaxAoA;
       tgtLatitude = controller.tgtLatitude;
       tgtLongitude = controller.tgtLongitude;
@@ -406,11 +412,13 @@ namespace BoosterGuidance
 
     void OnUpdate()
     {
+      // Hide to protect against failures? - copies from KSPTrajectories
+      //targetingCross.enabled = false;
+      //predictedCross.enabled = false;
       // Redraw targets
       if (!pickingPositionTarget)
       {
         // Need to redraw as size changes (may be less often)
-        //Debug.Log("RedrawTarget mapView="+MapView.MapIsEnabled);
         RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
       }
       else
@@ -465,6 +473,7 @@ namespace BoosterGuidance
 
     Transform RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
+      
       Transform transform = GuiUtils.SetUpTransform(body, lat, lon, alt);
       targetingCross.enabled = showTargets;
       targetingCross.SetLatLonAlt(body, lat, lon, alt);
@@ -567,11 +576,10 @@ namespace BoosterGuidance
         if (controller == activeController)
         {
           ScreenMessages.PostScreenMessage("Guidance disabled!", 3.0f, ScreenMessageStyle.UPPER_CENTER);
-          Destroy(predictedCross);
           predictedCross.enabled = false;
-          if (steer_obj != null)
-            Destroy(steer_obj);
-          steer_obj = null;
+          //if (steer_obj != null)
+          //  Destroy(steer_obj);
+          //steer_obj = null;
         }
         controller.enabled = false;
       }
@@ -635,7 +643,7 @@ namespace BoosterGuidance
         Time.time, vessel.mainBody, tgt_r, out throttle, out steer, out shutdownEnginesNow);
 
       //
-      GuiUtils.DrawVector(ref steer_obj, ref steer_line, Vector3d.zero, steer*40, null, red, showTargets);
+      //GuiUtils.DrawVector(ref steer_obj, ref steer_line, Vector3d.zero, steer*40, null, red, showTargets);
 
       if (shutdownEnginesNow)
       {
@@ -665,8 +673,10 @@ namespace BoosterGuidance
         // planet rotation
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
-        RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above ground to avoid getting hidden
-        info = string.Format("Tgt error: {0:F0}m Time: {1:F0}s", controller.targetError, controller.targetT);
+        RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above grou
+        info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s [{3:F0}ms]", controller.targetError, controller.attitudeError, controller.targetT, controller.elapsed_secs * 1000);
+        //info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s]", controller.targetError, controller.attitudeError, controller.targetT);
+
       }
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;
