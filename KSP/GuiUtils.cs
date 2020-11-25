@@ -290,10 +290,66 @@ namespace BoosterGuidance
     {
       public const double markerSize = 2.0d; // in meters
 
-      // these were static
-      public double impactLat = 0d;
-      public double impactLon = 0d;
-      public double impactAlt = 0d;
+      // I find use of statics weird, and the duplication of code in PredictionCross
+      // but its the only way I've found to avoid an accumulation of targets in subsequent flights
+      // It doesn't seem possible to trap all the deletions needs
+      public static double impactLat = 0d;
+      public static double impactLon = 0d;
+      public static double impactAlt = 0d;
+      private Vector3 screen_point;
+      private double cross_dist = 0d;
+      private Color color = Color.green;
+
+      public Vector3? ImpactPosition { get; internal set; }
+      public CelestialBody ImpactBody { get; internal set; }
+      public Color Color { get; internal set; }
+
+      public void SetLatLonAlt(CelestialBody body, double lat, double lon, double alt)
+      {
+        ImpactBody = body;
+        impactLat = lat;
+        impactLon = lon;
+        impactAlt = alt;
+        ImpactPosition = ImpactBody.GetWorldSurfacePosition(impactLat, impactLon, impactAlt) - ImpactBody.position;
+      }
+
+      public void SetColor(Color a_color)
+      {
+        color = a_color;
+      }
+
+      public void OnPostRender()
+      {
+        if (ImpactBody == null)
+          return;
+
+        if (!enabled)
+          return;
+
+        // only draw if visible on the camera
+        screen_point = PlanetariumCamera.Camera.WorldToViewportPoint(ImpactPosition.Value + ImpactBody.position);
+
+        // resize marker in respect to distance from camera.
+        Vector3d cam_pos = (MapView.MapIsEnabled) ? ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) : (Vector3d)FlightCamera.fetch.mainCamera.transform.position;
+        //cam_pos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - ImpactBody.position;
+        cam_pos = cam_pos - ImpactBody.position;
+        cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
+
+        // draw ground marker at this position
+        if (MapView.MapIsEnabled)
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius/50);
+        else
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist,10), 15000));
+      }
+    }
+
+    public class PredictionCross : MonoBehaviour
+    {
+      public const double markerSize = 2.0d; // in meters
+
+      public static double impactLat = 0d;
+      public static double impactLon = 0d;
+      public static double impactAlt = 0d;
       private Vector3 screen_point;
       private Vector3 cam_pos;
       private double cross_dist = 0d;
@@ -327,8 +383,6 @@ namespace BoosterGuidance
 
         // only draw if visible on the camera
         screen_point = PlanetariumCamera.Camera.WorldToViewportPoint(ImpactPosition.Value + ImpactBody.position);
-        //if (!(screen_point.z > 0 && screen_point.x > -2 && screen_point.x < 2 && screen_point.y > -2 && screen_point.y < 2))
-        //  return;
 
         // resize marker in respect to distance from camera.
         cam_pos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - ImpactBody.position;
