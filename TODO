@@ -2,16 +2,13 @@ Guides Boosters to landing site from orbit, aka. Falcon 9
 
 - Apply air brakes
 - Deploy gear
-- Tidy up targets when crashed
 - Add target on map
 - On RO picking target jumps around. Store double's?
-- Consider air resitance and terminal velocity meaning thrust can be applied later than appears?
-- Report whether landing is possible (useful when changing number of engines activated and considering fuel load)
-- Smoothly release thrust in re-entry burn to steer evenly
 - Prevent target becoming below zero!!
-- Smooth out error
 - Work out why logging fails sometimes
 - Show targets on Map view
+- RO.
+  - still running out of ignitions. need to understand why
 
 NOTES:
 - KSPTrajectories. Look at ComputeForces in AerodynamicModel/VesselAerodynamicModel.cs to set AoA
