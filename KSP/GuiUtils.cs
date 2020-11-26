@@ -173,11 +173,6 @@ namespace BoosterGuidance
 
   public static class GuiUtils
   {
-    // constants
-    private const float line_width = 3.0f;
-    private const int layer2D = 31;
-    private const int layer3D = 24;
-
     public static void SimpleTextBox(string leftLabel, IEditable ed, string rightLabel = "", float width = 100, GUIStyle rightLabelStyle = null)
     {
       if (rightLabelStyle == null)
