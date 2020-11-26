@@ -7,6 +7,7 @@ using UnityEngine.UI;
 using Trajectories;
 using Object = UnityEngine.Object;
 
+
 namespace BoosterGuidance
 {
     public interface IEditable
@@ -172,6 +173,11 @@ namespace BoosterGuidance
 
   public static class GuiUtils
   {
+    // constants
+    private const float line_width = 3.0f;
+    private const int layer2D = 31;
+    private const int layer3D = 24;
+
     public static void SimpleTextBox(string leftLabel, IEditable ed, string rightLabel = "", float width = 100, GUIStyle rightLabelStyle = null)
     {
       if (rightLabelStyle == null)
@@ -237,53 +243,15 @@ namespace BoosterGuidance
       return o_transform;
     }
 
-    public static bool GetMouseHit(CelestialBody body, Rect notRect, out RaycastHit hit)
+    public static bool GetMouseHit(CelestialBody body, Rect notRect, bool map, out RaycastHit hit)
     {
       hit = new RaycastHit();
       if ((notRect != null) && (notRect.Contains(Input.mousePosition)))
         return false;
 
       // Cast a ray from screen point
-      Ray ray = FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
-      //Ray ray = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
+      Ray ray = map ? PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition) : FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
       return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, 1 << 15);
-    }
-
-    public static void DrawVector(ref GameObject obj, ref LineRenderer line, Vector3 r_from, Vector3 r_to, Transform a_transform, Color color, bool show)
-    {
-      if (!show)
-      {
-        if (obj != null)
-        {
-          //Destroy(obj);
-          obj = null;
-          line = null;
-        }
-        return;
-      }
-
-      if (line == null)
-      {
-        obj = new GameObject("Steer");
-        line = obj.AddComponent<LineRenderer>();
-      }
-      line.transform.parent = a_transform;
-      line.useWorldSpace = true;
-      line.material = new Material(Shader.Find("KSP/Alpha/Unlit Transparent"));
-      line.material.color = color;
-      line.startWidth = 0.3f;
-      line.endWidth = 0.3f;
-      line.positionCount = 2;
-      if (a_transform != null)
-      {
-        line.SetPosition(0, a_transform.TransformPoint(r_from));
-        line.SetPosition(1, a_transform.TransformPoint(r_to));
-      }
-      else
-      {
-        line.SetPosition(0, r_from);
-        line.SetPosition(1, r_to);
-      }
     }
 
     public class TargetingCross : MonoBehaviour
@@ -296,6 +264,8 @@ namespace BoosterGuidance
       public static double impactLat = 0d;
       public static double impactLon = 0d;
       public static double impactAlt = 0d;
+      public GameObject mesh = null;
+      private Mesh tmesh = null;
       private Vector3 screen_point;
       private double cross_dist = 0d;
       private Color color = Color.green;
@@ -322,24 +292,18 @@ namespace BoosterGuidance
       {
         if (ImpactBody == null)
           return;
-
         if (!enabled)
           return;
-
-        // only draw if visible on the camera
-        screen_point = PlanetariumCamera.Camera.WorldToViewportPoint(ImpactPosition.Value + ImpactBody.position);
-
-        // resize marker in respect to distance from camera.
-        Vector3d cam_pos = (MapView.MapIsEnabled) ? ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) : (Vector3d)FlightCamera.fetch.mainCamera.transform.position;
-        //cam_pos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - ImpactBody.position;
+        // resize marker in respect to distance from camera - only for flight view
+        Vector3d cam_pos = MapView.MapIsEnabled ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
         cam_pos = cam_pos - ImpactBody.position;
         cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
 
         // draw ground marker at this position
         if (MapView.MapIsEnabled)
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius/50);
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 100);
         else
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist,10), 15000));
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 10), 15000));
       }
     }
 
@@ -350,9 +314,6 @@ namespace BoosterGuidance
       public static double impactLat = 0d;
       public static double impactLon = 0d;
       public static double impactAlt = 0d;
-      private Vector3 screen_point;
-      private Vector3 cam_pos;
-      private double cross_dist = 0d;
       private Color color = Color.green;
 
       public Vector3? ImpactPosition { get; internal set; }
@@ -377,22 +338,18 @@ namespace BoosterGuidance
       {
         if (ImpactBody == null)
           return;
-
         if (!enabled)
           return;
-
-        // only draw if visible on the camera
-        screen_point = PlanetariumCamera.Camera.WorldToViewportPoint(ImpactPosition.Value + ImpactBody.position);
-
-        // resize marker in respect to distance from camera.
-        cam_pos = ScaledSpace.ScaledToLocalSpace(PlanetariumCamera.Camera.transform.position) - ImpactBody.position;
-        cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
-
+        // resize marker in respect to distance from camera - only for flight view
+        //Vector3d cam_pos = (Vector3d)FlightCamera.fetch.mainCamera.transform.position - ImpactBody.position;
+        Vector3d cam_pos = MapView.MapIsEnabled ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
+        cam_pos = cam_pos - ImpactBody.position;
+        double cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
         // draw ground marker at this position
-        if (!MapView.MapIsEnabled)
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, System.Math.Min(markerSize * cross_dist, 15000));
+        if (MapView.MapIsEnabled)
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 100);
         else
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0);
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 10), 15000));
       }
     }
   }
@@ -442,7 +399,5 @@ namespace BoosterGuidance
 
       return String.Format("{0:0}° {1:00}' {2:00}\"", degrees, minutes, seconds);
     }
-
-  
   }
 }
