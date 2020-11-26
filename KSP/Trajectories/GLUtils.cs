@@ -33,11 +33,6 @@ namespace Trajectories
             return VT_VC * VT_VC / VT.sqrMagnitude > VC.sqrMagnitude - 1;
         }
 
-        public static void DrawMapViewGroundMarker(CelestialBody body, double latitude, double longitude, double alt, Color c,  double rotation = 0, double radius = 0)
-        {
-            DrawGroundMarker(body, latitude, longitude, alt, c, true, rotation, radius);
-        }
-
         public static void DrawGroundMarker(CelestialBody body, double latitude, double longitude, double alt, Color c, bool map, double rotation = 0, double radius = 0)
         {
             Vector3d up = body.GetSurfaceNVector(latitude, longitude);
