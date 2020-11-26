@@ -20,7 +20,7 @@ namespace BoosterGuidance
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 588);
+    Rect windowRect = new Rect(150, 150, 220, 556);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
@@ -33,7 +33,6 @@ namespace BoosterGuidance
     EditableInt aeroDescentMaxAoA = 10;
     float aeroDescentSteerKp = 250;
     // Powered descent
-    //EditableInt poweredDescentMaxAlt = 5000;
     EditableInt poweredDescentMaxAoA = 10;
     float poweredDescentSteerKp = 3;
 
@@ -47,6 +46,7 @@ namespace BoosterGuidance
 
     // GUI Elements
     Color red = new Color(1, 0, 0, 0.5f);
+    bool map;
 
     public MainWindow()
     {
@@ -64,22 +64,27 @@ namespace BoosterGuidance
     public void Awake()
     {
       Debug.Log("[BoosterGuidance] MainWindow::Awake");
-      targetingCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
+      if (MapView.MapIsEnabled)
+      {
+        targetingCross = PlanetariumCamera.fetch.gameObject.AddComponent<GuiUtils.TargetingCross>();
+        predictedCross = PlanetariumCamera.fetch.gameObject.AddComponent<GuiUtils.PredictionCross>();
+      }
+      else
+      {
+        targetingCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.TargetingCross>();
+        predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.PredictionCross>();
+      }
+      map = MapView.MapIsEnabled;
       targetingCross.SetColor(Color.yellow);
       targetingCross.enabled = true;
-      predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<GuiUtils.PredictionCross>();
       predictedCross.SetColor(Color.red);
       predictedCross.enabled = false;
     }
 
     public void OnDestroy()
     {
-      Debug.Log("OnDestroy");
       targetingCross.enabled = false;
       predictedCross.enabled = false;
-      //if (steer_obj != null)
-      //  Destroy(steer_obj);
-      //steer_obj = null;
     }
 
     void SetEnabledColors(bool phaseEnabled)
@@ -106,6 +111,10 @@ namespace BoosterGuidance
 
     void WindowFunction(int windowID)
     {
+      // Check targets are on map vs non-map
+      if (map != MapView.MapIsEnabled)
+        Awake();
+
       OnUpdate();
       SetEnabledColors(true);
       // Close button
@@ -196,6 +205,8 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       showTargets = GUILayout.Toggle(showTargets, "Show targets");
+      targetingCross.enabled = showTargets;
+      predictedCross.enabled = showTargets;
       // TODO - Need to be specific to controller so works when switching vessel
       bool prevLogging = logging;
       logging = GUILayout.Toggle(logging, "Logging");
@@ -412,9 +423,6 @@ namespace BoosterGuidance
 
     void OnUpdate()
     {
-      // Hide to protect against failures? - copies from KSPTrajectories
-      //targetingCross.enabled = false;
-      //predictedCross.enabled = false;
       // Redraw targets
       if (!pickingPositionTarget)
       {
@@ -431,7 +439,7 @@ namespace BoosterGuidance
         }
         RaycastHit hit;
         Vessel vessel = FlightGlobals.ActiveVessel;
-        if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, out hit))
+        if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, MapView.MapIsEnabled, out hit))
         {
           // Moved or picked
           vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
@@ -473,7 +481,6 @@ namespace BoosterGuidance
 
     Transform RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
-      
       Transform transform = GuiUtils.SetUpTransform(body, lat, lon, alt);
       targetingCross.enabled = showTargets;
       targetingCross.SetLatLonAlt(body, lat, lon, alt);
