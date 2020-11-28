@@ -37,35 +37,80 @@ namespace BoosterGuidance
       return miny;
     }
 
-    public static List<ModuleEngines> ComputeMinMaxThrust(Vessel vessel, out double minThrust, out double maxThrust, bool log = false)
+    public static List<ModuleEngines> GetActiveEngines(Vessel vessel)
     {
-      List<ModuleEngines> allEngines = new List<ModuleEngines>();
-      int numEngines = 0;
-      minThrust = 0;
-      maxThrust = 0;
+      List<ModuleEngines> activeEngines = new List<ModuleEngines>();
       foreach (Part part in vessel.parts)
       {
-        if (log)
-          Debug.Log("part=" + part);
         part.isEngine(out List<ModuleEngines> engines);
         foreach (ModuleEngines engine in engines)
         {
-          Vector3d relpos = vessel.transform.InverseTransformPoint(part.transform.position);
-          float isp = (engine.realIsp > 0) ? engine.realIsp : 280; // guess!
-          float pressure = (float)FlightGlobals.getStaticPressure() * 0.01f; // so 1.0 at Kerbin sea level?
-          float atmMaxThrust = engine.MaxThrustOutputAtm(true, true, pressure, FlightGlobals.getExternalTemperature());
-          if (log)
-            Debug.Log("  engine=" + engine + " relpos=" + relpos + " isp=" + isp + " MinThrust=" + engine.GetEngineThrust(isp, 0) + " MaxThrust=" + atmMaxThrust + " operational=" + engine.isOperational);
           if (engine.isOperational)
-          {
-            minThrust += engine.GetEngineThrust(isp, 0); // can't get atmMinThrust (this ignore throttle limiting but thats ok)
-            maxThrust += atmMaxThrust; // this uses throttle limiting and should give vac thrust as pressure/temp specified too
-            allEngines.Add(engine);
-            numEngines++;
-          }
+            activeEngines.Add(engine);
         }
       }
-      return allEngines;
+      return activeEngines;
+    }
+
+
+
+
+    public static List<ModuleEngines> GetAllEngines(Vessel vessel)
+    {
+      List<ModuleEngines> engines = new List<ModuleEngines>();
+      foreach (Part part in vessel.parts)
+      {
+        part.isEngine(out List<ModuleEngines> partEngines);
+        foreach (ModuleEngines engine in partEngines)
+          engines.Add(engine);
+      }
+      return engines;
+    }
+
+    public static List<ModuleEngines> GetOperationalEngines(Vessel vessel)
+    {
+      List<ModuleEngines> opEngines = new List<ModuleEngines>();
+      foreach (Part part in vessel.parts)
+      {
+        part.isEngine(out List<ModuleEngines> partEngines);
+        foreach (ModuleEngines engine in partEngines)
+          if (engine.isOperational)
+            opEngines.Add(engine);
+      }
+      return opEngines;
+    }
+
+    private static void GetEngineMinMaxThrust(ModuleEngines engine, out double minThrust, out double maxThrust, bool log=false)
+    {
+      float isp = (engine.realIsp > 0) ? engine.realIsp : 280; // guess!
+      float pressure = (float)FlightGlobals.getStaticPressure() * 0.01f; // so 1.0 at Kerbin sea level?
+      float atmMaxThrust = engine.MaxThrustOutputAtm(true, true, pressure, FlightGlobals.getExternalTemperature());
+      minThrust = engine.GetEngineThrust(isp, 0); // can't get atmMinThrust (this ignore throttle limiting but thats ok)
+      maxThrust = atmMaxThrust; // this uses throttle limiting and should give vac thrust as pressure/temp specified too
+      if (log)
+      {
+        //Vector3d relpos = vessel.transform.InverseTransformPoint(part.transform.position);
+        Debug.Log("  engine=" + engine + " isp=" + isp + " MinThrust=" + engine.GetEngineThrust(isp, 0) + " MaxThrust=" + atmMaxThrust + " operational=" + engine.isOperational);
+      }
+    }
+
+    public static List<ModuleEngines> ComputeMinMaxThrust(Vessel vessel, out double totalMinThrust, out double totalMaxThrust, bool log = false, List<ModuleEngines> useEngines = null)
+    {
+      totalMinThrust = 0;
+      totalMaxThrust = 0;
+
+      // If no engines specified find all operational engines
+      if (useEngines == null)
+        useEngines = GetOperationalEngines(vessel);
+
+      foreach(ModuleEngines engine in useEngines)
+      {
+        double minThrust, maxThrust;
+        GetEngineMinMaxThrust(engine, out minThrust, out maxThrust);
+        totalMinThrust += minThrust;
+        totalMaxThrust += maxThrust;
+      }
+      return useEngines;
     }
 
     public static double GetCurrentThrust(List<ModuleEngines> allEngines)

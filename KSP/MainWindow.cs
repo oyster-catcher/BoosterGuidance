@@ -20,7 +20,7 @@ namespace BoosterGuidance
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 556);
+    Rect windowRect = new Rect(150, 150, 220, 596);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
@@ -32,9 +32,10 @@ namespace BoosterGuidance
     // Aero descent
     EditableInt aeroDescentMaxAoA = 10;
     float aeroDescentSteerKp = 250;
-    // Powered descent
-    EditableInt poweredDescentMaxAoA = 10;
-    float poweredDescentSteerKp = 3;
+    // Landing burn
+    EditableInt landingBurnMaxAoA = 10;
+    float landingBurnSteerKp = 3;
+    string numLandingBurnEngines = "current";
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -64,6 +65,10 @@ namespace BoosterGuidance
     public void Awake()
     {
       Debug.Log("[BoosterGuidance] MainWindow::Awake");
+      if (targetingCross != null)
+        targetingCross.enabled = false;
+      if (predictedCross != null)
+        predictedCross.enabled = false;
       if (MapView.MapIsEnabled)
       {
         targetingCross = PlanetariumCamera.fetch.gameObject.AddComponent<GuiUtils.TargetingCross>();
@@ -127,14 +132,14 @@ namespace BoosterGuidance
       // Check for vessel change
       if (currentVessel != FlightGlobals.ActiveVessel)
       {
-        Debug.Log("[BoosterGuidance] controllers=" + controllers + " activeController="+activeController);
+        Debug.Log("[BoosterGuidance] controllers=" + controllers + " activeController=" + activeController);
         try
         {
           activeController = controllers[FlightGlobals.ActiveVessel];
         }
         catch (KeyNotFoundException e)
         {
-          Debug.Log("[BoosterGuidance] KeyNotFound "+e.ToString()+" activeController="+activeController);
+          Debug.Log("[BoosterGuidance] KeyNotFound " + e.ToString() + " activeController=" + activeController);
           if (activeController != null)
             activeController = new BLController(activeController); // Clone existing
           else
@@ -227,7 +232,7 @@ namespace BoosterGuidance
       // Boostback
       SetEnabledColors((phase == BLControllerPhase.BoostBack) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button(new GUIContent("Boostback","Enable thrust towards target when out of atmosphere")))
+      if (GUILayout.Button(new GUIContent("Boostback", "Enable thrust towards target when out of atmosphere")))
         EnableGuidance(BLControllerPhase.BoostBack);
       GUILayout.EndHorizontal();
 
@@ -254,14 +259,14 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Gain", GUILayout.Width(30));
+      GUILayout.Label("Steer gain", GUILayout.Width(60));
       reentryBurnSteerGain = GUILayout.HorizontalSlider(reentryBurnSteerGain, 0, 0.005f);
       //GUILayout.Label(reentryBurnSteerGain.ToString(), GUILayout.Width(20));
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max AoA", reentryBurnMaxAoA, "°", 25);
+      GuiUtils.SimpleTextBox("Max attack", reentryBurnMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
         reentryBurnMaxAoA -= 1;
       if (GUILayout.Button("▲"))
@@ -276,7 +281,7 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Gain", GUILayout.Width(60));
+      GUILayout.Label("Steer gain", GUILayout.Width(60));
       aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 500);
       GUILayout.EndHorizontal();
 
@@ -284,38 +289,60 @@ namespace BoosterGuidance
       //GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Max attack", aeroDescentMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
-        aeroDescentMaxAoA = Math.Max(0, aeroDescentMaxAoA-1);
+        aeroDescentMaxAoA = Math.Max(0, aeroDescentMaxAoA - 1);
       if (GUILayout.Button("▲"))
         aeroDescentMaxAoA += 1;
       GUILayout.EndHorizontal();
 
-      // Powered Descent
-      SetEnabledColors((phase == BLControllerPhase.PoweredDescent) || (phase == BLControllerPhase.Unset));
+      // Landing Burn
+      SetEnabledColors((phase == BLControllerPhase.LandingBurn) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button("Powered Descent"))
-        EnableGuidance(BLControllerPhase.PoweredDescent);
-      GUILayout.EndHorizontal();
-
-      /*
-      GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Enable altitude", poweredDescentMaxAlt, "m", 65);
-      if (GUILayout.Button("Calc"))
-        poweredDescentMaxAlt = (int)activeController.CalculatePoweredDescentAlt();
-      GUILayout.EndHorizontal();
-      */
-
-      GUILayout.BeginHorizontal();
-      GUILayout.Label("Gain", GUILayout.Width(60));
-      poweredDescentSteerKp = GUILayout.HorizontalSlider(poweredDescentSteerKp, 0, 10);
+      if (GUILayout.Button("Landing Burn"))
+        EnableGuidance(BLControllerPhase.LandingBurn);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max attack", poweredDescentMaxAoA, "°", 25);
+      GUILayout.Label("Enable altitude");
+      if (activeController != null)
+        GUILayout.Label(((int)activeController.landingBurnAlt).ToString() + "m", GUILayout.Width(60));
+      else
+        GUILayout.Label("n/a", GUILayout.Width(60));
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GUILayout.Label("Engines");
+      GUILayout.Label(numLandingBurnEngines);
+      if (activeController != null)
+      {
+        if (numLandingBurnEngines == "current")  // Save active engines
+        {
+          if (GUILayout.Button("Set"))  // Set to currently active engines
+            numLandingBurnEngines = activeController.SetLandingBurnEngines();
+          //Debug.Log("activeController.numEngines=" + activeController.landingBurnEngines.Count);
+        }
+        else
+        {
+          if (GUILayout.Button("Unset"))  // Set to currently active engines
+          {
+            numLandingBurnEngines = "current";
+            activeController.UnsetLandingBurnEngines();
+          }
+          //Debug.Log("Unset landing burn engines");
+        }
+      }
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GUILayout.Label("Steer gain", GUILayout.Width(60));
+      landingBurnSteerKp = GUILayout.HorizontalSlider(landingBurnSteerKp, 0, 10);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Max attack", landingBurnMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
-        poweredDescentMaxAoA = Math.Max(0, poweredDescentMaxAoA-1);
+        landingBurnMaxAoA = Math.Max(0, landingBurnMaxAoA-1);
       if (GUILayout.Button("▲"))
-        poweredDescentMaxAoA += 1;
+        landingBurnMaxAoA += 1;
       GUILayout.EndHorizontal();
 
       // Activate guidance
@@ -357,19 +384,19 @@ namespace BoosterGuidance
         controller.reentryBurnAlt = reentryBurnAlt;
         controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
         controller.reentryBurnSteerGain = reentryBurnSteerGain;
-        controller.poweredDescentMaxAoA = poweredDescentMaxAoA;
+        controller.landingBurnMaxAoA = landingBurnMaxAoA;
         controller.tgtLatitude = tgtLatitude;
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
-        //controller.poweredDescentMaxAlt = poweredDescentMaxAlt;
-        controller.poweredDescentSteerKp = poweredDescentSteerKp;
+        //controller.landingBurnMaxAlt = landingBurnMaxAlt;
+        controller.landingBurnSteerKp = landingBurnSteerKp;
         controller.aeroDescentSteerKp = aeroDescentSteerKp;
         // Note that the Kp gain in the PIDs below is set by combining the relevant Kp from above
         // and a gain factor based on air resistance an throttle to determine whether to steer
         // aerodynamically or by thrust, and how sensitive the vessel is to that
         controller.pid_aero = new PIDclamp("aero", 1, 0, 0, aeroDescentMaxAoA);
-        controller.pid_powered = new PIDclamp("powered", 1, 0, 0, poweredDescentMaxAoA);
+        controller.pid_powered = new PIDclamp("powered", 1, 0, 0, landingBurnMaxAoA);
       }
     }
 
@@ -381,14 +408,18 @@ namespace BoosterGuidance
       reentryBurnMaxAoA = (int)controller.reentryBurnMaxAoA;
       // TODO: Read from PID
       aeroDescentSteerKp = (float)controller.aeroDescentSteerKp;
-      //poweredDescentMaxAlt = (int)controller.poweredDescentMaxAlt;
-      poweredDescentMaxAoA = (int)controller.poweredDescentMaxAoA;
+      //landingBurnMaxAlt = (int)controller.landingBurnMaxAlt;
+      landingBurnMaxAoA = (int)controller.landingBurnMaxAoA;
       tgtLatitude = controller.tgtLatitude;
       tgtLongitude = controller.tgtLongitude;
       tgtAlt = (int)controller.tgtAlt;
+      if (controller.landingBurnEngines != null)
+        numLandingBurnEngines = controller.landingBurnEngines.Count.ToString();
+      else
+        numLandingBurnEngines = "current";
     }
 
-    void SimulateLog()
+    void SimulateLog(String name)
     {
       double T;
       if (activeController == null)
@@ -399,18 +430,17 @@ namespace BoosterGuidance
       BLController tc = new BLController(activeController);
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       tc.noCorrect = true;
-      string name = activeController.vessel.name;
-      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, "simulate_without_boostback.dat", logTransform);
-      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, "simulate_without_control.dat", logTransform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, name+".simulate_without_boostback.dat", logTransform);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, name+".simulate_without_control.dat", logTransform);
     }
 
     void StartLogging()
     {
-      SimulateLog(); // one off simulate down to ground
       if (activeController != null)
       {
-        Transform logTransform = RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         string name = activeController.vessel.name;
+        SimulateLog(name); // one off simulate down to ground
+        Transform logTransform = RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         activeController.StartLogging(name+".actual.dat", logTransform);
       }
     }
@@ -550,7 +580,6 @@ namespace BoosterGuidance
           vessel.OnFlyByWire += new FlightInputCallback(Fly4); // 5th vessel
       } 
       activeController.SetPhase(phase);
-      //string info = "Enabled " + activeController.PhaseStr() + "(slot " + i + ")";
       string info = "Enabled " + activeController.PhaseStr();
       ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
       activeController.enabled = true;
@@ -620,8 +649,6 @@ namespace BoosterGuidance
     {
       double throttle;
       Vector3d steer;
-      double amin;
-      double amax;
       double minThrust;
       double maxThrust;
 
@@ -642,22 +669,41 @@ namespace BoosterGuidance
       }
 
       KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
-      amin = minThrust / vessel.totalMass;
-      amax = maxThrust / vessel.totalMass;
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
-      bool shutdownEnginesNow;
-      controller.GetControlOutputs(vessel, vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, amin, amax,
-        Time.time, vessel.mainBody, tgt_r, out throttle, out steer, out shutdownEnginesNow);
+      //bool shutdownEnginesNow
+      controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
+        Time.time, vessel.mainBody, tgt_r, out throttle, out steer);
 
-      //
-      //GuiUtils.DrawVector(ref steer_obj, ref steer_line, Vector3d.zero, steer*40, null, red, showTargets);
+      // Set active engines in landing burn
+      if (controller.phase == BLControllerPhase.LandingBurn)
+      {
+        if (controller.landingBurnEngines != null)
+        {
+          foreach (ModuleEngines engine in KSPUtils.GetAllEngines(vessel))
+          {
+            Debug.Log("engine=" + engine);
+            if (controller.landingBurnEngines.Contains(engine))
+            {
+              if (!engine.isOperational)
+                engine.Activate();
+            }
+            else
+            {
+              if (engine.isOperational)
+                engine.Shutdown();
+            }
+          }
+        }
+      }
 
+      /*
       if (shutdownEnginesNow)
       {
         Debug.Log("[BoosterGuidance] Shutting down outer engines");
         // Request hovering thrust
         KSPUtils.ShutdownOuterEngines(vessel, (float)(FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()).magnitude * vessel.totalMass), true);
       }
+      */
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
       { 
@@ -685,6 +731,10 @@ namespace BoosterGuidance
         //info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s]", controller.targetError, controller.attitudeError, controller.targetT);
 
       }
+      // Log mass flow
+      if (controller != null)
+        controller.UpdateMassFlow();
+
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;
       vessel.Autopilot.SAS.SetTargetOrientation(steer, false);

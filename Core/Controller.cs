@@ -25,15 +25,13 @@ namespace BoosterGuidance
     }
 
     virtual public void GetControlOutputs(Vessel vessel,
+               double totalMass,
                Vector3d r, Vector3d v, Vector3d att,
                double y, double amin, double amax, double t,
                CelestialBody body,
                Vector3d tgt_r,
-               out double throttle, out Vector3d steer,
-               out bool shutdownOuterEngines,
-               bool log=false)
+               out double throttle, out Vector3d steer)
     {
-      shutdownOuterEngines = false;
       throttle = 0;
       steer = Vector3d.up;
     }
