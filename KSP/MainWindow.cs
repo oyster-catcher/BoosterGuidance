@@ -34,7 +34,7 @@ namespace BoosterGuidance
     float aeroDescentSteerKp = 250;
     // Landing burn
     EditableInt landingBurnMaxAoA = 10;
-    float landingBurnSteerKp = 3;
+    float landingBurnSteerKp = 50;
     string numLandingBurnEngines = "current";
 
     Vessel currentVessel = null; // to detect vessel switch
@@ -334,7 +334,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer gain", GUILayout.Width(60));
-      landingBurnSteerKp = GUILayout.HorizontalSlider(landingBurnSteerKp, 0, 10);
+      landingBurnSteerKp = GUILayout.HorizontalSlider(landingBurnSteerKp, 0, 100);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -681,7 +681,7 @@ namespace BoosterGuidance
         {
           foreach (ModuleEngines engine in KSPUtils.GetAllEngines(vessel))
           {
-            Debug.Log("engine=" + engine);
+            //Debug.Log("engine=" + engine);
             if (controller.landingBurnEngines.Contains(engine))
             {
               if (!engine.isOperational)

@@ -121,5 +121,16 @@ namespace BoosterGuidance
           return 180;
       }
     }
+
+    public static System.IO.StreamWriter OpenUnusedFilename(String filename)
+    {
+      int i = 1;
+      filename.Replace(" ", "_");
+      while (System.IO.File.Exists(filename + "." + i.ToString()))
+      {
+        i++;
+      }
+      return new System.IO.StreamWriter(filename + "." + i.ToString());
+    }
   }
 }

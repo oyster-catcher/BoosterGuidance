@@ -30,7 +30,9 @@ namespace BoosterGuidance
                double y, double amin, double amax, double t,
                CelestialBody body,
                Vector3d tgt_r,
-               out double throttle, out Vector3d steer)
+               out double throttle, out Vector3d steer,
+               bool bailOutLandingBurn = false)
+
     {
       throttle = 0;
       steer = Vector3d.up;

@@ -52,9 +52,6 @@ namespace BoosterGuidance
       return activeEngines;
     }
 
-
-
-
     public static List<ModuleEngines> GetAllEngines(Vessel vessel)
     {
       List<ModuleEngines> engines = new List<ModuleEngines>();
