@@ -6,9 +6,18 @@ Guides Boosters to landing site from orbit, aka. Falcon 9
 - On RO picking target jumps around. Store double's?
 - Prevent target becoming below zero!!
 - Work out why logging fails sometimes
-- Show targets on Map view
+- Show targets on Map view - nearly working
 - RO.
   - still running out of ignitions. need to understand why
+- Hide target when main window closed (vice versa)
+- Recalculated poweredDescentAlt is mass, amin or amax significantly change
+- In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
+- Can't pick targets on Mun when at 55km and above
+- Landing burn altitude way too high, like 45km when only going 200ms and falling in low Mun gravity
+- Doesn't really work on other planets!! Target point seems to drift (may be just drawing)
+- On reentry burn check that attitude is close before starting
+- Smooth out target estimation to improve accuracy
+- landing bun
 
 NOTES:
 - KSPTrajectories. Look at ComputeForces in AerodynamicModel/VesselAerodynamicModel.cs to set AoA
