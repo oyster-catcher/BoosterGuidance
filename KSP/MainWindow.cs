@@ -14,28 +14,39 @@ namespace BoosterGuidance
     Color pred_color = new Color(1, 0.2f, 0.2f, 0.5f);
 
     // private
+    int tab = 0;
     bool hidden = true;
     private static GuiUtils.TargetingCross targetingCross;
     private static GuiUtils.PredictionCross predictedCross;
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 596);
+    Rect windowRect = new Rect(150, 150, 220, 630);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
     // Re-Entry Burn
-    EditableInt reentryBurnAlt = 70000;
+    EditableInt reentryBurnAlt = 55000;
     EditableInt reentryBurnTargetSpeed = 700;
     EditableInt reentryBurnMaxAoA = 10;
     float reentryBurnSteerGain = 0.004f; // angle to steer = gain * targetError(in m)
     // Aero descent
-    EditableInt aeroDescentMaxAoA = 10;
-    float aeroDescentSteerKp = 250;
+    EditableInt aeroDescentMaxAoA = 20;
+    float aeroDescentSteerKp = 350;
     // Landing burn
     EditableInt landingBurnMaxAoA = 10;
-    float landingBurnSteerKp = 50;
+    float landingBurnSteerKp = 5;
     string numLandingBurnEngines = "current";
+
+    // Advanced settings
+    EditableInt touchdownAlt = 10;
+    EditableDouble touchdownSpeed = 2;
+    EditableInt noSteerHeight = 100;
+    bool deployGridfins = false;
+    bool deployGear = false;
+    EditableInt deployGearAlt = 500;
+    EditableInt simulationsPerSec = 10;
+    EditableInt igniteDelay = 3; // Needed for RO
 
     Vessel currentVessel = null; // to detect vessel switch
     bool showTargets = true;
@@ -64,7 +75,6 @@ namespace BoosterGuidance
 
     public void Awake()
     {
-      Debug.Log("[BoosterGuidance] MainWindow::Awake");
       if (targetingCross != null)
         targetingCross.enabled = false;
       if (predictedCross != null)
@@ -116,10 +126,6 @@ namespace BoosterGuidance
 
     void WindowFunction(int windowID)
     {
-      // Check targets are on map vs non-map
-      if (map != MapView.MapIsEnabled)
-        Awake();
-
       OnUpdate();
       SetEnabledColors(true);
       // Close button
@@ -128,6 +134,62 @@ namespace BoosterGuidance
         hidden = true;
         return;
       }
+      tab = GUILayout.Toolbar(tab, new string[] { "Main", "Advanced" });
+      switch(tab)
+      {
+        case 0:
+          MainTab(windowID);
+          break;
+        case 1:
+          AdvancedTab(windowID);
+          break;
+      }
+    }
+
+    void AdvancedTab(int windowID)
+    {
+      // Suicide factor
+      // Margin
+      // Touchdown speed
+      // No steer height
+      GUILayout.BeginHorizontal();
+      deployGridfins = GUILayout.Toggle(deployGridfins, "Deploy gridfins");
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      deployGear = GUILayout.Toggle(deployGear, "Deploy landing gear");
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Deploy gear alt", deployGearAlt, "m", 65);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("No steer height", noSteerHeight, "m", 65);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Touchdown alt", touchdownAlt, "m", 65);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Touchdown speed", touchdownSpeed, "m/s", 65);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Simulations /sec", simulationsPerSec, "", 65);
+      GUILayout.EndHorizontal();
+
+      GUILayout.BeginHorizontal();
+      GuiUtils.SimpleTextBox("Ignite delay", igniteDelay, "s", 65);
+      GUILayout.EndHorizontal();
+    }
+
+    void MainTab(int windowID)
+    {
+      // Check targets are on map vs non-map
+      if (map != MapView.MapIsEnabled)
+        Awake();
 
       // Check for vessel change
       if (currentVessel != FlightGlobals.ActiveVessel)
@@ -218,10 +280,7 @@ namespace BoosterGuidance
       if ((!prevLogging) && (logging)) // logging switched on
         StartLogging();
       if ((prevLogging) && (!logging)) // logging switched off
-      {
-        Debug.Log("[BoosterGuidance] prevLogging=" + prevLogging + " logging=" + logging);
         StopLogging();
-      }
       GUILayout.EndHorizontal();
 
       // Info box
@@ -265,7 +324,6 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      //GUILayout.Space(10);
       GuiUtils.SimpleTextBox("Max attack", reentryBurnMaxAoA, "°", 25);
       if (GUILayout.Button("▼"))
         reentryBurnMaxAoA -= 1;
@@ -303,10 +361,18 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Enable altitude");
+      String text = "n/a";
       if (activeController != null)
-        GUILayout.Label(((int)activeController.landingBurnAlt).ToString() + "m", GUILayout.Width(60));
-      else
-        GUILayout.Label("n/a", GUILayout.Width(60));
+      {
+        if (activeController.landingBurnAlt > 0)
+          text = ((int)activeController.landingBurnAlt).ToString() + "m";
+        else
+        {
+          if (activeController.landingBurnAlt < 0)
+            text = "impossible";
+        }
+      }
+      GUILayout.Label(text, GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -351,7 +417,7 @@ namespace BoosterGuidance
       if (!activeController.enabled)
       {
         if (GUILayout.Button("Enable Guidance"))
-          EnableGuidance(BLControllerPhase.BoostBack);
+          EnableGuidance(BLControllerPhase.Unset);
       }
       else
       {
@@ -370,11 +436,15 @@ namespace BoosterGuidance
     public void Show()
     {
       hidden = false;
+      targetingCross.enabled = showTargets;
+      predictedCross.enabled = showTargets;
     }
 
     public void Hide()
     {
       hidden = true;
+      targetingCross.enabled = false;
+      predictedCross.enabled = false;
     }
 
     public void UpdateController(BLController controller)
@@ -397,6 +467,8 @@ namespace BoosterGuidance
         // aerodynamically or by thrust, and how sensitive the vessel is to that
         controller.pid_aero = new PIDclamp("aero", 1, 0, 0, aeroDescentMaxAoA);
         controller.pid_powered = new PIDclamp("powered", 1, 0, 0, landingBurnMaxAoA);
+        controller.igniteDelay = igniteDelay;
+        controller.noSteerAlt = noSteerHeight;
       }
     }
 
@@ -417,8 +489,11 @@ namespace BoosterGuidance
         numLandingBurnEngines = controller.landingBurnEngines.Count.ToString();
       else
         numLandingBurnEngines = "current";
+      igniteDelay = (int)controller.igniteDelay;
+      noSteerHeight = (int)controller.noSteerAlt;
     }
 
+    /*
     void SimulateLog(String name)
     {
       double T;
@@ -433,15 +508,19 @@ namespace BoosterGuidance
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out T, name+".simulate_without_boostback.dat", logTransform);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out T, name+".simulate_without_control.dat", logTransform);
     }
+    */
 
     void StartLogging()
     {
       if (activeController != null)
       {
         string name = activeController.vessel.name;
-        SimulateLog(name); // one off simulate down to ground
+        name = name.Replace(" ", "_");
+        name = name.Replace("(", "");
+        name = name.Replace(")", "");
+        //SimulateLog(name); // one off simulate down to ground
         Transform logTransform = RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
-        activeController.StartLogging(name+".actual.dat", logTransform);
+        activeController.StartLogging(name, logTransform);
       }
     }
 
@@ -449,6 +528,42 @@ namespace BoosterGuidance
     {
       if (activeController != null)
         activeController.StopLogging();
+    }
+
+    void OnPickingPositionTarget()
+    {
+      if (Input.GetKeyDown(KeyCode.Escape))
+      {
+        // Previous position
+        RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
+        pickingPositionTarget = false;
+      }
+      RaycastHit hit;
+      Vessel vessel = FlightGlobals.ActiveVessel;
+      if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, MapView.MapIsEnabled, out hit))
+      {
+        // Moved or picked
+        vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
+        RedrawTarget(vessel.mainBody, pickLat, pickLon, pickAlt);
+
+        if (Input.GetMouseButton(0))  // Picked
+        {
+          ScreenMessages.PostScreenMessage("Mouse hit - click", 3.0f, ScreenMessageStyle.UPPER_CENTER);
+          tgtLatitude = pickLat;
+          tgtLongitude = pickLon;
+          tgtAlt = (int)pickAlt;
+          pickingPositionTarget = false;
+          string message = "Picked target";
+          ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+          UpdateController(activeController);
+        }
+        else
+          ScreenMessages.PostScreenMessage("Mouse hit - no click", 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      }
+      else
+      {
+        ScreenMessages.PostScreenMessage("No mouse hit", 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      }
     }
 
     void OnUpdate()
@@ -460,33 +575,7 @@ namespace BoosterGuidance
         RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
       }
       else
-      {
-        if (Input.GetKeyDown(KeyCode.Escape))
-        {
-          // Previous position
-          RedrawTarget(activeController.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
-          pickingPositionTarget = false;
-        }
-        RaycastHit hit;
-        Vessel vessel = FlightGlobals.ActiveVessel;
-        if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, MapView.MapIsEnabled, out hit))
-        {
-          // Moved or picked
-          vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
-          RedrawTarget(vessel.mainBody, pickLat, pickLon, pickAlt);
-
-          if (Input.GetMouseButton(0))  // Picked
-          {
-            tgtLatitude = pickLat;
-            tgtLongitude = pickLon;
-            tgtAlt = (int)pickAlt;
-            pickingPositionTarget = false;
-            string message = "Picked target";
-            ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
-            UpdateController(activeController);
-          }
-        }
-      }
+        OnPickingPositionTarget();
     }
 
 
@@ -578,7 +667,7 @@ namespace BoosterGuidance
           vessel.OnFlyByWire += new FlightInputCallback(Fly3); // 4th vessel
         if (i == 4)
           vessel.OnFlyByWire += new FlightInputCallback(Fly4); // 5th vessel
-      } 
+      }
       activeController.SetPhase(phase);
       string info = "Enabled " + activeController.PhaseStr();
       ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
@@ -613,9 +702,6 @@ namespace BoosterGuidance
         {
           ScreenMessages.PostScreenMessage("Guidance disabled!", 3.0f, ScreenMessageStyle.UPPER_CENTER);
           predictedCross.enabled = false;
-          //if (steer_obj != null)
-          //  Destroy(steer_obj);
-          //steer_obj = null;
         }
         controller.enabled = false;
       }
@@ -654,7 +740,6 @@ namespace BoosterGuidance
 
       if (controller == null)
         return;
-
       Vessel vessel = controller.vessel;
       if (vessel.checkLanded())
       {
@@ -669,10 +754,12 @@ namespace BoosterGuidance
       }
 
       KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
+
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
-      //bool shutdownEnginesNow
+
       controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
-        Time.time, vessel.mainBody, tgt_r, out throttle, out steer);
+        controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer);
+
 
       // Set active engines in landing burn
       if (controller.phase == BLControllerPhase.LandingBurn)
@@ -681,7 +768,6 @@ namespace BoosterGuidance
         {
           foreach (ModuleEngines engine in KSPUtils.GetAllEngines(vessel))
           {
-            //Debug.Log("engine=" + engine);
             if (controller.landingBurnEngines.Contains(engine))
             {
               if (!engine.isOperational)
@@ -694,16 +780,7 @@ namespace BoosterGuidance
             }
           }
         }
-      }
-
-      /*
-      if (shutdownEnginesNow)
-      {
-        Debug.Log("[BoosterGuidance] Shutting down outer engines");
-        // Request hovering thrust
-        KSPUtils.ShutdownOuterEngines(vessel, (float)(FlightGlobals.getGeeForceAtPosition(vessel.GetWorldPos3D()).magnitude * vessel.totalMass), true);
-      }
-      */
+      }   
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
       { 
@@ -728,13 +805,8 @@ namespace BoosterGuidance
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
         RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above grou
         info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s [{3:F0}ms]", controller.targetError, controller.attitudeError, controller.targetT, controller.elapsed_secs * 1000);
-        //info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s]", controller.targetError, controller.attitudeError, controller.targetT);
 
       }
-      // Log mass flow
-      if (controller != null)
-        controller.UpdateMassFlow();
-
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;
       vessel.Autopilot.SAS.SetTargetOrientation(steer, false);
