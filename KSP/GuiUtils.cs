@@ -246,7 +246,43 @@ namespace BoosterGuidance
 
       // Cast a ray from screen point
       Ray ray = map ? PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition) : FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
-      return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, 1 << 15);
+      //return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, 1 << 15);
+
+      // From https://forum.kerbalspaceprogram.com/index.php?/topic/71085-list-of-layer-masks-to-use-with-physicsraycast/
+      //[LOG 21:04:29.355] 0: Default
+      //[LOG 21:04:29.355] 1: TransparentFX
+      //[LOG 21:04:29.356] 2: Ignore Raycast
+      //[LOG 21:04:29.356] 3: 
+      //[LOG 21:04:29.356] 4: Water
+      //[LOG 21:04:29.356] 5: 
+      //[LOG 21:04:29.357] 6: 
+      //[LOG 21:04:29.357] 7: 
+      //[LOG 21:04:29.357] 8: PartsList_Icons
+      //[LOG 21:04:29.358] 9: Atmosphere
+      //[LOG 21:04:29.358] 10: Scaled Scenery
+      //[LOG 21:04:29.358] 11: UI_Culled
+      //[LOG 21:04:29.359] 12: UI_Main
+      //[LOG 21:04:29.359] 13: UI_Mask
+      //[LOG 21:04:29.359] 14: Screens
+      //[LOG 21:04:29.360] 15: Local Scenery
+      //[LOG 21:04:29.360] 16: kerbals
+      //[LOG 21:04:29.360] 17: Editor_UI
+      //[LOG 21:04:29.361] 18: SkySphere
+      //[LOG 21:04:29.361] 19: Disconnected Parts
+      //[LOG 21:04:29.361] 20: Internal Space
+      //[LOG 21:04:29.362] 21: Part Triggers
+      //[LOG 21:04:29.362] 22: KerbalInstructors
+      //[LOG 21:04:29.362] 23: ScaledSpaceSun
+      //[LOG 21:04:29.363] 24: MapFX
+      //[LOG 21:04:29.363] 25: EzGUI_UI
+      //[LOG 21:04:29.363] 26: WheelCollidersIgnore
+      //[LOG 21:04:29.364] 27: WheelColliders
+      //[LOG 21:04:29.364] 28: TerrainColliders
+      //[LOG 21:04:29.364] 29: 
+      //[LOG 21:04:29.365] 30: 
+      //[LOG 21:04:29.365] 31: Vectors
+      //return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, (1 << 15) + (1 << 10) + (1 << 4) << (1 << 28));
+      return Physics.Raycast(ray.origin, ray.direction, out hit, (float)body.Radius,(1<<4) + (1<<15), QueryTriggerInteraction.Ignore);
     }
 
     public class TargetingCross : MonoBehaviour
@@ -260,8 +296,6 @@ namespace BoosterGuidance
       public static double impactLon = 0d;
       public static double impactAlt = 0d;
       public GameObject mesh = null;
-      private Mesh tmesh = null;
-      private Vector3 screen_point;
       private double cross_dist = 0d;
       private Color color = Color.green;
 
