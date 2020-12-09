@@ -124,8 +124,10 @@ namespace BoosterGuidance
 
     public static System.IO.StreamWriter OpenUnusedFilename(String filename)
     {
+      filename = filename.Replace(" ", "_");
+      if (!System.IO.File.Exists(filename))
+        return new System.IO.StreamWriter(filename);
       int i = 1;
-      filename.Replace(" ", "_");
       while (System.IO.File.Exists(filename + "." + i.ToString()))
       {
         i++;
