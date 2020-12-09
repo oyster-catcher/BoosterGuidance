@@ -39,7 +39,7 @@ namespace BoosterGuidance
 
       // Get steer and throttle
       bool bailOutLandingBurn = true;
-      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, out throttle, out steer, bailOutLandingBurn);
+      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
       // Stop throttle so we don't take off again in timestep, dt
       if (y < controller.tgtAlt + 50)
         throttle = 0;
@@ -66,7 +66,7 @@ namespace BoosterGuidance
           R = r.magnitude;
           g = r * (-body.gravParameter / (R * R * R));
           // Get steer and throttle
-          controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t + (i*dt2), body, tgt_r, out throttle, out steer, bailOutLandingBurn);
+          controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t + (i*dt2), body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
           // Stop throttle so we don't take off again in timestep, dt
           if (y < controller.tgtAlt + 50)
             throttle = 0;
@@ -110,10 +110,14 @@ namespace BoosterGuidance
 
       // Get steer and throttle
       bool bailOutLandingBurn = true;
-      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, out throttle, out steer, bailOutLandingBurn);
-      // Stop throttle so we don't take off again in timestep, dt
-      if (y < controller.tgtAlt + 50)
-        throttle = 0;
+      if (controller != null)
+      {
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
+        // Stop throttle so we don't take off again in timestep, dt
+        // TODO - Fix HACK!!
+        if (y < controller.tgtAlt + 50)
+          throttle = 0;
+      }
 
       Vector3d Ft = Vector3d.zero;
       if (throttle > 0)
@@ -121,6 +125,9 @@ namespace BoosterGuidance
 
       // TODO: Do repeated calls to GetForces() mess up PID controllers which updates their internal estimates?
       vel_air = v - body.getRFrmVel(r + body.position);
+      if (aeroModel == null) {
+        Debug.Log("EulerStep() - No aeroModel");
+      }
       Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI) * aeroFudgeFactor + Ft;
       Vector3d a = F / totalMass + g;
 
@@ -147,7 +154,7 @@ namespace BoosterGuidance
 
       // Get steer and throttle
       bool bailOutLandingBurn = true;
-      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, out throttle, out steer, bailOutLandingBurn);
+      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
       // Stop throttle so we don't take off again in timestep, dt
       if (y < controller.tgtAlt+50)
         throttle = 0;
@@ -207,7 +214,8 @@ namespace BoosterGuidance
       if (controller != null)
       {
         bool bailOutLandingBurn = true;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, out throttle, out steer, bailOutLandingBurn);
+        bool simulate = true;
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, bailOutLandingBurn);
         if (throttle > 0)
         {
           F = steer * (minThrust + throttle * (maxThrust - minThrust));
@@ -223,7 +231,7 @@ namespace BoosterGuidance
 
 
     static public Vector3d ToGround(double tgtAlt, Vessel vessel, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, BLController controller,
-      Vector3d tgt_r, out double T, string logFilename="", Transform logTransform=null, double maxT=600)
+      Vector3d tgt_r, out double T, string logFilename="", Transform logTransform=null, double timeOffset=0, double maxT=600)
       // logTransform is transform at the current time
     {
       float ang;
@@ -232,7 +240,7 @@ namespace BoosterGuidance
       if (logFilename != "")
       {
         f = HGUtils.OpenUnusedFilename(logFilename);
-        f.WriteLine("time x y z vx vy vz ax ay az att_err airspeed totalMass");
+        f.WriteLine("time x y z vx vy vz ax ay az att_err airspeed target_error total_mass");
         f.WriteLine("# tgtAlt=" + tgtAlt);
       }
 
@@ -242,14 +250,20 @@ namespace BoosterGuidance
       Vector3d a = Vector3d.zero;
       Vector3d lastv = v;
       double minThrust, maxThrust;
-      double totalMass = vessel.GetTotalMass();
+      double totalMass = vessel.totalMass;
       // Initially thrust is for all operational engines
       KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
-      if (controller != null)
-        controller.noCorrect = true;
       double y = r.magnitude - body.Radius;
       // TODO: att should be supplied as vessel transform will be wrong in simulation
       Vector3d att = new Vector3d(vessel.transform.up.x, vessel.transform.up.y, vessel.transform.up.z);
+      double targetError = 0;
+
+      if (controller != null)
+      {
+        // Take target error from previously calculated trajectory
+        // We would know this at the end but can't wait until then
+        targetError = controller.targetError;
+      }
 
       double dt = 2; // above atmosphere
       if (y < 70000)
@@ -286,15 +300,10 @@ namespace BoosterGuidance
           tr = logTransform.InverseTransformPoint(tr + body.position);
           Vector3d tv = logTransform.InverseTransformVector(tr2 - tr1);
           ta = logTransform.InverseTransformVector(ta);
-          f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F1} {11:F2}", T, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, vel_air.magnitude, totalMass));
+          f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F1} {11:F2} {12:F2}", T + timeOffset, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, vel_air.magnitude, targetError, totalMass));
         }
 
         T = T + dt;
-
-        // Deplete mass as fuel consumed
-        // TODO: Approximation using number of engines used is the same
-        if (controller != null)
-          totalMass -= controller.peakMassFlow * throttle * 10; // 10 is fudge factor!
       }
       if (T > maxT)
         Debug.Log("[BoosterGuidance] Simulation time exceeds maxT=" + maxT);
@@ -309,11 +318,6 @@ namespace BoosterGuidance
       }
       if (f != null)
         f.Close();
-
-      if (controller != null)
-      {
-        Debug.Log("[BoosterGuidance] initialY=" + initialY + " initialMass=" + vessel.totalMass + " finalMass=" + totalMass + " peakMassFlow=" + controller.peakMassFlow);
-      }
 
       // Compensate for body rotation giving world position in the surface point now
       // that would be hit in the future
@@ -368,22 +372,19 @@ namespace BoosterGuidance
         if (av < 0)
           av = 0.1; // pretend we have more thrust to look like we are doing something rather than giving up!!
         // dvy in 2 seconds time (allowing time for engine start up)
-        double dvy2 = Math.Sqrt((1 + suicideFactor) * av * ((y - tgtAlt) - vel_air.magnitude * 2)) + touchdownSpeed;
+        double dvy = Math.Sqrt((1 + suicideFactor) * av * (y - tgtAlt)) + touchdownSpeed;
 
         // Find latest point when velocity is less than desired velocity
         // as it means it is too high in the next time step meaning this is the time to
         // apply landing burn thrust
-        if (dvy2 > vel_air.magnitude)
+        if (dvy > vel_air.magnitude)
           LandingBurnAlt = y;
         if (f != null)
-          f.WriteLine(string.Format("{0} {1:F1} {2:F1} {3:F1}", T, y, vel_air.magnitude, dvy2));
+          f.WriteLine(string.Format("{0} {1:F1} {2:F1} {3:F1}", T, y, vel_air.magnitude, dvy));
 
         // Equations of motion
         r = r + v * dt;
         v = v + (F / totalMass) * dt;
-
-        if (controller != null)
-          totalMass -= controller.peakMassFlow * throttle * 10; // 10 is fudge factor!
 
         T = T + dt;
       }
