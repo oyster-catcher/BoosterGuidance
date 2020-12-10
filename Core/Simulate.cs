@@ -20,77 +20,6 @@ namespace BoosterGuidance
       return (r - body.position).magnitude < body.Radius;
     }
 
-    static private void VariableEulerStep(
-            double dt,
-            Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
-            Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t,
-            BLController controller, Vector3d tgt_r, double aeroFudgeFactor,
-            out Vector3d steer,
-            out Vector3d vel_air, out double throttle,
-            out Vector3d out_r, out Vector3d out_v)
-    {
-      double y = r.magnitude - body.Radius;
-      steer = -Vector3d.Normalize(v);
-      throttle = 0;
-
-      // gravity
-      double R = r.magnitude;
-      Vector3d g = r * (-body.gravParameter / (R * R * R));
-
-      // Get steer and throttle
-      bool bailOutLandingBurn = true;
-      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
-      // Stop throttle so we don't take off again in timestep, dt
-      if (y < controller.tgtAlt + 50)
-        throttle = 0;
-
-      Vector3d Ft = Vector3d.zero;
-      if (throttle > 0)
-        Ft = steer * (minThrust + throttle * (maxThrust - minThrust));
-
-      vel_air = v - body.getRFrmVel(r + body.position);
-      Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI) * aeroFudgeFactor + Ft;
-      Vector3d a = F / totalMass + g;
-
-      // When under high acceleration use smaller time steps
-      
-      if (a.magnitude > 10)
-      {
-        double dt2 = dt * 0.2;
-
-        for(int i=0; i<5; i++)
-        {
-          y = r.magnitude - body.Radius;
-          steer = -Vector3d.Normalize(v);
-          throttle = 0;
-          R = r.magnitude;
-          g = r * (-body.gravParameter / (R * R * R));
-          // Get steer and throttle
-          controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t + (i*dt2), body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
-          // Stop throttle so we don't take off again in timestep, dt
-          if (y < controller.tgtAlt + 50)
-            throttle = 0;
-          Ft = Vector3d.zero;
-          if (throttle > 0)
-            Ft = steer * (minThrust + throttle * (maxThrust - minThrust));
-          vel_air = v - body.getRFrmVel(r + body.position);
-          F = aeroModel.GetForces(body, r, vel_air, Math.PI) * aeroFudgeFactor + Ft;
-          //Debug.Log("[BoosterGuidance] y=" + y + " throttle=" + throttle + " a=" + a.magnitude + " dt=" + dt2);
-          a = F / totalMass + g;
-          r = r + v * dt2;
-          v = v + a * dt2;
-        }
-        out_r = r;
-        out_v = v;
-        return;
-      }
-      //else
-        //Debug.Log("[BoosterGuidance] y=" + y + " throttle=" + throttle + " a=" + a.magnitude+" dt="+dt);
-      // Single large step
-      out_r = r + v * dt;
-      out_v = v + a * dt;
-    }
-
     static private void EulerStep(
             double dt,
             Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
@@ -112,7 +41,8 @@ namespace BoosterGuidance
       bool bailOutLandingBurn = true;
       if (controller != null)
       {
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
+        bool landingGear, gridFins;
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, out gridFins, bailOutLandingBurn);
         // Stop throttle so we don't take off again in timestep, dt
         // TODO - Fix HACK!!
         if (y < controller.tgtAlt + 50)
@@ -135,63 +65,6 @@ namespace BoosterGuidance
       out_v = v + a * dt;
     }
 
-    static private void RK4Step(
-            double dt,
-            Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
-            Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t,
-            BLController controller, Vector3d tgt_r, double aeroFudgeFactor,
-            out Vector3d steer,
-            out Vector3d vel_air, out double throttle,
-            out Vector3d out_r, out Vector3d out_v)
-    {
-      double y = r.magnitude - body.Radius;
-      steer = -Vector3d.Normalize(v);
-      throttle = 0;
-
-      // gravity
-      double R = r.magnitude;
-      Vector3d g = r * (-body.gravParameter / (R * R * R));
-
-      // Get steer and throttle
-      bool bailOutLandingBurn = true;
-      controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, bailOutLandingBurn);
-      // Stop throttle so we don't take off again in timestep, dt
-      if (y < controller.tgtAlt+50)
-        throttle = 0;
-
-      Vector3d Ft = Vector3d.zero;
-      if (throttle > 0)
-        Ft = steer * (minThrust + throttle * (maxThrust - minThrust));
-
-      // TODO: Do repeated calls to GetForces() mess up PID controllers which updates their internal estimates?
-      Vector3d r1 = r;
-      Vector3d v1 = v;
-      Vector3d vel_air1 = v1 - body.getRFrmVel(r1 + body.position);
-      Vector3d F1 = aeroModel.GetForces(body, r1, vel_air1, Math.PI) * aeroFudgeFactor + Ft;
-      Vector3d a1 = F1 / totalMass + g;
-      
-      Vector3d r2 = r + 0.5 * v1 * dt;
-      Vector3d v2 = v + 0.5 * a1 * dt;
-      Vector3d vel_air2 = v2 - body.getRFrmVel(r2 + body.position);
-      Vector3d F2 = aeroModel.GetForces(body, r2, vel_air2, Math.PI) * aeroFudgeFactor + Ft;
-      Vector3d a2 = F2 / totalMass + g;
-
-      Vector3d r3 = r + 0.5 * v2 * dt;
-      Vector3d v3 = v + 0.5 * a2 * dt;
-      Vector3d vel_air3 = v3 - body.getRFrmVel(r3 + body.position);
-      Vector3d F3 = aeroModel.GetForces(body, r3, vel_air3, Math.PI) * aeroFudgeFactor + Ft;
-      Vector3d a3 = F3 / totalMass + g;
-
-      Vector3d r4 = r + v3 * dt;
-      Vector3d v4 = v + a3 * dt;
-      Vector3d vel_air4 = v4 - body.getRFrmVel(r4 + body.position);
-      Vector3d F4 = aeroModel.GetForces(body, r4, vel_air4, Math.PI) * aeroFudgeFactor + Ft;
-      Vector3d a4 = F4 / totalMass + g;
-
-      out_r = r + (dt / 6.0) * (v1 + 2.0 * v2 + 2.0 * v3 + v4);
-      out_v = v + (dt / 6.0) * (a1 + 2.0 * a2 + 2.0 * a3 + a4);
-      vel_air = out_v - body.getRFrmVel(out_r + body.position);
-    }
 
     static private Vector3d GetForces(Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
       Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t,
@@ -215,7 +88,8 @@ namespace BoosterGuidance
       {
         bool bailOutLandingBurn = true;
         bool simulate = true;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, bailOutLandingBurn);
+        bool landingGear, gridFins;
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, out gridFins, bailOutLandingBurn);
         if (throttle > 0)
         {
           F = steer * (minThrust + throttle * (maxThrust - minThrust));
@@ -329,7 +203,8 @@ namespace BoosterGuidance
 
     // Simulate trajectory to ground and work out point to fire landing burn assuming air resistance will help slow the vessel down
     // This point will be MUCH later than thrust would be applied minus air resistance
-    static public double CalculateLandingBurnAlt(double tgtAlt, Vector3d wr, Vector3d v, Vessel vessel, double totalMass, double minThrust, double maxThrust, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body,
+    // Height is used to mean the height above the target altitude
+    static public double CalculateLandingBurnHeight(double tgtAlt, Vector3d wr, Vector3d v, Vessel vessel, double totalMass, double minThrust, double maxThrust, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body,
       BLController controller=null, double maxT = 600, string filename="")
     {
       double T = 0;
@@ -338,7 +213,7 @@ namespace BoosterGuidance
       double y = r.magnitude - body.Radius;
       double amin = minThrust / totalMass;
       double amax = maxThrust / totalMass;
-      double LandingBurnAlt = 0;
+      double LandingBurnHeight = 0;
       Vector3d att = -Vector3d.Normalize(v);
 
       double suicideFactor = 0.8;
@@ -378,7 +253,7 @@ namespace BoosterGuidance
         // as it means it is too high in the next time step meaning this is the time to
         // apply landing burn thrust
         if (dvy > vel_air.magnitude)
-          LandingBurnAlt = y;
+          LandingBurnHeight = y - tgtAlt;
         if (f != null)
           f.WriteLine(string.Format("{0} {1:F1} {2:F1} {3:F1}", T, y, vel_air.magnitude, dvy));
 
@@ -392,10 +267,10 @@ namespace BoosterGuidance
         Debug.Log("[BoosterGuidance] Simulation time exceeds maxT=" + maxT);
       if (f != null)
       {
-        f.WriteLine("# LandingBurnAlt=" + LandingBurnAlt + " amax="+amax);
+        f.WriteLine("# LandingBurnHeight=" + LandingBurnHeight + " amax="+amax);
         f.Close();
       }
-      return LandingBurnAlt;
+      return LandingBurnHeight;
     }
   }
 }
