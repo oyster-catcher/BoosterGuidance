@@ -25,8 +25,8 @@ namespace BoosterGuidance
     public double aeroDescentSteerKp = 0.01f;
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
-    public double reentryBurnMaxAoA = 10;
-    public double landingBurnAlt = 0; // Maximum altitude to enable powered descent
+    public double reentryBurnMaxAoA = 20;
+    public double landingBurnHeight = 0; // Maximum altitude to enable powered descent
     public double landingBurnSteerKp = 0.01f;
     public double landingBurnMaxAoA = 10;
     public double suicideFactor = 0.6;
@@ -34,9 +34,13 @@ namespace BoosterGuidance
     public double reentryBurnSteerGain = 0.1;
     public PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
     public PIDclamp pid_powered = new PIDclamp("poweredSteer", 1, 0, 0, 10);
-    public double noSteerAlt = 50; // Don't steer once < 50m
     public double igniteDelay = 3; // ignite engines this many seconds early
     public double simulationsPerSec = 10;
+    public bool deployLandingGear = true;
+    public double deployLandingGearHeight = 500;
+    public double touchdownMargin = 30; // use touchdown speed from this height
+    public double noSteerHeight = 200;
+    public bool deployGridFins = true;
 
     // Private parameters
     private double minError = float.MaxValue;
@@ -47,8 +51,6 @@ namespace BoosterGuidance
     private Transform logTransform;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
-    //private bool deployGears = true;
-    private double touchdownMargin = 30; // use touchdown speed from this height
     private double liftFactor = 15;
     private double steerGainLimit = 1; // limits aero/powered steer gain to 0.1 degree per 1m error
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
@@ -112,24 +114,14 @@ namespace BoosterGuidance
       reentryBurnTargetSpeed = v.reentryBurnTargetSpeed;
       aeroModel = v.aeroModel;
       aeroDescentSteerKp = v.aeroDescentSteerKp;
-      landingBurnAlt = v.landingBurnAlt;
+      landingBurnHeight = v.landingBurnHeight;
       landingBurnAMax = v.landingBurnAMax;
       landingBurnSteerKp = v.landingBurnSteerKp;
       landingBurnEngines = v.landingBurnEngines;
       suicideFactor = v.suicideFactor;
       targetError = v.targetError;
       igniteDelay = v.igniteDelay;
-      noSteerAlt = v.noSteerAlt;
-    }
-
-    public override bool Set(string k, string v)
-    {
-      if (k == "landingBurnAlt")
-      {
-        landingBurnAlt = Convert.ToDouble(v);
-        return true;
-      }
-      return false;
+      noSteerHeight = v.noSteerHeight;
     }
 
     public void SetPhase(BLControllerPhase a_phase)
@@ -252,6 +244,8 @@ namespace BoosterGuidance
                     Vector3d tgt_r, // target in world co-ordinates
                     bool simulate, // if true just go retrograde (no corrections)
                     out double throttle, out Vector3d steer,
+                    out bool landingGear, // true if landing gear requested (stays true)
+                    out bool gridFins,
                     bool bailOutLandingBurn = false) // if set too true on RO set throttle=0 if thrust > gravity at landing
 
     {
@@ -269,18 +263,18 @@ namespace BoosterGuidance
       System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
       timer.Start();
 
+      steer = lastSteer;
+      throttle = lastThrottle;
+      landingGear = (y < deployLandingGearHeight) && (deployLandingGear);
+      gridFins = (alt < reentryBurnAlt);
+
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
 
       if (amax > 0) // check in case out of fuel or something
-        //throttleGain = 5.0 / (amax - amin); // cancel velocity error in 0.2 secs
         throttleGain = 5 / (amax - amin); // cancel velocity over 1.25 seconds
 
-      if (t < lastt + logInterval)
-      {
-        steer = lastSteer;
-        throttle = lastThrottle;
+      if (t < lastt + 1.0/Math.Max(simulationsPerSec,0.1))
         return;
-      }
 
       // No thrust - retrograde relative to surface (default and Coasting phase
       throttle = 0;
@@ -296,7 +290,7 @@ namespace BoosterGuidance
         if (phase == BLControllerPhase.BoostBack)
           tc.phase = BLControllerPhase.Coasting;
         predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
-        landingBurnAlt = tc.landingBurnAlt; // Update from simulation
+        landingBurnHeight = tc.landingBurnHeight; // Update from simulation
         tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
         error = predWorldPos - tgt_r;
         error = Vector3d.Exclude(up, error); // make sure error is horizontal
@@ -382,9 +376,9 @@ namespace BoosterGuidance
           if (fp != null)
             filename = vessel.name.Replace(" ","_") + ".landing_burn.dat";
 
-          landingBurnAlt = Simulate.CalculateLandingBurnAlt(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100, filename);
+          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100, filename);
         }
-        if (y - vel_air.magnitude * igniteDelay <= landingBurnAlt) // Switch to landing burn N secs earlier to allow RO engine start up time
+        if (y - vel_air.magnitude * igniteDelay <= landingBurnHeight) // Switch to landing burn N secs earlier to allow RO engine start up time
         {
           lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
           phase = BLControllerPhase.LandingBurn;
@@ -405,7 +399,7 @@ namespace BoosterGuidance
           double da = g - (5 * err_dv); // required accel to change vy, cancel out g (only works if vertical)
           throttle = HGUtils.Clamp((da - amin) / (0.01 + amax - amin), minThrottle, 1);
         }
-        if ((!simulate) && (alt > noSteerAlt))
+        if ((!simulate) && (y > noSteerHeight))
         {
           double ang;
           if (throttle < 0.1)
