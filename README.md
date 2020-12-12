@@ -15,7 +15,7 @@ ship or to another landing site all the way from a sub-orbital trajectory.
 
 - Prerequistes
 
-Your rocket needs to have sufficient thrust to get to the destination, RCS thrusters to change attitude in space and ideally grid fins for steering in the aerodynamic descent. The main
+Your booster needs to have sufficient thrust to get to the destination, RCS thrusters to change attitude in space and ideally grid fins for steering in the aerodynamic descent. The main
 engine must have thrust vectoring and be throtteable.
 
 - What does the BoosterGuidance window show?
@@ -46,7 +46,7 @@ automatically be triggered.
 
 - Boostback
 
-No controls for this. The rocket will turn to fire its engines to minimize the target error. For return to launch site this will mean aiming back at the launch site.
+No controls for this. The booster will turn to fire its engines to minimize the target error. For return to launch site this will mean aiming back at the launch site.
 It will turn using RCS (if enabled) and thrust vectoring to aim correctly. It will then increase the throttle and finally reduce throttle when the target error is getting low for increased accuracy.
 The next phase, Coasting, will be triggered when the target error is below 20m or if the target error has risen significantly and probably can't be reduced further.
 
@@ -85,7 +85,7 @@ direction. BoosterGuidance tries to estimate this but it might get it wrong. Bro
 
 Finally the big important button at the bottom
 
-- Enable/disable Guidance:  Toggles whether to fly the rocket with guidance or use manual controls. When enabling BoosterGuidance will enable a suitable phase
+- Enable/disable Guidance:  Toggles whether to fly the booster with guidance or use manual controls. When enabling BoosterGuidance will enable a suitable phase
 of flight by checking the rules from Boostback onwards.
 
 ## ADVANCED TOPICS
@@ -138,10 +138,21 @@ This determines how gently you wish to touchdown.
 In RO engines take some time to startup so they are ignited early than before they are needed, but only for the landing burn where this is most crucial. If you
 find you hit the ground in RO you might want to increase this and the touchdown margin.
 
+### A typical boostback trajectory
+
+Please look at my video here https://www.youtube.com/watch?v=GMeiB5LbwnY which shows how to do a return to launch site of a Falcon 9 booster. It takes off
+from KSC and begins pitching over Eastwards after reaching about 100m/s using 3 engines. At 45km altitude the booster it pitched over 45 degrees and travelling
+at 1700m/s (orbital). It coasts up to 70km and then I enable boostback still using all three engines (probably more realistic to use a single engine). The
+apoapsis is 167km. Boostback completes in about 40 seconds. The re-entry burn is enabled at 55km when travelling 1260m/s (surface) and the velocity is reduced
+to 700m/s by 45km altitude. The thrust is unrealistically high. The landing burn was enabled at 600m above the target using a single engine (this was setup earlier in
+the flight). The video shows the output of the logging in the top-left corner. In this example the engine thrust was unreasonably high so the velocity in the
+re-entry burn was reduced too quickly which meant the velocity increased more significantly in the aerodynamic descent. I recommend going to flightclub.io to
+find realistic simulations of Falcon 9 flight to see if you can match the simulation more precisely.
+
 ### Special consideration of Realism Overhaul
 
-I love Realism Overhaul. I make the challenges of getting to space much more real and you can be surer that would you are doing is more physically possible.
-The challenges that affect you here are and how to resolve then are:
+I love Realism Overhaul. Its make the challenges of getting to space much more real and you can be surer that what you are doing is more physically possible.
+But there are significant challenges, mainly caused by realistic engine capabilities that will affect and annoy you. Heres how to deal with them.
 
 - Limited throttling
 
