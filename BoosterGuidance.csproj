@@ -135,9 +135,8 @@
     <None Include="TODO" />
     <None Include="README.md" />
     <None Include="KSP\Localization\en-us.cfg" />
-    <None Include="BoosterGuidanceIcon.png">
-      <Link>KSP\BoosterGuidanceIcon.png</Link>
-    </None>
+    <None Include="GameData\BoosterGuidance\License.txt" />
+    <None Include="GameData\BoosterGuidance\BoosterGuidanceIcon.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
