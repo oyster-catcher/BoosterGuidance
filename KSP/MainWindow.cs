@@ -297,10 +297,13 @@ namespace BoosterGuidance
       // TODO - Need to be specific to controller so works when switching vessel
       bool prevLogging = logging;
       logging = GUILayout.Toggle(logging, "Logging");
-      if ((!prevLogging) && (logging)) // logging switched on
-        StartLogging();
-      if ((prevLogging) && (!logging)) // logging switched off
-        StopLogging();
+      if (activeController.enabled)
+      {
+        if ((!prevLogging) && (logging)) // logging switched on
+          StartLogging();
+        if ((prevLogging) && (!logging)) // logging switched off
+          StopLogging();
+      }
       GUILayout.EndHorizontal();
 
       // Info box
@@ -389,7 +392,7 @@ namespace BoosterGuidance
       if (activeController != null)
       {
         if (activeController.landingBurnHeight > 0)
-          text = ((int)activeController.landingBurnHeight) + tgtAlt.ToString() + "m";
+          text = ((int)(activeController.landingBurnHeight + tgtAlt)).ToString() + "m";
         else
         {
           if (activeController.landingBurnHeight < 0)
@@ -687,6 +690,7 @@ namespace BoosterGuidance
       string info = "Enabled " + activeController.PhaseStr();
       ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
       activeController.enabled = true;
+      StartLogging();
     }
 
 
