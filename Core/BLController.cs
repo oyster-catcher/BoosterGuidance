@@ -371,11 +371,7 @@ namespace BoosterGuidance
         if (Math.Abs(landingBurnAMax - newLandingBurnAMax) > 0.02)
         {
           landingBurnAMax = landingMaxThrust / totalMass; // update so we don't continually recalc
-          String filename = "";
-          if (fp != null)
-            filename = vessel.name.Replace(" ","_") + ".landing_burn.dat";
-
-          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100, filename);
+          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100, "");
         }
         if (y - vel_air.magnitude * igniteDelay <= landingBurnHeight) // Switch to landing burn N secs earlier to allow RO engine start up time
         {
