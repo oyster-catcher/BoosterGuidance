@@ -26,7 +26,7 @@
       <CustomCommands>
         <Command>
           <type>AfterBuild</type>
-          <command>cp ${TargetFile} ~/KSP_Cutdown/GameData/BoosterGuidance</command>
+          <command>cp ${TargetFile} /Users/${User}/Library/Application\ Support/Steam/steamapps/common/Kerbal\ Space\ Program/GameData/BoosterGuidance</command>
           <workingdir>${ProjectDir}</workingdir>
         </Command>
       </CustomCommands>
@@ -43,13 +43,7 @@
       <CustomCommands>
         <Command>
           <type>AfterBuild</type>
-          <command>cp ${TargetFile} ~/KSP_Cutdown/GameData/BoosterGuidance</command>
-          <workingdir>${ProjectDir}</workingdir>
-          <externalConsole>True</externalConsole>
-        </Command>
-        <Command>
-          <type>AfterBuild</type>
-          <command>cp ${TargetFile} ~/KSP_RO/GameData/BoosterGuidance</command>
+          <command>cp ${TargetFile} /Users/${User}/Library/Application\ Support/Steam/steamapps/common/Kerbal\ Space\ Program/GameData/BoosterGuidance</command>
           <workingdir>${ProjectDir}</workingdir>
           <externalConsole>True</externalConsole>
         </Command>
@@ -135,8 +129,8 @@
     <None Include="TODO" />
     <None Include="README.md" />
     <None Include="KSP\Localization\en-us.cfg" />
-    <None Include="GameData\BoosterGuidance\License.txt" />
     <None Include="GameData\BoosterGuidance\BoosterGuidanceIcon.png" />
+    <None Include="License.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
