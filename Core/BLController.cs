@@ -161,9 +161,9 @@ namespace BoosterGuidance
 
     public void LogSimulation()
     {
-      Debug.Log("LogSimulation phase=" + phase);
-      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       String name = PhaseStr().Replace(" ", "_");
+      Debug.Log("LogSimulation phase=" + phase + "filename=" + logFilename + ".Simulate" + name + ".dat");
+      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       BLController tc = new BLController(this);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out targetT, logFilename + ".Simulate." + name + ".dat", logTransform, vessel.missionTime - logStartTime);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out targetT, logFilename + ".Simulate.Free.dat", logTransform, vessel.missionTime - logStartTime);
@@ -180,7 +180,6 @@ namespace BoosterGuidance
         fp = new System.IO.StreamWriter(filename+".Actual.dat");
         logFilename = filename;
         logTransform = transform;
-        // t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
         fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax steer_gain target_error totalMass");
         logStartTime = vessel.missionTime;
         LogSimulation();
@@ -266,7 +265,7 @@ namespace BoosterGuidance
       steer = lastSteer;
       throttle = lastThrottle;
       landingGear = (y < deployLandingGearHeight) && (deployLandingGear);
-      gridFins = (alt < reentryBurnAlt);
+      gridFins = (alt < reentryBurnAlt) && (deployGridFins);
 
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
 
@@ -451,6 +450,7 @@ namespace BoosterGuidance
           Vector3d tv = logTransform.InverseTransformVector(vel_air);
           Vector3d ta = logTransform.InverseTransformVector(a);
           fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
+          Debug.Log("Writing line to log fp="+fp);
           logLastTime = t;
         }
       }
@@ -463,7 +463,7 @@ namespace BoosterGuidance
 
       // Log simulate to ground when phase changes
       // So the logging is done at the start of the new phase
-      if ((lastPhase != phase) && (fp!=null))
+      if ((lastPhase != phase) && (fp != null))
         LogSimulation();
 
       // Cache
