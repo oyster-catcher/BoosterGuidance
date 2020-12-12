@@ -411,7 +411,6 @@ namespace BoosterGuidance
         {
           if (GUILayout.Button("Set"))  // Set to currently active engines
             numLandingBurnEngines = activeController.SetLandingBurnEngines();
-          //Debug.Log("activeController.numEngines=" + activeController.landingBurnEngines.Count);
         }
         else
         {
