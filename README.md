@@ -85,7 +85,7 @@ direction. BoosterGuidance tries to estimate this but it might get it wrong. Bro
 
 Finally the big important button at the bottom
 
-- Enabled/disable Guidance:  Toggles whether to fly the rocket with guidance or use manual controls. When enabling BoosterGuidance will enable a suitable phase
+- Enable/disable Guidance:  Toggles whether to fly the rocket with guidance or use manual controls. When enabling BoosterGuidance will enable a suitable phase
 of flight by checking the rules from Boostback onwards.
 
 ## ADVANCED TOPICS
@@ -149,7 +149,7 @@ The SpaceX Merlin or Raptor engines as well as the Blue origin BE-3/4 engines ar
 a large booster on Earth. You will need to choose just the right number of engines for the landing burn. Well you can choose extra to achieve fast decelaration
 but be aware you may have too much thrust to hover or descent slowly (same amount of thrust really) so you may well take off again. You could cut an engine at
 the last minute. If you have too much propellant to land a Falcon 9 you will not be able to slow down enough with a single engine, so getting just the right amount of
-fuel remaining is critical. 
+fuel remaining is critical. I set up action groups to toggle on/off sets of engines if I need different engines for different phases of flight.
 
 - Limited ignitions
 
