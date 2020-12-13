@@ -32,9 +32,9 @@ namespace BoosterGuidance
     float reentryBurnSteerGain = 0.004f; // angle to steer = gain * targetError(in m)
     // Aero descent
     EditableInt aeroDescentMaxAoA = 20;
-    float aeroDescentSteerKp = 250;
+    float aeroDescentSteerLogKp = 5.5f;
     // Landing burn
-    float landingBurnSteerKp = 50;
+    float landingBurnSteerLogKp = 2.5f;
     string numLandingBurnEngines = "current";
 
     // Advanced settings
@@ -364,7 +364,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer gain", GUILayout.Width(60));
-      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 300);
+      aeroDescentSteerLogKp = GUILayout.HorizontalSlider(aeroDescentSteerLogKp, 0, 5.5f);
       GUILayout.EndHorizontal();
 
       /*
@@ -424,7 +424,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer gain", GUILayout.Width(60));
-      landingBurnSteerKp = GUILayout.HorizontalSlider(landingBurnSteerKp, 0, 300);
+      landingBurnSteerLogKp = GUILayout.HorizontalSlider(landingBurnSteerLogKp, 0, 5.5f);
       GUILayout.EndHorizontal();
 
       /*
@@ -485,8 +485,8 @@ namespace BoosterGuidance
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
-        controller.landingBurnSteerKp = landingBurnSteerKp;
-        controller.aeroDescentSteerKp = aeroDescentSteerKp;
+        controller.landingBurnSteerKp = Math.Exp(landingBurnSteerLogKp);
+        controller.aeroDescentSteerKp = Math.Exp(aeroDescentSteerLogKp);
         // Note that the Kp gain in the PIDs below is set by combining the relevant Kp from above
         // and a gain factor based on air resistance an throttle to determine whether to steer
         // aerodynamically or by thrust, and how sensitive the vessel is to that
@@ -509,8 +509,8 @@ namespace BoosterGuidance
       reentryBurnTargetSpeed = (int)controller.reentryBurnTargetSpeed;
       maxAoA = (int)controller.reentryBurnMaxAoA;
       // TODO: Read from PID
-      aeroDescentSteerKp = (float)controller.aeroDescentSteerKp;
-      //landingBurnMaxAoA = (int)controller.landingBurnMaxAoA;
+      aeroDescentSteerLogKp = Mathf.Log((float)controller.aeroDescentSteerKp);
+      landingBurnSteerLogKp = Mathf.Log((float)controller.landingBurnSteerKp);
       tgtLatitude = controller.tgtLatitude;
       tgtLongitude = controller.tgtLongitude;
       tgtAlt = (int)controller.tgtAlt;
