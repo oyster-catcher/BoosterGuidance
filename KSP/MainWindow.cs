@@ -25,16 +25,17 @@ namespace BoosterGuidance
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
-    EditableInt maxAoA = 20;
     // Re-Entry Burn
     EditableInt reentryBurnAlt = 55000;
     EditableInt reentryBurnTargetSpeed = 700;
+    float reentryBurnMaxAoA = 20; // will be set from reentryBurnSteerGain
     float reentryBurnSteerGain = 0.004f; // angle to steer = gain * targetError(in m)
     // Aero descent
-    EditableInt aeroDescentMaxAoA = 20;
+    double aeroDescentMaxAoA = 0; // will be set from Kp
     float aeroDescentSteerLogKp = 5.5f;
     // Landing burn
     float landingBurnSteerLogKp = 2.5f;
+    double landingBurnMaxAoA = 0; // will be set from Kp
     string numLandingBurnEngines = "current";
 
     // Advanced settings
@@ -151,23 +152,7 @@ namespace BoosterGuidance
       // Margin
       // Touchdown speed
       // No steer height
-      GUILayout.BeginHorizontal();
-      GUILayout.Space(30);
-      GUILayout.Label("Aero descent:");
-      GUILayout.EndHorizontal();
-
-      GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Max attack", maxAoA, "°", 25);
-      if (GUILayout.Button("▼"))
-        maxAoA -= 1;
-      if (GUILayout.Button("▲"))
-        maxAoA += 1;
-      GUILayout.EndHorizontal();
-      /*
-      GUILayout.BeginHorizontal();
-      deployGridfins = GUILayout.Toggle(deployGridfins, "Deploy gridfins");
-      GUILayout.EndHorizontal();
-      */
+   
       GUILayout.BeginHorizontal();
       deployLandingGear = GUILayout.Toggle(deployLandingGear, "Deploy landing gear");
       GUILayout.EndHorizontal();
@@ -252,7 +237,6 @@ namespace BoosterGuidance
       // Target:
 
       // Draw any Controls inside the window here
-      //GUILayout.Label(Localizer.Format("#BoosterGuidance_Label_Target"));//Target coordinates:
       GUILayout.Label("Target");//Target coordinates:
 
       GUILayout.BeginHorizontal();
@@ -340,20 +324,11 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Steer gain", GUILayout.Width(60));
+      GUILayout.Label("Steer", GUILayout.Width(40));
       reentryBurnSteerGain = GUILayout.HorizontalSlider(reentryBurnSteerGain, 0, 0.005f);
-      //GUILayout.Label(reentryBurnSteerGain.ToString(), GUILayout.Width(20));
+      reentryBurnMaxAoA = (reentryBurnSteerGain / 0.005f) * 30;
+      GUILayout.Label(((int)(reentryBurnMaxAoA)).ToString()+ "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
-
-      /*
-      GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Max attack", reentryBurnMaxAoA, "°", 25);
-      if (GUILayout.Button("▼"))
-        reentryBurnMaxAoA -= 1;
-      if (GUILayout.Button("▲"))
-        reentryBurnMaxAoA += 1;
-      GUILayout.EndHorizontal();
-      */
 
       // Aero Descent
       SetEnabledColors((phase == BLControllerPhase.AeroDescent) || (phase == BLControllerPhase.Unset));
@@ -363,20 +338,11 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Steer gain", GUILayout.Width(60));
+      GUILayout.Label("Steer", GUILayout.Width(40));
       aeroDescentSteerLogKp = GUILayout.HorizontalSlider(aeroDescentSteerLogKp, 0, 5.5f);
+      aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp /5.5);
+      GUILayout.Label(((int)aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
-
-      /*
-      GUILayout.BeginHorizontal();
-      //GUILayout.Space(10);
-      GuiUtils.SimpleTextBox("Max attack", aeroDescentMaxAoA, "°", 25);
-      if (GUILayout.Button("▼"))
-        aeroDescentMaxAoA = Math.Max(0, aeroDescentMaxAoA - 1);
-      if (GUILayout.Button("▲"))
-        aeroDescentMaxAoA += 1;
-      GUILayout.EndHorizontal();
-      */
 
       // Landing Burn
       SetEnabledColors((phase == BLControllerPhase.LandingBurn) || (phase == BLControllerPhase.Unset));
@@ -395,7 +361,7 @@ namespace BoosterGuidance
         else
         {
           if (activeController.landingBurnHeight < 0)
-            text = "impossible";
+            text = "cant!";
         }
       }
       GUILayout.Label(text, GUILayout.Width(60));
@@ -423,19 +389,11 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Steer gain", GUILayout.Width(60));
+      GUILayout.Label("Steer", GUILayout.Width(40));
       landingBurnSteerLogKp = GUILayout.HorizontalSlider(landingBurnSteerLogKp, 0, 5.5f);
+      landingBurnMaxAoA = 30 * (landingBurnSteerLogKp / 5.5);
+      GUILayout.Label(((int)(landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
-
-      /*
-      GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Max attack", landingBurnMaxAoA, "°", 25);
-      if (GUILayout.Button("▼"))
-        landingBurnMaxAoA = Math.Max(0, landingBurnMaxAoA-1);
-      if (GUILayout.Button("▲"))
-        landingBurnMaxAoA += 1;
-      GUILayout.EndHorizontal();
-      */
 
       // Activate guidance
       SetEnabledColors(true); // back to normal
@@ -480,18 +438,19 @@ namespace BoosterGuidance
         controller.reentryBurnAlt = reentryBurnAlt;
         controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
         controller.reentryBurnSteerGain = reentryBurnSteerGain;
-        controller.landingBurnMaxAoA = maxAoA;
+        controller.landingBurnMaxAoA = landingBurnMaxAoA;
         controller.tgtLatitude = tgtLatitude;
         controller.tgtLongitude = tgtLongitude;
         controller.tgtAlt = tgtAlt;
         controller.suicideFactor = 0.75;
         controller.landingBurnSteerKp = Math.Exp(landingBurnSteerLogKp);
+        controller.aeroDescentMaxAoA = aeroDescentMaxAoA;
         controller.aeroDescentSteerKp = Math.Exp(aeroDescentSteerLogKp);
         // Note that the Kp gain in the PIDs below is set by combining the relevant Kp from above
         // and a gain factor based on air resistance an throttle to determine whether to steer
         // aerodynamically or by thrust, and how sensitive the vessel is to that
-        controller.pid_aero = new PIDclamp("aero", 1, 0, 0, maxAoA);
-        controller.pid_landing = new PIDclamp("landing", 1, 0, 0, maxAoA);
+        controller.pid_aero = new PIDclamp("aero", 1, 0, 0, (float)aeroDescentMaxAoA);
+        controller.pid_landing = new PIDclamp("landing", 1, 0, 0, (float)landingBurnMaxAoA);
         controller.igniteDelay = igniteDelay;
         controller.noSteerHeight = noSteerHeight;
         controller.deployLandingGear = deployLandingGear;
@@ -507,7 +466,6 @@ namespace BoosterGuidance
     {
       reentryBurnAlt = (int)controller.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)controller.reentryBurnTargetSpeed;
-      maxAoA = (int)controller.reentryBurnMaxAoA;
       // TODO: Read from PID
       aeroDescentSteerLogKp = Mathf.Log((float)controller.aeroDescentSteerKp);
       landingBurnSteerLogKp = Mathf.Log((float)controller.landingBurnSteerKp);
