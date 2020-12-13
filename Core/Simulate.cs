@@ -113,7 +113,7 @@ namespace BoosterGuidance
       System.IO.StreamWriter f = null;
       if (logFilename != "")
       {
-        f = HGUtils.OpenUnusedFilename(logFilename);
+        f = new System.IO.StreamWriter(logFilename);
         f.WriteLine("time x y z vx vy vz ax ay az att_err airspeed target_error total_mass");
         f.WriteLine("# tgtAlt=" + tgtAlt);
       }
