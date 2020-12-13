@@ -1,4 +1,4 @@
-- Apply air brakes
+- Apply air brakes automatically
 - On RO picking target jumps around. Store double's?
 - In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
 - Can't pick targets on Mun when at 55km and above (due to distance of ray or buildings)
@@ -8,3 +8,4 @@
 - Set target anywhere on map view (due to distance of ray)
 - Put engine shutdown code in again?
 - Fix unreliability of landing leg deployment
+- Respect throttle limiting settings
