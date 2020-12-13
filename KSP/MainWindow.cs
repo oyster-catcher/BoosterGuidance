@@ -9,7 +9,7 @@ namespace BoosterGuidance
   [KSPAddon(KSPAddon.Startup.Flight, false)]
   public class MainWindow : MonoBehaviour
   {
-    // constants
+    // constantsBurnSt
     Color tgt_color = new Color(1, 1, 0, 0.5f);
     Color pred_color = new Color(1, 0.2f, 0.2f, 0.5f);
 
@@ -29,14 +29,12 @@ namespace BoosterGuidance
     // Re-Entry Burn
     EditableInt reentryBurnAlt = 55000;
     EditableInt reentryBurnTargetSpeed = 700;
-    //EditableInt reentryBurnMaxAoA = 10;
     float reentryBurnSteerGain = 0.004f; // angle to steer = gain * targetError(in m)
     // Aero descent
     EditableInt aeroDescentMaxAoA = 20;
-    float aeroDescentSteerKp = 350;
+    float aeroDescentSteerKp = 250;
     // Landing burn
-    //EditableInt landingBurnMaxAoA = 10;
-    float landingBurnSteerKp = 5;
+    float landingBurnSteerKp = 50;
     string numLandingBurnEngines = "current";
 
     // Advanced settings
@@ -98,6 +96,7 @@ namespace BoosterGuidance
 
     public void OnDestroy()
     {
+      hidden = true;
       targetingCross.enabled = false;
       predictedCross.enabled = false;
     }
@@ -131,7 +130,7 @@ namespace BoosterGuidance
       // Close button
       if (GUI.Button(new Rect(windowRect.width - 18, 2, 16, 16), ""))
       {
-        hidden = true;
+        Hide();
         return;
       }
       tab = GUILayout.Toolbar(tab, new string[] { "Main", "Advanced" });
@@ -365,7 +364,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer gain", GUILayout.Width(60));
-      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 500);
+      aeroDescentSteerKp = GUILayout.HorizontalSlider(aeroDescentSteerKp, 0, 300);
       GUILayout.EndHorizontal();
 
       /*
@@ -425,7 +424,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer gain", GUILayout.Width(60));
-      landingBurnSteerKp = GUILayout.HorizontalSlider(landingBurnSteerKp, 0, 100);
+      landingBurnSteerKp = GUILayout.HorizontalSlider(landingBurnSteerKp, 0, 300);
       GUILayout.EndHorizontal();
 
       /*
@@ -492,11 +491,11 @@ namespace BoosterGuidance
         // and a gain factor based on air resistance an throttle to determine whether to steer
         // aerodynamically or by thrust, and how sensitive the vessel is to that
         controller.pid_aero = new PIDclamp("aero", 1, 0, 0, maxAoA);
-        controller.pid_powered = new PIDclamp("powered", 1, 0, 0, maxAoA);
+        controller.pid_landing = new PIDclamp("landing", 1, 0, 0, maxAoA);
         controller.igniteDelay = igniteDelay;
         controller.noSteerHeight = noSteerHeight;
-        //controller.deployGridFins = deployGridfins;
         controller.deployLandingGear = deployLandingGear;
+        controller.deployLandingGearHeight = deployLandingGearHeight;
         controller.touchdownMargin = touchdownMargin;
         controller.touchdownSpeed = (float)touchdownSpeed;
         controller.simulationsPerSec = (float)simulationsPerSec;
@@ -522,7 +521,6 @@ namespace BoosterGuidance
       igniteDelay = (int)controller.igniteDelay;
       noSteerHeight = (int)controller.noSteerHeight;
       deployLandingGear = controller.deployLandingGear;
-      //deployGridfins = controller.deployLandingGear;
       deployLandingGearHeight = (int)controller.deployLandingGearHeight;
       simulationsPerSec = (int)controller.simulationsPerSec;
     }
@@ -609,7 +607,8 @@ namespace BoosterGuidance
     {
       tgtLatitude = FlightGlobals.ActiveVessel.latitude;
       tgtLongitude = FlightGlobals.ActiveVessel.longitude;
-      tgtAlt = (int)FlightGlobals.ActiveVessel.altitude;
+      double lowestY = KSPUtils.FindLowestPointOnVessel(FlightGlobals.ActiveVessel);
+      tgtAlt = (int)FlightGlobals.ActiveVessel.altitude + (int)lowestY;
       RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
       string message = "Target set to vessel";
       ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
@@ -778,7 +777,8 @@ namespace BoosterGuidance
       bool landingGear, gridFins;
       controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
         controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, out gridFins);
-      if (landingGear && KSPUtils.DeployLandingGears(vessel))
+      Debug.Log("[BoosterGuidance] alt=" + controller.vessel.altitude + " gear_height=" + controller.deployLandingGearHeight + " deploy=" + controller.deployLandingGear+" deploy_now="+landingGear);
+      if ((landingGear) && KSPUtils.DeployLandingGears(vessel))
         ScreenMessages.PostScreenMessage("Deploying landing gear", 1.0f, ScreenMessageStyle.UPPER_CENTER);
       //if (gridFins)
       //  ScreenMessages.PostScreenMessage("Deploying grid fins", 1.0f, ScreenMessageStyle.UPPER_CENTER);
