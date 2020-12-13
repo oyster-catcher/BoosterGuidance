@@ -339,8 +339,8 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
-      aeroDescentSteerLogKp = GUILayout.HorizontalSlider(aeroDescentSteerLogKp, 0, 5.5f);
-      aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp /5.5);
+      aeroDescentSteerLogKp = GUILayout.HorizontalSlider(aeroDescentSteerLogKp, 0, 7);
+      aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp / 7);
       GUILayout.Label(((int)aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
@@ -361,7 +361,7 @@ namespace BoosterGuidance
         else
         {
           if (activeController.landingBurnHeight < 0)
-            text = "cant!";
+            text = "too heavy";
         }
       }
       GUILayout.Label(text, GUILayout.Width(60));
@@ -390,8 +390,8 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
-      landingBurnSteerLogKp = GUILayout.HorizontalSlider(landingBurnSteerLogKp, 0, 5.5f);
-      landingBurnMaxAoA = 30 * (landingBurnSteerLogKp / 5.5);
+      landingBurnSteerLogKp = GUILayout.HorizontalSlider(landingBurnSteerLogKp, 0, 7);
+      landingBurnMaxAoA = 30 * (landingBurnSteerLogKp / 7);
       GUILayout.Label(((int)(landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 

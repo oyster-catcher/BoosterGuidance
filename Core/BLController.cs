@@ -52,8 +52,8 @@ namespace BoosterGuidance
     private Transform logTransform;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
-    private double liftFactor = 15;
-    private double steerGainLimit = 1; // limits aero/powered steer gain to 0.1 degree per 1m error
+    private double liftFactor = 5; // was 15
+    private double steerGainLimit = 5; // limits extreme steering
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
     private String logFilename; // basename for logging of several files
 
@@ -358,7 +358,7 @@ namespace BoosterGuidance
       // AERO DESCENT
       if (phase == BLControllerPhase.AeroDescent)
       {
-        pid_aero.kp = Math.Min(aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), steerGainLimit);
+        pid_aero.kp = HGUtils.Clamp(aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
         steerGain = pid_aero.kp;
         double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang);
@@ -399,7 +399,7 @@ namespace BoosterGuidance
         {
           double ang;
           // If almost no throttle then still use aero steering gain
-          pid_landing.kp = Math.Min(landingBurnSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), steerGainLimit);
+          pid_landing.kp = HGUtils.Clamp(landingBurnSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
           steerGain = pid_landing.kp;
           ang = pid_landing.Update(error.magnitude, Time.deltaTime);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
