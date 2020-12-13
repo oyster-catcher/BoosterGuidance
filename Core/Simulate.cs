@@ -213,7 +213,7 @@ namespace BoosterGuidance
       double y = r.magnitude - body.Radius;
       double amin = minThrust / totalMass;
       double amax = maxThrust / totalMass;
-      double LandingBurnHeight = 0;
+      double LandingBurnHeight = -1;
       Vector3d att = -Vector3d.Normalize(v);
 
       double suicideFactor = 0.8;
