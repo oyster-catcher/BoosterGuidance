@@ -22,6 +22,7 @@ namespace BoosterGuidance
   {
     // Public parameters
     public float touchdownSpeed = 3;
+    public double aeroDescentMaxAoA = 20;
     public double aeroDescentSteerKp = 0.01f;
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
@@ -399,7 +400,7 @@ namespace BoosterGuidance
           double ang;
           // If almost no throttle then still use aero steering gain
           pid_landing.kp = Math.Min(landingBurnSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), steerGainLimit);
-          steerGain = pid_aero.kp;
+          steerGain = pid_landing.kp;
           ang = pid_landing.Update(error.magnitude, Time.deltaTime);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
           steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, ang);
