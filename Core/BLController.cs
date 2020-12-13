@@ -33,7 +33,7 @@ namespace BoosterGuidance
     public double lowestY = 0;
     public double reentryBurnSteerGain = 0.1;
     public PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
-    public PIDclamp pid_powered = new PIDclamp("poweredSteer", 1, 0, 0, 10);
+    public PIDclamp pid_landing = new PIDclamp("landingSteer", 1, 0, 0, 10);
     public double igniteDelay = 3; // ignite engines this many seconds early
     public double simulationsPerSec = 10;
     public bool deployLandingGear = true;
@@ -397,19 +397,10 @@ namespace BoosterGuidance
         if ((!simulate) && (y > noSteerHeight))
         {
           double ang;
-          if (throttle < 0.1)
-          {
-            // If almost no throttle then still use aero steering gain
-            pid_aero.kp = Math.Min(aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), steerGainLimit);
-            steerGain = pid_aero.kp;
-            ang = pid_aero.Update(error.magnitude, Time.deltaTime);
-          }
-          else
-          {
-            pid_powered.kp = Math.Min(landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass), steerGainLimit);
-            steerGain = pid_powered.kp;
-            ang = pid_powered.Update(error.magnitude, Time.deltaTime);
-          }
+          // If almost no throttle then still use aero steering gain
+          pid_landing.kp = Math.Min(landingBurnSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), steerGainLimit);
+          steerGain = pid_aero.kp;
+          ang = pid_landing.Update(error.magnitude, Time.deltaTime);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
           steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, ang);
         }
