@@ -85,10 +85,7 @@ namespace BoosterGuidance
       minThrust = engine.GetEngineThrust(isp, 0); // can't get atmMinThrust (this ignore throttle limiting but thats ok)
       maxThrust = atmMaxThrust; // this uses throttle limiting and should give vac thrust as pressure/temp specified too
       if (log)
-      {
-        //Vector3d relpos = vessel.transform.InverseTransformPoint(part.transform.position);
         Debug.Log("  engine=" + engine + " isp=" + isp + " MinThrust=" + engine.GetEngineThrust(isp, 0) + " MaxThrust=" + atmMaxThrust + " operational=" + engine.isOperational);
-      }
     }
 
     public static List<ModuleEngines> ComputeMinMaxThrust(Vessel vessel, out double totalMinThrust, out double totalMaxThrust, bool log = false, List<ModuleEngines> useEngines = null)
