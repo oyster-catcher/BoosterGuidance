@@ -8,4 +8,3 @@
 - Set target anywhere on map view (due to distance of ray)
 - Put engine shutdown code in again?
 - Fix unreliability of landing leg deployment
-- Respect throttle limiting settings
