@@ -21,7 +21,7 @@ namespace BoosterGuidance
     BLController activeController = null;
     DictionaryValueList<Vessel, BLController> controllers = new DictionaryValueList<Vessel, BLController>();
     BLController[] flying = { null, null, null, null, null }; // To connect to Fly() functions. Must be 5 or change EnableGuidance()
-    Rect windowRect = new Rect(150, 150, 220, 548);
+    Rect windowRect = new Rect(150, 150, 220, 564);
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
@@ -33,6 +33,7 @@ namespace BoosterGuidance
     // Aero descent
     double aeroDescentMaxAoA = 0; // will be set from Kp
     float aeroDescentSteerLogKp = 5.5f;
+    float aeroDescentSteerKdProp = 0; // Kd set to this prop. of aeroDescentSteerKp
     // Landing burn
     float landingBurnSteerLogKp = 2.5f;
     double landingBurnMaxAoA = 0; // will be set from Kp
@@ -343,7 +344,11 @@ namespace BoosterGuidance
       aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp / 7);
       GUILayout.Label(((int)aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
-
+      /*
+      GUILayout.BeginHorizontal();
+      aeroDescentSteerKdProp = GUILayout.HorizontalSlider(aeroDescentSteerKdProp, 0, 2);
+      GUILayout.EndHorizontal();
+      */
       // Landing Burn
       SetEnabledColors((phase == BLControllerPhase.LandingBurn) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
@@ -446,6 +451,7 @@ namespace BoosterGuidance
         controller.landingBurnSteerKp = Math.Exp(landingBurnSteerLogKp);
         controller.aeroDescentMaxAoA = aeroDescentMaxAoA;
         controller.aeroDescentSteerKp = Math.Exp(aeroDescentSteerLogKp);
+        controller.aeroDescentSteerKdProp = aeroDescentSteerKdProp;
         // Note that the Kp gain in the PIDs below is set by combining the relevant Kp from above
         // and a gain factor based on air resistance an throttle to determine whether to steer
         // aerodynamically or by thrust, and how sensitive the vessel is to that
@@ -735,7 +741,7 @@ namespace BoosterGuidance
       bool landingGear, gridFins;
       controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
         controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, out gridFins);
-      Debug.Log("[BoosterGuidance] alt=" + controller.vessel.altitude + " gear_height=" + controller.deployLandingGearHeight + " deploy=" + controller.deployLandingGear+" deploy_now="+landingGear);
+      //Debug.Log("[BoosterGuidance] alt=" + controller.vessel.altitude + " gear_height=" + controller.deployLandingGearHeight + " deploy=" + controller.deployLandingGear+" deploy_now="+landingGear);
       if ((landingGear) && KSPUtils.DeployLandingGears(vessel))
         ScreenMessages.PostScreenMessage("Deploying landing gear", 1.0f, ScreenMessageStyle.UPPER_CENTER);
       //if (gridFins)
