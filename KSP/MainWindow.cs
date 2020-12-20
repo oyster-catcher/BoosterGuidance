@@ -144,7 +144,7 @@ namespace BoosterGuidance
         tgtLongitude = target.longitude;
         tgtAlt = (int)target.altitude;
         trackTarget = false; // Only pick up co-ordinates once
-        ScreenMessages.PostScreenMessage("BoosterGuidance setting target to " + target.name, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+        GuiUtils.ScreenMessage("Target set to " + target.name);
       }
 
       // Check for navigation target
@@ -153,9 +153,11 @@ namespace BoosterGuidance
       {
         tgtLatitude = nav.Latitude;
         tgtLongitude = nav.Longitude;
-        tgtAlt = (int)nav.Altitude;
+        // This is VERY unreliable
+        //tgtAlt = (int)nav.Altitude;
+        tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
         trackTarget = false;
-        ScreenMessages.PostScreenMessage("BoosterGuidance setting target to " + nav.ToString(), 3.0f, ScreenMessageStyle.UPPER_CENTER);
+        GuiUtils.ScreenMessage("Target set to " + nav.name);
       }
       // No targets so get ready to track to one if activated
       if ((!nav.IsActive) && (FlightGlobals.ActiveVessel.targetObject == null))
@@ -547,10 +549,21 @@ namespace BoosterGuidance
       }
       RaycastHit hit;
       Vessel vessel = FlightGlobals.ActiveVessel;
+      bool isHit = false;
+
+      // GetMouseHit will hit nearby terrain and buildings
       if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, MapView.MapIsEnabled, out hit))
       {
+        isHit = true;
         // Moved or picked
         vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
+      }
+      // If that fails try to intersect the planet sphere
+      else if (GuiUtils.GetBodyRayIntersect(vessel.mainBody, MapView.MapIsEnabled, out pickLat, out pickLon, out pickAlt))
+        isHit = true;
+
+      if (isHit)
+      {
         RedrawTarget(vessel.mainBody, pickLat, pickLon, pickAlt);
 
         if (Input.GetMouseButton(0))  // Picked
@@ -560,7 +573,7 @@ namespace BoosterGuidance
           tgtAlt = (int)pickAlt;
           pickingPositionTarget = false;
           string message = "Picked target";
-          ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+          GuiUtils.ScreenMessage(message);
           UpdateController(activeController);
         }
       }
@@ -584,7 +597,7 @@ namespace BoosterGuidance
       showTargets = true;
       pickingPositionTarget = true;
       string message = "Click to select a target";
-      ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      GuiUtils.ScreenMessage(message);
     }
 
 
@@ -595,8 +608,7 @@ namespace BoosterGuidance
       double lowestY = KSPUtils.FindLowestPointOnVessel(FlightGlobals.ActiveVessel);
       tgtAlt = (int)FlightGlobals.ActiveVessel.altitude + (int)lowestY;
       RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
-      string message = "Target set to vessel";
-      ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      GuiUtils.ScreenMessage("Target set to vessel");
     }
 
     Transform RedrawTarget(CelestialBody body, double lat, double lon, double alt)
@@ -654,7 +666,7 @@ namespace BoosterGuidance
         }
         else
         {
-          ScreenMessages.PostScreenMessage("All " + flying.Length + " guidance slots used", 3.0f, ScreenMessageStyle.UPPER_CENTER);
+          GuiUtils.ScreenMessage("All " + flying.Length + " guidance slots used");
           return;
         }
 
@@ -670,8 +682,7 @@ namespace BoosterGuidance
           vessel.OnFlyByWire += new FlightInputCallback(Fly4); // 5th vessel
       }
       activeController.SetPhase(phase);
-      string info = "Enabled " + activeController.PhaseStr();
-      ScreenMessages.PostScreenMessage(info, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      GuiUtils.ScreenMessage("Enabled " + activeController.PhaseStr());
       activeController.enabled = true;
       StartLogging();
     }
@@ -702,7 +713,7 @@ namespace BoosterGuidance
         controller.phase = BLControllerPhase.Unset;
         if (controller == activeController)
         {
-          ScreenMessages.PostScreenMessage("Guidance disabled!", 3.0f, ScreenMessageStyle.UPPER_CENTER);
+          GuiUtils.ScreenMessage("Guidance disabled!");
           predictedCross.enabled = false;
         }
         controller.enabled = false;
@@ -745,8 +756,7 @@ namespace BoosterGuidance
       Vessel vessel = controller.vessel;
       if (vessel.checkLanded())
       {
-        string msg = "Vessel " + controller.vessel.name + " landed!";
-        ScreenMessages.PostScreenMessage(msg, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+        GuiUtils.ScreenMessage("Vessel " + controller.vessel.name + " landed!");
         state.mainThrottle = 0;
         DisableGuidance(controller);
         // Find distance from target
@@ -764,7 +774,7 @@ namespace BoosterGuidance
         controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, out gridFins);
       //Debug.Log("[BoosterGuidance] alt=" + controller.vessel.altitude + " gear_height=" + controller.deployLandingGearHeight + " deploy=" + controller.deployLandingGear+" deploy_now="+landingGear);
       if ((landingGear) && KSPUtils.DeployLandingGears(vessel))
-        ScreenMessages.PostScreenMessage("Deploying landing gear", 1.0f, ScreenMessageStyle.UPPER_CENTER);
+        GuiUtils.ScreenMessage("Deploying landing gear");
       //if (gridFins)
       //  ScreenMessages.PostScreenMessage("Deploying grid fins", 1.0f, ScreenMessageStyle.UPPER_CENTER);
     

@@ -238,6 +238,67 @@ namespace BoosterGuidance
       return o_transform;
     }
 
+    // Credits to https://github.com/jrossignol/WaypointManager/blob/master/source/WaypointManager/CustomWaypointGUI.cs
+    // for this code
+    public static bool GetBodyRayIntersect(CelestialBody targetBody, bool map, out double latitude, out double longitude, out double altitude)
+    {
+      latitude = 0;
+      longitude = 0;
+      altitude = 0;
+      if (!map)
+        return false;
+      if (targetBody.pqsController == null)
+      {
+        return false;
+      }
+
+      Ray mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
+      mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
+      var bodyToOrigin = mouseRay.origin - targetBody.position;
+      double curRadius = targetBody.pqsController.radiusMax;
+      double lastRadius = 0;
+      int loops = 0;
+      while (loops < 50)
+      {
+        Vector3d relSurfacePosition;
+        if (PQS.LineSphereIntersection(bodyToOrigin, mouseRay.direction, curRadius, out relSurfacePosition))
+        {
+          var surfacePoint = targetBody.position + relSurfacePosition;
+          double alt = targetBody.pqsController.GetSurfaceHeight(
+              QuaternionD.AngleAxis(targetBody.GetLongitude(surfacePoint), Vector3d.down) * QuaternionD.AngleAxis(targetBody.GetLatitude(surfacePoint), Vector3d.forward) * Vector3d.right);
+          double error = Math.Abs(curRadius - alt);
+          if (error < (targetBody.pqsController.radiusMax - targetBody.pqsController.radiusMin) / 100)
+          {
+            latitude = targetBody.GetLatitude(surfacePoint);
+            longitude = targetBody.GetLongitude(surfacePoint);
+            altitude = targetBody.TerrainAltitude(latitude, longitude);
+            Debug.Log("TerrainAltitude = " + altitude);
+            return true;
+          }
+          else
+          {
+            lastRadius = curRadius;
+            curRadius = alt;
+            loops++;
+          }
+        }
+        else
+        {
+          if (loops == 0)
+          {
+            break;
+          }
+          // Went too low, needs to try higher
+          else
+          {
+            curRadius = (lastRadius * 9 + curRadius) / 10;
+            loops++;
+          }
+        }
+      }
+      return true;
+    }
+
     public static bool GetMouseHit(CelestialBody body, Rect notRect, bool map, out RaycastHit hit)
     {
       hit = new RaycastHit();
@@ -282,7 +343,13 @@ namespace BoosterGuidance
       //[LOG 21:04:29.365] 30: 
       //[LOG 21:04:29.365] 31: Vectors
       //return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, (1 << 15) + (1 << 10) + (1 << 4) << (1 << 28));
-      return Physics.Raycast(ray.origin, ray.direction, out hit, (float)body.Radius,(1<<4) + (1<<15), QueryTriggerInteraction.Ignore);
+
+      return Physics.Raycast(ray.origin, ray.direction, out hit, (float)body.Radius, (1 << 4) + (1 << 15), QueryTriggerInteraction.Ignore);
+    }
+
+    public static void ScreenMessage(string message)
+    {
+      ScreenMessages.PostScreenMessage("BoosterGuidance: " + message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
     }
 
     public class TargetingCross : MonoBehaviour
