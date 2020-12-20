@@ -135,6 +135,34 @@ namespace BoosterGuidance
         Hide();
         return;
       }
+
+      // Check for target being set
+      if ((FlightGlobals.ActiveVessel.targetObject != null) && (trackTarget))
+      {
+        Vessel target = FlightGlobals.ActiveVessel.targetObject.GetVessel();
+        tgtLatitude = target.latitude;
+        tgtLongitude = target.longitude;
+        tgtAlt = (int)target.altitude;
+        trackTarget = false; // Only pick up co-ordinates once
+        ScreenMessages.PostScreenMessage("BoosterGuidance setting target to " + target.name, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      }
+
+      // Check for navigation target
+      NavWaypoint nav = NavWaypoint.fetch;
+      if ((nav.IsActive) && (trackTarget))
+      {
+        tgtLatitude = nav.Latitude;
+        tgtLongitude = nav.Longitude;
+        tgtAlt = (int)nav.Altitude;
+        trackTarget = false;
+        ScreenMessages.PostScreenMessage("BoosterGuidance setting target to " + nav.ToString(), 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      }
+      // No targets so get ready to track to one if activated
+      if ((!nav.IsActive) && (FlightGlobals.ActiveVessel.targetObject == null))
+      {
+        trackTarget = true;
+      }
+
       tab = GUILayout.Toolbar(tab, new string[] { "Main", "Advanced" });
       switch(tab)
       {
@@ -225,17 +253,7 @@ namespace BoosterGuidance
       }
       BLControllerPhase phase = activeController.phase;
 
-      // Check for target being set
-      if ((FlightGlobals.ActiveVessel.targetObject != null) && (trackTarget))
-      {
-        Vessel target = FlightGlobals.ActiveVessel.targetObject.GetVessel();
-        tgtLatitude = target.latitude;
-        tgtLongitude = target.longitude;
-        tgtAlt = (int)target.altitude;
-        trackTarget = false; // Only pick up co-ordinates once
-      }
-      if (FlightGlobals.ActiveVessel.targetObject == null)
-        trackTarget = true; // start tracking again when a new target is selected
+    
 
       // Target:
 
@@ -537,7 +555,6 @@ namespace BoosterGuidance
 
         if (Input.GetMouseButton(0))  // Picked
         {
-          ScreenMessages.PostScreenMessage("Mouse hit - click", 3.0f, ScreenMessageStyle.UPPER_CENTER);
           tgtLatitude = pickLat;
           tgtLongitude = pickLon;
           tgtAlt = (int)pickAlt;
@@ -546,12 +563,6 @@ namespace BoosterGuidance
           ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
           UpdateController(activeController);
         }
-        else
-          ScreenMessages.PostScreenMessage("Mouse hit - no click", 3.0f, ScreenMessageStyle.UPPER_CENTER);
-      }
-      else
-      {
-        ScreenMessages.PostScreenMessage("No mouse hit", 3.0f, ScreenMessageStyle.UPPER_CENTER);
       }
     }
 
