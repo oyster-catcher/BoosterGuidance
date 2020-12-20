@@ -192,6 +192,8 @@ namespace BoosterGuidance
 
     void MainTab(int windowID)
     {
+      bool targetChanged = false;
+
       // Check targets are on map vs non-map
       if (map != MapView.MapIsEnabled)
         Awake();
@@ -244,17 +246,29 @@ namespace BoosterGuidance
       double step = 1.0 / (60 * 60); // move by 1 arc second
       tgtLatitude.DrawEditGUI(EditableAngle.Direction.NS);
       if (GUILayout.Button("▲"))
+      {
         tgtLatitude += step;
+        targetChanged = true;
+      }
       if (GUILayout.Button("▼"))
+      {
         tgtLatitude -= step;
+        targetChanged = true;
+      }
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       tgtLongitude.DrawEditGUI(EditableAngle.Direction.EW);
       if (GUILayout.Button("◄"))
+      {
         tgtLongitude -= step;
+        targetChanged = true;
+      }
       if (GUILayout.Button("►"))
+      {
         tgtLongitude += step;
+        targetChanged = true;
+      }
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
@@ -344,11 +358,7 @@ namespace BoosterGuidance
       aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp / 7);
       GUILayout.Label(((int)aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
-      /*
-      GUILayout.BeginHorizontal();
-      aeroDescentSteerKdProp = GUILayout.HorizontalSlider(aeroDescentSteerKdProp, 0, 2);
-      GUILayout.EndHorizontal();
-      */
+      
       // Landing Burn
       SetEnabledColors((phase == BLControllerPhase.LandingBurn) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
@@ -416,7 +426,7 @@ namespace BoosterGuidance
 
       GUILayout.EndHorizontal();
 
-      if (GUI.changed)
+      if ((GUI.changed) || (targetChanged))
         UpdateController(activeController); // copy settings from window
       GUI.DragWindow();
     }
