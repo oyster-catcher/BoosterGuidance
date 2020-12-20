@@ -1,8 +1,11 @@
 # Standard Mac KSP install dir
 KSP=/Users/${USER}/Library/Application\ Support/Steam/steamapps/common/Kerbal\ Space\ Program
-VER=v1.0.0
+# Additional install locations
+KSP_CUTDOWN=~/KSP_Cutdown
+KSP_RO=~/KSP_RO
+VER=v1.0.2
 
-.PHONY: all
+.PHONY: all install
 
 all: BoosterGuidance-${VER}.zip install
 
@@ -14,7 +17,9 @@ BoosterGuidance-${VER}.zip: ./obj/Release/BoosterGuidance.dll
 	cd GameData; find BoosterGuidance | zip -@ ../BoosterGuidance-${VER}.zip
 
 install: BoosterGuidance-${VER}.zip
-	unzip BoosterGuidance-${VER}.zip -d ${KSP}/GameData
+	unzip -o BoosterGuidance-${VER}.zip -d ${KSP}/GameData
+	unzip -o BoosterGuidance-${VER}.zip -d ${KSP_CUTDOWN}/GameData
+	unzip -o BoosterGuidance-${VER}.zip -d ${KSP_RO}/GameData
 
 clean:
 	rm -f BoosterGuidance.dll *.exe *.zip
