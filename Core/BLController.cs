@@ -399,6 +399,8 @@ namespace BoosterGuidance
           double err_dv = vy - dvy; // +ve is velocity too high
           double da = g - (5 * err_dv); // required accel to change vy, cancel out g (only works if vertical)
           throttle = HGUtils.Clamp((da - amin) / (0.01 + amax - amin), minThrottle, 1);
+          // compensate if not vertical as need more vertical component of thrust
+          throttle = throttle / Math.Max(0.1, Vector3.Dot(att, up));
         }
         if ((!simulate) && (y > noSteerHeight))
         {
