@@ -245,20 +245,19 @@ namespace BoosterGuidance
       latitude = 0;
       longitude = 0;
       altitude = 0;
-      if (!map)
-        return false;
       if (targetBody.pqsController == null)
       {
         return false;
       }
 
-      Ray mouseRay = PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition);
-      mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
+      Ray mouseRay = map ? PlanetariumCamera.Camera.ScreenPointToRay(Input.mousePosition) : FlightCamera.fetch.mainCamera.ScreenPointToRay(Input.mousePosition);
+      if (map) // use scaled space
+        mouseRay.origin = ScaledSpace.ScaledToLocalSpace(mouseRay.origin);
       var bodyToOrigin = mouseRay.origin - targetBody.position;
       double curRadius = targetBody.pqsController.radiusMax;
       double lastRadius = 0;
       int loops = 0;
-      while (loops < 50)
+      while (loops < 10)
       {
         Vector3d relSurfacePosition;
         if (PQS.LineSphereIntersection(bodyToOrigin, mouseRay.direction, curRadius, out relSurfacePosition))
@@ -267,18 +266,19 @@ namespace BoosterGuidance
           double alt = targetBody.pqsController.GetSurfaceHeight(
               QuaternionD.AngleAxis(targetBody.GetLongitude(surfacePoint), Vector3d.down) * QuaternionD.AngleAxis(targetBody.GetLatitude(surfacePoint), Vector3d.forward) * Vector3d.right);
           double error = Math.Abs(curRadius - alt);
-          if (error < (targetBody.pqsController.radiusMax - targetBody.pqsController.radiusMin) / 100)
+          //Debug.Log("[BoosterGuidance] HIT loop="+loops+" curRadius=" + curRadius + " alt=" + alt + " error=" + error + " max_error=" + (targetBody.pqsController.radiusMax - targetBody.pqsController.radiusMin) / 100);
+          if (error < (targetBody.pqsController.radiusMax - targetBody.pqsController.radiusMin) / 500)
           {
             latitude = targetBody.GetLatitude(surfacePoint);
             longitude = targetBody.GetLongitude(surfacePoint);
             altitude = targetBody.TerrainAltitude(latitude, longitude);
-            Debug.Log("TerrainAltitude = " + altitude);
+            //Debug.Log("TerrainAltitude = " + altitude+ " finished");
             return true;
           }
           else
           {
             lastRadius = curRadius;
-            curRadius = alt;
+            curRadius = 0.5*alt + 0.5*curRadius;
             loops++;
           }
         }
@@ -286,11 +286,13 @@ namespace BoosterGuidance
         {
           if (loops == 0)
           {
+            //Debug.Log("[BoosterGuidance] MISS No planet intersect loops="+loops);
             break;
           }
           // Went too low, needs to try higher
           else
           {
+            Debug.Log("[BoosterGuidance] MISS Too low loops=" + loops);
             curRadius = (lastRadius * 9 + curRadius) / 10;
             loops++;
           }
@@ -344,7 +346,8 @@ namespace BoosterGuidance
       //[LOG 21:04:29.365] 31: Vectors
       //return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, (1 << 15) + (1 << 10) + (1 << 4) << (1 << 28));
 
-      return Physics.Raycast(ray.origin, ray.direction, out hit, (float)body.Radius, (1 << 4) + (1 << 15), QueryTriggerInteraction.Ignore);
+      //return Physics.Raycast(ray.origin, ray.direction, out hit, (float)body.Radius, (1 << 4) + (1 << 15), QueryTriggerInteraction.Ignore);
+      return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, (1 << 15), QueryTriggerInteraction.Ignore);
     }
 
     public static void ScreenMessage(string message)
@@ -391,13 +394,18 @@ namespace BoosterGuidance
         if (!enabled)
           return;
         // resize marker in respect to distance from camera - only for flight view
-        Vector3d cam_pos = MapView.MapIsEnabled ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
+        Vector3d cam_pos = (!MapView.MapIsEnabled) ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
         cam_pos = cam_pos - ImpactBody.position;
         cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
 
+        // Is marker on this side of planet?
+        double d = Vector3d.Dot(cam_pos - ImpactPosition.Value, ImpactPosition.Value);
+
         // draw ground marker at this position
+        //Debug.Log("[BoosterGuidance] TargetingCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt+ "d="+d);
+        //Debug.Log("[BoosterGuidance] cam_pos=" + (Vector3)cam_pos);
         if (MapView.MapIsEnabled)
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 100);
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
         else
           GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 5), 15000));
       }
@@ -438,12 +446,13 @@ namespace BoosterGuidance
           return;
         // resize marker in respect to distance from camera - only for flight view
         //Vector3d cam_pos = (Vector3d)FlightCamera.fetch.mainCamera.transform.position - ImpactBody.position;
-        Vector3d cam_pos = MapView.MapIsEnabled ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
+        Vector3d cam_pos = (!MapView.MapIsEnabled) ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
         cam_pos = cam_pos - ImpactBody.position;
         double cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
         // draw ground marker at this position
+        Debug.Log("[BoosterGuidance] PredictionCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt);
         if (MapView.MapIsEnabled)
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 100);
+          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
         else
           GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 5), 15000));
       }
