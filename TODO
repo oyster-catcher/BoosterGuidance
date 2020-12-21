@@ -1,10 +1,10 @@
-- Apply air brakes automatically
 - On RO picking target jumps around. Store double's?
 - In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
-- Can't pick targets on Mun when at 55km and above (due to distance of ray or buildings)
-- Doesn't really work on other planets!! Target point seems to drift (may be just drawing)
 - More reliable clicking to set target (due to distance of ray or buildings)
 - Set target on sea should be sea level (not <0m)
 - Set target anywhere on map view (due to distance of ray)
 - Put engine shutdown code in again?
 - Fix unreliability of landing leg deployment
+- Doesn't move target of activate navigation and its already activated on another target
+- Target is visible from wrong side of planet
+- Prediction target shifts and jumps sometimes on Min
