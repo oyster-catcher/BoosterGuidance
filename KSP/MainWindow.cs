@@ -38,9 +38,11 @@ namespace BoosterGuidance
     float landingBurnSteerLogKp = 2.5f;
     double landingBurnMaxAoA = 0; // will be set from Kp
     string numLandingBurnEngines = "current";
+    ITargetable lastVesselTarget = null;
+    NavWaypoint lastNavWaypoint = null;
 
     // Advanced settings
-    EditableInt touchdownMargin = 10;
+    EditableInt touchdownMargin = 20;
     EditableDouble touchdownSpeed = 2;
     EditableInt noSteerHeight = 100;
     bool deployLandingGear = true;
@@ -54,7 +56,7 @@ namespace BoosterGuidance
     bool pickingPositionTarget = false;
     string info = "Disabled";
     double pickLat, pickLon, pickAlt;
-    bool trackTarget = true; // Continuously track target until params changed
+    //bool trackTarget = true; // Continuously track target until params changed
 
     // GUI Elements
     Color red = new Color(1, 0, 0, 0.5f);
@@ -137,33 +139,44 @@ namespace BoosterGuidance
       }
 
       // Check for target being set
-      if ((FlightGlobals.ActiveVessel.targetObject != null) && (trackTarget))
+      if (FlightGlobals.ActiveVessel.targetObject != lastVesselTarget)
       {
-        Vessel target = FlightGlobals.ActiveVessel.targetObject.GetVessel();
-        tgtLatitude = target.latitude;
-        tgtLongitude = target.longitude;
-        tgtAlt = (int)target.altitude;
-        trackTarget = false; // Only pick up co-ordinates once
-        GuiUtils.ScreenMessage("Target set to " + target.name);
+        if (FlightGlobals.ActiveVessel.targetObject != null)
+        {
+          Vessel target = FlightGlobals.ActiveVessel.targetObject.GetVessel();
+          tgtLatitude = target.latitude;
+          tgtLongitude = target.longitude;
+          tgtAlt = (int)target.altitude;
+          //trackTarget = false; // Only pick up co-ordinates once
+          GuiUtils.ScreenMessage("Target set to " + target.name);
+        }
+        lastVesselTarget = FlightGlobals.ActiveVessel.targetObject;
       }
 
       // Check for navigation target
       NavWaypoint nav = NavWaypoint.fetch;
-      if ((nav.IsActive) && (trackTarget))
+      if (nav.IsActive)
       {
-        tgtLatitude = nav.Latitude;
-        tgtLongitude = nav.Longitude;
-        // This is VERY unreliable
-        //tgtAlt = (int)nav.Altitude;
-        tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
-        trackTarget = false;
-        GuiUtils.ScreenMessage("Target set to " + nav.name);
+        // Copy nav waypoint if lat/lon differ
+        // but when settings manually changed?
+        if ((tgtLatitude != nav.Latitude) || (tgtLongitude != nav.Longitude))
+        {
+          tgtLatitude = nav.Latitude;
+          tgtLongitude = nav.Longitude;
+          // This is VERY unreliable
+          //tgtAlt = (int)nav.Altitude;
+          tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
+          //trackTarget = false;
+          GuiUtils.ScreenMessage("Target set to " + nav.name);
+        }
       }
       // No targets so get ready to track to one if activated
+      /*
       if ((!nav.IsActive) && (FlightGlobals.ActiveVessel.targetObject == null))
       {
         trackTarget = true;
       }
+      */
 
       tab = GUILayout.Toolbar(tab, new string[] { "Main", "Advanced" });
       switch(tab)
@@ -305,8 +318,8 @@ namespace BoosterGuidance
 
       // Was target changed manually?
       // if so stop tracking target as this would override the changes
-      if (tgtAlt != preTgtAlt)
-        trackTarget = false;
+      //if (tgtAlt != preTgtAlt)
+      //  trackTarget = false;
 
       GUILayout.BeginHorizontal();
       showTargets = GUILayout.Toggle(showTargets, "Show targets");
@@ -552,15 +565,27 @@ namespace BoosterGuidance
       bool isHit = false;
 
       // GetMouseHit will hit nearby terrain and buildings
-      if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, MapView.MapIsEnabled, out hit))
+      //if (!MapView.MapIsEnabled)
+
+      if (!MapView.MapIsEnabled)
       {
-        isHit = true;
-        // Moved or picked
-        vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
+        if (GuiUtils.GetMouseHit(vessel.mainBody, windowRect, MapView.MapIsEnabled, out hit))
+        {
+          isHit = true;
+          // Moved or picked
+          vessel.mainBody.GetLatLonAlt(hit.point, out pickLat, out pickLon, out pickAlt);
+          //Debug.Log("[BoosterGuidance] Got ray intersect with object");
+        }
       }
-      // If that fails try to intersect the planet sphere
-      else if (GuiUtils.GetBodyRayIntersect(vessel.mainBody, MapView.MapIsEnabled, out pickLat, out pickLon, out pickAlt))
-        isHit = true;
+      if (!isHit)
+      {
+        if (GuiUtils.GetBodyRayIntersect(vessel.mainBody, MapView.MapIsEnabled, out pickLat, out pickLon, out pickAlt))
+        {
+          //GuiUtils.ScreenMessage("Planet intersect lat=" + pickLat + " lon=" + pickLon + " alt=" + pickAlt);
+          isHit = true;
+        }
+      }
+      
 
       if (isHit)
       {
