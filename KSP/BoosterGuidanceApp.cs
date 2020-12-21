@@ -18,7 +18,6 @@ namespace BoosterGuidance
 
     public void Awake()
     {
-      Debug.Log("[BoosterGuidance] Awake");
       GameEvents.onGUIApplicationLauncherReady.Add(delegate
       {
         CreateStockToolbarButton();
@@ -34,7 +33,6 @@ namespace BoosterGuidance
       Localizer.Init();
       if ((ApplicationLauncher.Ready) && (_appLauncherButton == null))
       {
-        Debug.Log("[BoosterGuidance] AddModApplication");
         _appLauncherButton = ApplicationLauncher.Instance.AddModApplication(OnStockTrue,
             OnStockFalse,
             () => { },
@@ -51,7 +49,6 @@ namespace BoosterGuidance
 
     private void DestroyStockToolbarButton()
     {
-      Debug.Log("[BoosterGuidance] DestroyStockToolbarButton");
       if (_appLauncherButton != null)
         ApplicationLauncher.Instance.RemoveModApplication(_appLauncherButton);
       _appLauncherButton = null;
@@ -74,7 +71,6 @@ namespace BoosterGuidance
 
     public void OnDestroy()
     {
-      Debug.Log("[BoosterGuidance] OnDestroy()");
       DestroyStockToolbarButton();
     }
 

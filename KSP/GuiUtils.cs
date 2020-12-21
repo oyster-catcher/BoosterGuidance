@@ -266,13 +266,11 @@ namespace BoosterGuidance
           double alt = targetBody.pqsController.GetSurfaceHeight(
               QuaternionD.AngleAxis(targetBody.GetLongitude(surfacePoint), Vector3d.down) * QuaternionD.AngleAxis(targetBody.GetLatitude(surfacePoint), Vector3d.forward) * Vector3d.right);
           double error = Math.Abs(curRadius - alt);
-          //Debug.Log("[BoosterGuidance] HIT loop="+loops+" curRadius=" + curRadius + " alt=" + alt + " error=" + error + " max_error=" + (targetBody.pqsController.radiusMax - targetBody.pqsController.radiusMin) / 100);
           if (error < (targetBody.pqsController.radiusMax - targetBody.pqsController.radiusMin) / 500)
           {
             latitude = targetBody.GetLatitude(surfacePoint);
             longitude = targetBody.GetLongitude(surfacePoint);
             altitude = targetBody.TerrainAltitude(latitude, longitude);
-            //Debug.Log("TerrainAltitude = " + altitude+ " finished");
             return true;
           }
           else
@@ -285,14 +283,10 @@ namespace BoosterGuidance
         else
         {
           if (loops == 0)
-          {
-            //Debug.Log("[BoosterGuidance] MISS No planet intersect loops="+loops);
             break;
-          }
           // Went too low, needs to try higher
           else
           {
-            Debug.Log("[BoosterGuidance] MISS Too low loops=" + loops);
             curRadius = (lastRadius * 9 + curRadius) / 10;
             loops++;
           }
