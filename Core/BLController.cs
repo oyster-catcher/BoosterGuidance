@@ -129,7 +129,6 @@ namespace BoosterGuidance
 
     public void SetPhase(BLControllerPhase a_phase)
     {
-      Debug.Log("SetPhase " + a_phase);
       minError = float.MaxValue; // reset so boostback doesn't give up
 
       // Current phase unset and specified phase unset then find out suitable phase
@@ -165,7 +164,6 @@ namespace BoosterGuidance
     public void LogSimulation()
     {
       String name = PhaseStr().Replace(" ", "_");
-      Debug.Log("LogSimulation phase=" + phase + "filename=" + logFilename + ".Simulate" + name + ".dat");
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       BLController tc = new BLController(this);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out targetT, logFilename + ".Simulate." + name + ".dat", logTransform, vessel.missionTime - logStartTime);
@@ -193,7 +191,6 @@ namespace BoosterGuidance
     {
       if (fp != null)
       {
-        Debug.Log("[BoosterGuidance] StopLogging()");
         fp.Close();
       }
       fp = null;
@@ -229,7 +226,7 @@ namespace BoosterGuidance
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
         gain = totalMass / (sideFA - sideFT);
-      Debug.Log("[BoosterGuidance] sideFA=" + sideFA + " sideFT=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
+      //Debug.Log("[BoosterGuidance] sideFA=" + sideFA + " sideFT=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
 
       return gain;
     }
@@ -365,7 +362,6 @@ namespace BoosterGuidance
         pid_aero.kd = pid_aero.kp * aeroDescentSteerKdProp;
         steerGain = pid_aero.kp;
         double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
-        Debug.Log("[BoosterGuidance] error="+error+" gain="+steerGain+" ang="+ang);
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang);
         float ddot = (float)Vector3d.Dot(Vector3d.Normalize(att), Vector3d.Normalize(steer));
         double att_err = Mathf.Acos(ddot) * 180 / Mathf.PI;
@@ -399,6 +395,8 @@ namespace BoosterGuidance
           double err_dv = vy - dvy; // +ve is velocity too high
           double da = g - (5 * err_dv); // required accel to change vy, cancel out g (only works if vertical)
           throttle = HGUtils.Clamp((da - amin) / (0.01 + amax - amin), minThrottle, 1);
+          // compensate if not vertical as need more vertical component of thrust
+          throttle = throttle / Math.Max(0.1, Vector3.Dot(att, up));
         }
         if ((!simulate) && (y > noSteerHeight))
         {
@@ -443,7 +441,6 @@ namespace BoosterGuidance
           Vector3d tv = logTransform.InverseTransformVector(vel_air);
           Vector3d ta = logTransform.InverseTransformVector(a);
           fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
-          Debug.Log("Writing line to log fp="+fp);
           logLastTime = t;
         }
       }
