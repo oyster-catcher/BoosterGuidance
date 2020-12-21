@@ -24,8 +24,8 @@ The main window shows
 
 - Target: The landing target is shown in latitude and longitude. Edit manually or use the adjusters .
 
-- Pick target: Click to select to target in the main flight or map view (unfortunately this doesn't seem to work for any terrain, just physical objects like landing pads and runways), or you can set the latitude and longitude manually,
-or in the map view set a vessel as the target and its location will be copied to Booster Guidance. This is particularly easy for a drone ship for example
+- Pick target: Click to select to target in the main flight or map view , or you can set the latitude and longitude manually,
+or in the map view set a vessel as the target and its location will be copied to Booster Guidance. This is particularly easy for a drone ship for example. The target will also be updated if you activate a navigation target
 
 - Set Here: Set the target to the current location
 
@@ -59,15 +59,14 @@ Once the re-entry burn altitude is reached the Re-entry burn will be triggered.
 
 In the re-entry burn phase the currently enabled engines will be fired full throttle (less at the end) until the velocity is reduced below the target velocity.
 This makes takes a long time if velocity is high or the engine thrust is low. The booster will steer slightly away from retrograde to minimise the target error.
-How aggressively it does this is determined by the gain. It will limit its maximum angle-of-attack to the angle given in the advanced settings. The default of
+How aggressively it does this is determined by the gain and the maximum angle of attack are changed via the same slider. The default of
 20 degrees should be fine. When the target velocity is reached the engines will be shutdown and the Aero Descent phase will be entered.
 
 - Aero Descent
 
 With no thrust the booster will attempt to steer via grid fins towards the target, trying to minimise the target error. Again how aggressively it does this is
 determined by the gain. Lower in the thicker atmosphere you may find the gain is too high and large oscillations are caused. You should reduce the gain slider
-to the left or reduce the maximum angle-of-attack. Again the maximum angle-of-attack is determined from the advanced settings. The default of 20 degrees should be
-sufficient but I've seen a video of the Falcon 9 at perhaps 30 degrees angle-of-attack fairly close to landing, so heroic maneoveurs can be made. In aero descent
+to the left reducing the gain and the maximum angle of attack. In aero descent
 velocity will be reduced significantly as the atmosphere thickens. When the landing burn altitude of reached the landing burn will be enabled.
 
 - Landing Burn
@@ -90,7 +89,8 @@ of flight by checking the rules from Boostback onwards.
 
 ## ADVANCED TOPICS
 
-In the base game you may not need to touch the advanced setting but you probably will in Realism Overhaul.
+In the base game you may not need to touch the advanced settings but you probably will in Realism Overhaul.
+If your rocket seems to crash into the ground then increase touchdown margin, or ensure you rockets have sufficient thrust to slow for landing.
 
 ### Logging
 
