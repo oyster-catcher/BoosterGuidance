@@ -39,7 +39,8 @@ namespace BoosterGuidance
     double landingBurnMaxAoA = 0; // will be set from Kp
     string numLandingBurnEngines = "current";
     ITargetable lastVesselTarget = null;
-    NavWaypoint lastNavWaypoint = null;
+    double lastNavLat = 0;
+    double lastNavLon = 0;
 
     // Advanced settings
     EditableInt touchdownMargin = 20;
@@ -157,26 +158,27 @@ namespace BoosterGuidance
       NavWaypoint nav = NavWaypoint.fetch;
       if (nav.IsActive)
       {
-        // Copy nav waypoint if lat/lon differ
-        // but when settings manually changed?
-        if ((tgtLatitude != nav.Latitude) || (tgtLongitude != nav.Longitude))
+        // Does current nav position differ from last one used? A hack because
+        // a can't see a way to check if the nav waypoint has changed
+        // Doing it this way means lat and lon in window can be edited without them
+        // getting locked to the nav waypoint
+        if ((lastNavLat != nav.Latitude) || (lastNavLon != nav.Longitude))
         {
           tgtLatitude = nav.Latitude;
           tgtLongitude = nav.Longitude;
+          lastNavLat = nav.Latitude;
+          lastNavLon = nav.Longitude;
           // This is VERY unreliable
           //tgtAlt = (int)nav.Altitude;
           tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
-          //trackTarget = false;
           GuiUtils.ScreenMessage("Target set to " + nav.name);
         }
       }
-      // No targets so get ready to track to one if activated
-      /*
-      if ((!nav.IsActive) && (FlightGlobals.ActiveVessel.targetObject == null))
+      else
       {
-        trackTarget = true;
+        lastNavLat = 0;
+        lastNavLon = 0;
       }
-      */
 
       tab = GUILayout.Toolbar(tab, new string[] { "Main", "Advanced" });
       switch(tab)
