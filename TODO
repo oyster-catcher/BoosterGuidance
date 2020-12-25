@@ -1,10 +1,10 @@
 - On RO picking target jumps around. Store double's?
 - In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
-- More reliable clicking to set target (due to distance of ray or buildings)
-- Set target on sea should be sea level (not <0m)
-- Set target anywhere on map view (due to distance of ray)
 - Put engine shutdown code in again?
 - Fix unreliability of landing leg deployment
 - Doesn't move target of activate navigation and its already activated on another target
 - Target is visible from wrong side of planet
-- Prediction target shifts and jumps sometimes on Min
+- Prediction target shifts and jumps sometimes on Mun. Possibly only on timewarp and fixed?
+- Switching vessels doesn't show the correct target/prediction. Show multiple targets for multiple vessels?
+- Sometimes target is not shown with Pick Target (not enabled?)
+- Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
