@@ -12,16 +12,13 @@ namespace BoosterGuidance
   public delegate bool TryParse<T>(string str, out T value);
 
   [KSPAddon(KSPAddon.Startup.Flight, false)]
-  public class BoosterGuidanceCore : MonoBehaviour
+  public class BoosterGuidanceApp : MonoBehaviour
   {
     static MainWindow mainw;
 
     public void Awake()
     {
-      GameEvents.onGUIApplicationLauncherReady.Add(delegate
-      {
-        CreateStockToolbarButton();
-      });
+      GameEvents.onGUIApplicationLauncherReady.Add(CreateStockToolbarButton);
       GameEvents.onGUIApplicationLauncherUnreadifying.Add(delegate
       {
         DestroyStockToolbarButton();
@@ -40,7 +37,6 @@ namespace BoosterGuidance
             () => { },
             () => { },
             ApplicationLauncher.AppScenes.MAPVIEW | ApplicationLauncher.AppScenes.FLIGHT,
-            //ApplicationLauncher.AppScenes.FLIGHT,
             GameDatabase.Instance.GetTexture("BoosterGuidance/BoosterGuidanceIcon", false)
             );
         mainw = new MainWindow();
@@ -74,7 +70,7 @@ namespace BoosterGuidance
       DestroyStockToolbarButton();
     }
 
-    public static BoosterGuidanceCore Instance;
+    public static BoosterGuidanceApp Instance;
     private static ApplicationLauncherButton _appLauncherButton;
   }
 }

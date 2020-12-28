@@ -33,7 +33,7 @@ namespace BoosterGuidance
     public double landingBurnMaxAoA = 10;
     public double suicideFactor = 0.6;
     public double lowestY = 0;
-    public double reentryBurnSteerGain = 0.1;
+    public double reentryBurnSteerKp = 0.1;
     public PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
     public PIDclamp pid_landing = new PIDclamp("landingSteer", 1, 0, 0, 10);
     public double igniteDelay = 3; // ignite engines this many seconds early
@@ -112,7 +112,7 @@ namespace BoosterGuidance
       lowestY = v.lowestY;
       reentryBurnAlt = v.reentryBurnAlt;
       reentryBurnMaxAoA = v.reentryBurnMaxAoA;
-      reentryBurnSteerGain = v.reentryBurnSteerGain;
+      reentryBurnSteerKp = v.reentryBurnSteerKp;
       reentryBurnTargetSpeed = v.reentryBurnTargetSpeed;
       aeroModel = v.aeroModel;
       aeroDescentSteerKp = v.aeroDescentSteerKp;
@@ -335,7 +335,7 @@ namespace BoosterGuidance
       {
         if (!simulate)
         {
-          steerGain = -reentryBurnSteerGain; // override as gain is wrong at high speeds (always steer with thrust)
+          steerGain = -reentryBurnSteerKp; // override as gain is wrong at high speeds (always steer with thrust)
           steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, steerGain, reentryBurnMaxAoA);
         }
         double errv = vel_air.magnitude - reentryBurnTargetSpeed;
