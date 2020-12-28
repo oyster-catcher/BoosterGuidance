@@ -79,29 +79,6 @@ namespace BoosterGuidance
       StopLogging();
     }
 
-    public void AttachVessel(Vessel a_vessel)
-    {
-      vessel = a_vessel;
-      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
-      lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
-    }
-
-    public String SetLandingBurnEngines()
-    {
-      landingBurnEngines = KSPUtils.GetActiveEngines(vessel);
-      if (landingBurnEngines.Count == 0)
-        return "current";
-      else
-        return landingBurnEngines.Count.ToString();
-    }
-
-    public String UnsetLandingBurnEngines()
-    {
-      landingBurnEngines = null;
-      return "current";
-    }
-
-
     public BLController(BLController v)
     {
       phase = v.phase;
@@ -125,6 +102,186 @@ namespace BoosterGuidance
       targetError = v.targetError;
       igniteDelay = v.igniteDelay;
       noSteerHeight = v.noSteerHeight;
+    }
+
+    public BLController(Vessel a_vessel)
+    {
+      AttachVessel(a_vessel);
+    }
+
+    public void AttachVessel(Vessel a_vessel)
+    {
+      vessel = a_vessel;
+      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
+      lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
+    }
+
+    public String SetLandingBurnEngines()
+    {
+      landingBurnEngines = KSPUtils.GetActiveEngines(vessel);
+      if (landingBurnEngines.Count == 0)
+        return "current";
+      else
+        return landingBurnEngines.Count.ToString();
+    }
+
+    public List<BoosterGuidanceVesselSettings> GetSettingsModules(Vessel vessel)
+    {
+      List<BoosterGuidanceVesselSettings> modules = new List<BoosterGuidanceVesselSettings>();
+      foreach (var part in vessel.Parts)
+      {
+        foreach (var mod in part.Modules)
+        {
+          
+          if (mod.GetType() == typeof(BoosterGuidanceVesselSettings))
+          {
+            //Debug.Log("[BoosterGuidance] vessel=" + vessel.name + "part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
+            modules.Add((BoosterGuidanceVesselSettings)mod);
+          }
+        }
+      }
+      if (modules.Count == 0)
+        Debug.Log("[BoosterGuidance] No BoosterGuidanceVesselSettings module for vessel=" + vessel.name);
+      return modules;
+    }
+
+    public void SetTarget(double latitude, double longitude, double alt)
+    {
+      tgtLatitude = latitude;
+      tgtLongitude = longitude;
+      tgtAlt = alt;
+      SaveToVessel();
+    }
+
+    public void SaveToVessel()
+    {
+      if (vessel == null)
+      {
+        Debug.Log("[BoosterGuidance] Can't save as no attached vessel");
+        return;
+      }
+      int m = 1;
+      foreach (var module in GetSettingsModules(vessel))
+      {
+        module.tgtLatitude = (float)tgtLatitude;
+        module.tgtLongitude = (float)tgtLongitude;
+        module.tgtAlt = (int)tgtAlt;
+        module.reentryBurnAlt = (int)reentryBurnAlt;
+        module.reentryBurnTargetSpeed = (int)reentryBurnTargetSpeed;
+        module.reentryBurnSteerKp = (float)reentryBurnSteerKp;
+        module.aeroDescentSteerKp = (float)aeroDescentSteerKp;
+        module.landingBurnSteerKp = (float)landingBurnSteerKp;
+        module.touchdownMargin = (int)touchdownMargin;
+        module.touchdownSpeed = (float)touchdownSpeed;
+        module.noSteerHeight = (int)noSteerHeight;
+        module.deployLandingGear = deployLandingGear;
+        module.deployLandingGearHeight = (int)deployLandingGearHeight;
+        if (phase == BLControllerPhase.BoostBack)
+          module.phase = "BoostBack";
+        else if (phase == BLControllerPhase.Coasting)
+          module.phase = "Coasting";
+        else if (phase == BLControllerPhase.ReentryBurn)
+          module.phase = "ReentryBurn";
+        else if (phase == BLControllerPhase.AeroDescent)
+          module.phase = "AeroDescent";
+        else if (phase == BLControllerPhase.LandingBurn)
+          module.phase = "LandingBurn";
+        else
+          module.phase = "Unset";
+        module.landingBurnEngines = GetLandingBurnEngineString();
+        Debug.Log("[BoosterGuidance] Vessel settings saved for vessel=" + vessel.name + " module="+m);
+        m = m + 1;
+      }
+      Debug.Log("[BoosterGuidance] Vessel settings saved for " + vessel.name);
+    }
+
+    public void LoadFromVessel()
+    {
+      if (vessel == null)
+        return;
+      foreach (var module in GetSettingsModules(vessel))
+      {
+        tgtLatitude = module.tgtLatitude;
+        tgtLongitude = module.tgtLongitude;
+        tgtAlt = (int)module.tgtAlt;
+        reentryBurnAlt = module.reentryBurnAlt;
+        reentryBurnSteerKp = module.reentryBurnSteerKp;
+        reentryBurnTargetSpeed = module.reentryBurnTargetSpeed;
+        aeroDescentSteerKp = module.aeroDescentSteerKp;
+        landingBurnSteerKp = module.landingBurnSteerKp;
+        touchdownMargin = module.touchdownMargin;
+        touchdownSpeed = module.touchdownSpeed;
+        noSteerHeight = module.noSteerHeight;
+        deployLandingGear = module.deployLandingGear;
+        deployLandingGearHeight = module.deployLandingGearHeight;
+        if (module.phase == "BoostBack")
+          phase = BLControllerPhase.BoostBack;
+        else if (module.phase == "Re-entry Burn")
+          phase = BLControllerPhase.ReentryBurn;
+        else if (module.phase == "Coasting")
+          phase = BLControllerPhase.Coasting;
+        else if (module.phase == "Aero Descent")
+          phase = BLControllerPhase.AeroDescent;
+        else if (module.phase == "Landing Burn")
+          phase = BLControllerPhase.LandingBurn;
+        else
+          phase = BLControllerPhase.Unset;
+        SetLandingBurnEnginesFromString(module.landingBurnEngines);
+        Debug.Log("[BoosterGuidance] Vessel settings loaded from " + vessel.name);
+      }
+    }
+
+    public String UnsetLandingBurnEngines()
+    {
+      landingBurnEngines = null;
+      return "current";
+    }
+
+    public String GetLandingBurnEngineString()
+    {
+      if ((vessel == null) || (landingBurnEngines == null))
+        return "current";
+      List<string> flags = new List<string>();
+      bool set = false;
+      foreach (var engine in KSPUtils.GetAllEngines(vessel))
+      {
+        if (landingBurnEngines.Contains(engine))
+        {
+          flags.Add("1");
+          set = true;
+        }
+        else
+          flags.Add("0");
+      }
+      if (set)
+        return String.Join(",", flags.ToArray());
+      else
+        return "current";
+    }
+
+    public void SetLandingBurnEnginesFromString(string s)
+    {
+      if (vessel == null)
+        return;
+      if (s == "current")
+        landingBurnEngines = null;
+      else
+      {
+        string[] flags = s.Split(',');
+        List<ModuleEngines> engines = KSPUtils.GetAllEngines(vessel);
+        if (flags.Length != engines.Count)
+        {
+          Debug.Log("[BoosterGuidance] Vessel " + vessel.name + " has " + engines.Count + " but landing burn engines list has length " + flags.Length);
+          landingBurnEngines = null;
+        }
+        for (int i = 0; i < flags.Length; i++)
+        {
+          if (flags[i] == "1")
+            landingBurnEngines.Add(engines[i]);
+          else if (flags[i] != "0")
+            Debug.Log("[BoosterGuidance] Found invalid string '" + s + "' for landingBurnEngines. Expected a boolean list for active engines. e.g. 0,0,1,1,0 or current");
+        }
+      }
     }
 
     public void SetPhase(BLControllerPhase a_phase)
