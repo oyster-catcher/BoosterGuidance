@@ -44,6 +44,9 @@ namespace BoosterGuidance
     public int deployLandingGearHeight = 500;
 
     [KSPField(isPersistant = true, guiActive = false)]
+    public string landingBurnEngines = "current";
+
+    [KSPField(isPersistant = true, guiActive = false)]
     public string phase = "Unset";
   }
 }
