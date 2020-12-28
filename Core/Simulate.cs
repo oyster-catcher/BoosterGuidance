@@ -45,7 +45,7 @@ namespace BoosterGuidance
         controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, out gridFins, bailOutLandingBurn);
         // Stop throttle so we don't take off again in timestep, dt
         // TODO - Fix HACK!!
-        if (y < controller.tgtAlt + 50)
+        if (y < controller.TgtAlt + 50)
           throttle = 0;
       }
 
