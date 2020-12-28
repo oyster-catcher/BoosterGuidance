@@ -8,3 +8,7 @@
 - Switching vessels doesn't show the correct target/prediction. Show multiple targets for multiple vessels?
 - Sometimes target is not shown with Pick Target (not enabled?)
 - Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
+- With multiple vessel when they separate by >30km (physics calc. limit) they lose guidance (due to a new Vessel being a clone I think).
+  Identify from name rather than Vessel pointer? Might cause clashes, would still need to re-attach the Vessel reference to fly the vessel though. Loop through active vessels?
+- Don't show predicted target when guidance not enabled on vessel
+- Don't show landing target for vessel when guidance has been reset, i.e lat=lon=alt=0
