@@ -152,16 +152,19 @@ namespace BoosterGuidance
         {
           // Already have an associated controller?
           activeController = controllers[FlightGlobals.ActiveVessel.id];
-          Debug.Log("[BoosterGuidance] Found existing controller");
+          Debug.Log("[BoosterGuidance] Found existing controller for id="+FlightGlobals.ActiveVessel.id);
           UpdateWindow(activeController);
+          Debug.Log("[BoosterGuidance] From controller lat=" + tgtLatitude + " lon=" + tgtLongitude);
         }
         catch (KeyNotFoundException)
         {
-          Debug.Log("[BoosterGuidance] No existing controller");
+          Debug.Log("[BoosterGuidance] No existing controller for id="+FlightGlobals.ActiveVessel.id);
           // No associated controller - vessel not previously controller in this game session
           activeController = new BLController(FlightGlobals.ActiveVessel);
           controllers[FlightGlobals.ActiveVessel.id] = activeController;
+          Debug.Log("[BoosterGuidance] Saved active controller for id="+FlightGlobals.ActiveVessel.id);
           activeController.LoadFromVessel();
+          Debug.Log("[BoosterGuidance] From vessel lat=" + tgtLatitude + " lon=" + tgtLongitude);
           UpdateWindow(activeController);
           Debug.Log("[BoosterGuidance] Setting phase " + phase + " from loaded vessel");
           if (activeController.phase != BLControllerPhase.Unset)
@@ -199,6 +202,8 @@ namespace BoosterGuidance
         // getting locked to the nav waypoint
         if ((lastNavLat != nav.Latitude) || (lastNavLon != nav.Longitude))
         {
+          Debug.Log("[BoosterGuidance] Setting to nav target lat=" + nav.Latitude + " lon=" + nav.Longitude);
+          GuiUtils.ScreenMessage("[BoosterGuidance] Setting to nav target lat=" + nav.Latitude + " lon=" + nav.Longitude);
           tgtLatitude = nav.Latitude;
           tgtLongitude = nav.Longitude;
           lastNavLat = nav.Latitude;
@@ -500,7 +505,7 @@ namespace BoosterGuidance
       // Activate guidance
       SetEnabledColors(true); // back to normal
       GUILayout.BeginHorizontal();
-      if (!activeController.enabled)
+      if ((!activeController.enabled) || (phase == BLControllerPhase.Unset))
       {
         if (GUILayout.Button("Enable Guidance"))
           EnableGuidance(BLControllerPhase.Unset);
@@ -681,7 +686,7 @@ namespace BoosterGuidance
       if (activeController != null)
         UpdateController(activeController);
       RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
-      GuiUtils.ScreenMessage("Target set to vessel");
+      GuiUtils.ScreenMessage("[BoosterGuidance] set to vessel");
     }
 
     Transform RedrawTarget(CelestialBody body, double lat, double lon, double alt)
@@ -722,13 +727,19 @@ namespace BoosterGuidance
 
     void EnableGuidance(BLControllerPhase phase)
     {
+      if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
+      {
+        GuiUtils.ScreenMessage("No target set!");
+        return;
+      }
       if (!activeController.enabled)
       {
         Debug.Log("[BoosterGuidance] Enable Guidance for vessel " + FlightGlobals.ActiveVessel.name);
         Vessel vessel = FlightGlobals.ActiveVessel;
         RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
-        activeController.AttachVessel(vessel);
+        // Should be already attached
+        //activeController.AttachVessel(vessel);
 
         // Find slot for controller
         int i = GetFreeSlot();
@@ -757,7 +768,8 @@ namespace BoosterGuidance
       activeController.SetPhase(phase);
       GuiUtils.ScreenMessage("Enabled " + activeController.PhaseStr());
       activeController.enabled = true;
-      StartLogging();
+      if (logging)
+        StartLogging();
     }
 
 
@@ -872,17 +884,6 @@ namespace BoosterGuidance
                 engine.Shutdown();
             }
           }
-        }
-      }   
-
-      if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
-      {
-        // No target. Set target to below craft
-        controller.SetTarget(vessel.latitude, vessel.longitude, vessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude));
-        if (activeController == controller)
-        {
-          UpdateWindow(controller);
-          RedrawTarget(controller.vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         }
       }
 
