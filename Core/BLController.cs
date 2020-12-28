@@ -79,7 +79,7 @@ namespace BoosterGuidance
       StopLogging();
     }
 
-    public BLController(BLController v)
+    public BLController(BLController v) : base()
     {
       phase = v.phase;
       vessel = v.vessel;
@@ -102,9 +102,10 @@ namespace BoosterGuidance
       targetError = v.targetError;
       igniteDelay = v.igniteDelay;
       noSteerHeight = v.noSteerHeight;
+      enabled = v.enabled;
     }
 
-    public BLController(Vessel a_vessel)
+    public BLController(Vessel a_vessel) : base()
     {
       AttachVessel(a_vessel);
     }
@@ -189,10 +190,10 @@ namespace BoosterGuidance
         else
           module.phase = "Unset";
         module.landingBurnEngines = GetLandingBurnEngineString();
-        Debug.Log("[BoosterGuidance] Vessel settings saved for vessel=" + vessel.name + " module="+m);
+        //Debug.Log("[BoosterGuidance] Vessel settings saved for vessel=" + vessel.name + " module="+m);
         m = m + 1;
       }
-      Debug.Log("[BoosterGuidance] Vessel settings saved for " + vessel.name);
+      Debug.Log("[BoosterGuidance] Vessel settings saved for " + vessel.name + "(" + m + " modules)");
     }
 
     public void LoadFromVessel()
