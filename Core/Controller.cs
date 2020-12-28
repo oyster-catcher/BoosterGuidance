@@ -11,7 +11,11 @@ namespace BoosterGuidance
     protected double maxThrust = 10000;
     protected List<ModuleEngines> allEngines = new List<ModuleEngines>();
 
-    public double tgtLatitude, tgtLongitude, tgtAlt;
+    protected double tgtLatitude, tgtLongitude, tgtAlt;
+    // Set with SetTarget()
+    public double TgtLatitude  { get { return tgtLatitude; } }
+    public double TgtLongitude { get { return tgtLongitude; } }
+    public double TgtAlt       { get { return tgtAlt; } }
     public bool enabled = false;
     public Vessel vessel = null; // Vessel being controlled
 
