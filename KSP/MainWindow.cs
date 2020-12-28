@@ -106,91 +106,6 @@ namespace BoosterGuidance
       predictedCross.enabled = false;
     }
 
-    public List<BoosterGuidanceVesselSettings> GetSettingsModules(Vessel vessel)
-    {
-      List<BoosterGuidanceVesselSettings> modules = new List<BoosterGuidanceVesselSettings>();
-      foreach (var part in vessel.Parts)
-      {
-        foreach (var mod in part.Modules)
-        {
-          //Debug.Log("[BoosterGuidance] vessel=" + vessel.name + "part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
-          if (mod.GetType() == typeof(BoosterGuidanceVesselSettings))
-            modules.Add((BoosterGuidanceVesselSettings)mod);
-        }
-      }
-      if (modules.Count == 0)
-        Debug.Log("[BoosterGuidance] No BoosterGuidanceVesselSettings module for vessel=" + vessel.name);
-      return modules;
-    }
-
-    public void Save(Vessel vessel, BLControllerPhase phase)
-    {
-      foreach (var module in GetSettingsModules(vessel))
-      {
-        module.tgtLatitude = (float)tgtLatitude;
-        module.tgtLongitude = (float)tgtLongitude;
-        module.tgtAlt = tgtAlt;
-        module.reentryBurnAlt = (int)reentryBurnAlt;
-        module.reentryBurnTargetSpeed = (int)reentryBurnTargetSpeed;
-        module.reentryBurnSteerKp = reentryBurnSteerKp;
-        module.aeroDescentSteerKp = Mathf.Exp(aeroDescentSteerLogKp);
-        module.landingBurnSteerKp = Mathf.Exp(landingBurnSteerLogKp);
-        module.touchdownMargin = touchdownMargin;
-        module.touchdownSpeed = (float)touchdownSpeed;
-        module.noSteerHeight = noSteerHeight;
-        module.deployLandingGear = deployLandingGear;
-        module.deployLandingGearHeight = deployLandingGearHeight;
-        if (phase == BLControllerPhase.BoostBack)
-          module.phase = "BoostBack";
-        else if (phase == BLControllerPhase.Coasting)
-          module.phase = "Coasting";
-        else if (phase == BLControllerPhase.ReentryBurn)
-          module.phase = "ReentryBurn";
-        else if (phase == BLControllerPhase.AeroDescent)
-          module.phase = "AeroDescent";
-        else if (phase == BLControllerPhase.LandingBurn)
-          module.phase = "LandingBurn";
-        else
-          module.phase = "Unset";
-      }
-      Debug.Log("[BoosterGuidance] Vessel settings saved for " + vessel.name);
-    }
-
-    public void Load(Vessel vessel, out BLControllerPhase phase)
-    {
-      phase = BLControllerPhase.Unset;
-      foreach (var module in GetSettingsModules(vessel))
-      {
-        tgtLatitude = module.tgtLatitude;
-        tgtLongitude = module.tgtLongitude;
-        tgtAlt = (int)module.tgtAlt;
-        reentryBurnAlt = module.reentryBurnAlt;
-        reentryBurnSteerKp = module.reentryBurnSteerKp;
-        reentryBurnTargetSpeed = module.reentryBurnTargetSpeed;
-        aeroDescentSteerLogKp = Mathf.Log(module.aeroDescentSteerKp);
-        landingBurnSteerLogKp = Mathf.Log(module.landingBurnSteerKp);
-        touchdownMargin = module.touchdownMargin;
-        touchdownSpeed = module.touchdownSpeed;
-        noSteerHeight = module.noSteerHeight;
-        deployLandingGear = module.deployLandingGear;
-        deployLandingGearHeight = module.deployLandingGearHeight;
-        if (module.phase == "BoostBack")
-          phase = BLControllerPhase.BoostBack;
-        else if (module.phase == "Re-entry Burn")
-          phase = BLControllerPhase.ReentryBurn;
-        else if (module.phase == "Coasting")
-          phase = BLControllerPhase.Coasting;
-        else if (module.phase == "Aero Descent")
-          phase = BLControllerPhase.AeroDescent;
-        else if (module.phase == "Landing Burn")
-          phase = BLControllerPhase.LandingBurn;
-        else
-          phase = BLControllerPhase.Unset;
-        Debug.Log("[BoosterGuidance] Vessel settings loaded from " + vessel.name);
-      }
-      
-    }
-
     void SetEnabledColors(bool phaseEnabled)
     {
       if (phaseEnabled)
@@ -237,18 +152,19 @@ namespace BoosterGuidance
         {
           // Already have an associated controller?
           activeController = controllers[FlightGlobals.ActiveVessel.id];
+          Debug.Log("[BoosterGuidance] Found existing controller");
           UpdateWindow(activeController);
         }
         catch (KeyNotFoundException)
         {
+          Debug.Log("[BoosterGuidance] No existing controller");
           // No associated controller - vessel not previously controller in this game session
-          activeController = new BLController();
+          activeController = new BLController(FlightGlobals.ActiveVessel);
           controllers[FlightGlobals.ActiveVessel.id] = activeController;
-          // Load settings from BoosterGuidanceSettings module into window settings
-          Load(FlightGlobals.ActiveVessel, out phase);
-          UpdateController(activeController); // updates controller from loaded settings
+          activeController.LoadFromVessel();
+          UpdateWindow(activeController);
           Debug.Log("[BoosterGuidance] Setting phase " + phase + " from loaded vessel");
-          if (phase != BLControllerPhase.Unset)
+          if (activeController.phase != BLControllerPhase.Unset)
             EnableGuidance(phase);
         }
         RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
@@ -291,6 +207,7 @@ namespace BoosterGuidance
           //tgtAlt = (int)nav.Altitude;
           tgtAlt = (int)currentVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
           GuiUtils.ScreenMessage("Target set to " + nav.name);
+          UpdateController(activeController);
         }
       }
       else
@@ -334,8 +251,6 @@ namespace BoosterGuidance
       {
         if (activeController != null)
           UpdateController(activeController); // copy settings from window
-        if (activeController.vessel != null)
-          Save(activeController.vessel, activeController.phase);
       }
     }
 
@@ -625,9 +540,7 @@ namespace BoosterGuidance
         controller.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
         controller.reentryBurnSteerKp = reentryBurnSteerKp;
         controller.landingBurnMaxAoA = landingBurnMaxAoA;
-        controller.tgtLatitude = tgtLatitude;
-        controller.tgtLongitude = tgtLongitude;
-        controller.tgtAlt = tgtAlt;
+        controller.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
         controller.suicideFactor = 0.75;
         controller.landingBurnSteerKp = Math.Exp(landingBurnSteerLogKp);
         controller.aeroDescentMaxAoA = aeroDescentMaxAoA;
@@ -645,6 +558,7 @@ namespace BoosterGuidance
         controller.touchdownMargin = touchdownMargin;
         controller.touchdownSpeed = (float)touchdownSpeed;
         controller.simulationsPerSec = (float)simulationsPerSec;
+        controller.SaveToVessel(); // save settings to multiple BoosterGuidanceVesselSettings modules
       }
     }
 
@@ -658,9 +572,9 @@ namespace BoosterGuidance
       reentryBurnAlt = (int)controller.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)controller.reentryBurnTargetSpeed;
       landingBurnSteerLogKp = Mathf.Log((float)controller.landingBurnSteerKp);
-      tgtLatitude = controller.tgtLatitude;
-      tgtLongitude = controller.tgtLongitude;
-      tgtAlt = (int)controller.tgtAlt;
+      tgtLatitude = controller.TgtLatitude;
+      tgtLongitude = controller.TgtLongitude;
+      tgtAlt = (int)controller.TgtAlt;
       if (controller.landingBurnEngines != null)
         numLandingBurnEngines = controller.landingBurnEngines.Count.ToString();
       else
@@ -732,7 +646,6 @@ namespace BoosterGuidance
           string message = "Picked target";
           GuiUtils.ScreenMessage(message);
           UpdateController(activeController);
-          Save(FlightGlobals.ActiveVessel, activeController.phase);
         }
       }
     }
@@ -765,6 +678,8 @@ namespace BoosterGuidance
       tgtLongitude = FlightGlobals.ActiveVessel.longitude;
       double lowestY = KSPUtils.FindLowestPointOnVessel(FlightGlobals.ActiveVessel);
       tgtAlt = (int)FlightGlobals.ActiveVessel.altitude + (int)lowestY;
+      if (activeController != null)
+        UpdateController(activeController);
       RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt + activeController.lowestY);
       GuiUtils.ScreenMessage("Target set to vessel");
     }
@@ -961,11 +876,9 @@ namespace BoosterGuidance
       }   
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
-      { 
+      {
         // No target. Set target to below craft
-        controller.tgtLatitude = vessel.latitude;
-        controller.tgtLongitude = vessel.longitude;
-        controller.tgtAlt = vessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
+        controller.SetTarget(vessel.latitude, vessel.longitude, vessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude));
         if (activeController == controller)
         {
           UpdateWindow(controller);
