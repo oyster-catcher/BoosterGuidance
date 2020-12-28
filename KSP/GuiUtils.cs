@@ -444,7 +444,7 @@ namespace BoosterGuidance
         cam_pos = cam_pos - ImpactBody.position;
         double cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
         // draw ground marker at this position
-        Debug.Log("[BoosterGuidance] PredictionCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt);
+        //Debug.Log("[BoosterGuidance] PredictionCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt);
         if (MapView.MapIsEnabled)
           GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
         else
