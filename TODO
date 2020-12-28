@@ -2,13 +2,12 @@
 - In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
 - Put engine shutdown code in again?
 - Fix unreliability of landing leg deployment
-- Doesn't move target of activate navigation and its already activated on another target
 - Target is visible from wrong side of planet
 - Prediction target shifts and jumps sometimes on Mun. Possibly only on timewarp and fixed?
-- Switching vessels doesn't show the correct target/prediction. Show multiple targets for multiple vessels?
-- Sometimes target is not shown with Pick Target (not enabled?)
 - Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
-- With multiple vessel when they separate by >30km (physics calc. limit) they lose guidance (due to a new Vessel being a clone I think).
-  Identify from name rather than Vessel pointer? Might cause clashes, would still need to re-attach the Vessel reference to fly the vessel though. Loop through active vessels?
-- Don't show predicted target when guidance not enabled on vessel
 - Don't show landing target for vessel when guidance has been reset, i.e lat=lon=alt=0
+- Save landing engines with vessel settings
+- Not saving vessel settings to multiple cores
+- Setting navigation doesn't save lat/lon/alt, it gets messed up when switching vessels
+- Slow to open BoosterGuidance window. 1-2 secs. Why?
+- Switching vessels. Guidance enabled lost
