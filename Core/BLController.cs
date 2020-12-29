@@ -619,6 +619,12 @@ namespace BoosterGuidance
       lastThrottle = throttle;
 
       elapsed_secs = timer.ElapsedMilliseconds * 0.001;
+
+      // Set info message
+      if (vessel.checkLanded())
+        info = string.Format("Landed {0:F1}m from target", targetError);
+      else
+        info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s [{3:F0}ms]", targetError, attitudeError, targetT, elapsed_secs * 1000);
     }
-  }
+  }  
 }
