@@ -10,7 +10,7 @@ namespace BoosterGuidance
   [KSPAddon(KSPAddon.Startup.Flight, false)]
   public class MainWindow : MonoBehaviour
   {
-    // constantsBurnSt
+    // constants
     Color tgt_color = new Color(1, 1, 0, 0.5f);
     Color pred_color = new Color(1, 0.2f, 0.2f, 0.5f);
 
@@ -302,22 +302,27 @@ namespace BoosterGuidance
       GUILayout.BeginHorizontal();
       GUILayout.Label("Other vessels:");
       GUILayout.EndHorizontal();
+      GUIStyle info_style = new GUIStyle();
+      info_style.normal.textColor = Color.white;
       for (int i = 0; i < flying.Length; i++)
       {
         // Slot is filled, vessel exists and not current vessel
         if ((flying[i] != null) && (flying[i].vessel != null) && (flying[i] != activeController))
         {
           GUILayout.BeginHorizontal();
-          GUILayout.Label(flying[i].vessel.name);
+          GUILayout.Label(flying[i].vessel.name + " ("+ (int)flying[i].vessel.altitude + "m)");
           GUILayout.FlexibleSpace();
           if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
             DisableGuidance(flying[i]);
           GUILayout.EndHorizontal();
 
           GUILayout.BeginHorizontal();
-          GUILayout.Label("  alt:" + (int)flying[i].vessel.altitude + "m  err:" + (int)flying[i].targetError + "m");
+          GUILayout.Label("  " + flying[i].info, info_style);
           GUILayout.EndHorizontal();
 
+          GUILayout.BeginHorizontal();
+          GUILayout.Label("  " + flying[i].PhaseStr(), info_style);
+          GUILayout.EndHorizontal();
         }
       }
 
@@ -692,7 +697,8 @@ namespace BoosterGuidance
     Transform RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
       Transform transform = GuiUtils.SetUpTransform(body, lat, lon, alt);
-      targetingCross.enabled = showTargets;
+      // Only sure when set (ideally use a separate flag!)
+      targetingCross.enabled = showTargets && ((lat!=0) || (lon!=0) || (alt!=0));
       targetingCross.SetLatLonAlt(body, lat, lon, alt);
       return transform;
     }
@@ -841,16 +847,17 @@ namespace BoosterGuidance
         return;
       Vessel vessel = controller.vessel;
 
+      if (activeController == controller)
+        info = controller.info;
+
       if (vessel.checkLanded())
       {
         GuiUtils.ScreenMessage("Vessel " + controller.vessel.name + " landed!");
         state.mainThrottle = 0;
         DisableGuidance(controller);
-        // Find distance from target
-        if (activeController == controller)
-          info = string.Format("Landed {0:F1}m from target", controller.targetError);
         return;
       }
+      
 
       KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
 
@@ -896,8 +903,6 @@ namespace BoosterGuidance
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
         RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above grou
-        info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s [{3:F0}ms]", controller.targetError, controller.attitudeError, controller.targetT, controller.elapsed_secs * 1000);
-
       }
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;
