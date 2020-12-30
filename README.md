@@ -4,6 +4,7 @@
 
 Unzip the zip for for BoosterGuidance inside your KSP installations GameData directory. You should then see the directory BoosterGuidance containing a DLL,
 this readme file and the License.
+Note that ModuleManager is a dependency. Without it the mod will work although the BoosterGuidance settings will not be saved with your craft or saved games.
 
 ## USING
 
