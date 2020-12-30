@@ -5,9 +5,4 @@
 - Target is visible from wrong side of planet
 - Prediction target shifts and jumps sometimes on Mun. Possibly only on timewarp and fixed?
 - Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
-- Don't show landing target for vessel when guidance has been reset, i.e lat=lon=alt=0
-- Save landing engines with vessel settings
-- Not saving vessel settings to multiple cores
-- Setting navigation doesn't save lat/lon/alt, it gets messed up when switching vessels
 - Slow to open BoosterGuidance window. 1-2 secs. Why?
-- Switching vessels. Guidance enabled lost
