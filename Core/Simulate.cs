@@ -58,7 +58,7 @@ namespace BoosterGuidance
       if (aeroModel == null) {
         Debug.Log("EulerStep() - No aeroModel");
       }
-      Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI) * aeroFudgeFactor + Ft;
+      Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI, out Vector3d Fdrag, out Vector3d Flift) * aeroFudgeFactor + Ft;
       Vector3d a = F / totalMass + g;
 
       out_r = r + v * dt;
@@ -96,7 +96,7 @@ namespace BoosterGuidance
         }
         att = steer; // assume attitude is always correct
       }
-      F = F + aeroModel.GetForces(body, r, vel_air, Math.PI) * aeroFudgeFactor; // retrograde
+      F = F + aeroModel.GetForces(body, r, vel_air, Math.PI, out Vector3d Fdrag, out Vector3d Flift) * aeroFudgeFactor; // retrograde
 
       F = F + g * totalMass;
 

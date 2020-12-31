@@ -53,7 +53,6 @@ namespace BoosterGuidance
     private Transform logTransform;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
-    private double liftFactor = 10; // was 15
     private double steerGainLimit = 1; // limits extreme steering to steerGainLimit degrees / target_error(m)
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
     private String logFilename; // basename for logging of several files
@@ -375,8 +374,9 @@ namespace BoosterGuidance
     // a rough estimation is that is 50%. Perhaps it should always be 50%?
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass)
     {
-      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI); // 180 degrees (retrograde);
-      double sideFA = liftFactor * Faero.magnitude; // liftFactor proportion of drag is lift force available by aerodynamic steering at 45 degrees
+      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI, out Vector3d Faero_drag, out Vector3d Faero_lift); // 180 degrees (retrograde);
+      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI - (45 * Math.PI / 180), out Vector3d Faero_drag2, out Vector3d Faero_lift2); // 45 degrees AoA from retrograde
+      double sideFA = Faero_lift2.magnitude; // aero dynamic lift at 45 degrees AoA
       double thrust = minThrust + throttle * (maxThrust - minThrust);
       double sideFT = thrust * Math.Sin(45 * Math.PI / 180); // sideways component of thrust at 45 degrees
       double gain = 0;
@@ -384,7 +384,7 @@ namespace BoosterGuidance
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
         gain = totalMass / (sideFA - sideFT);
-      //Debug.Log("[BoosterGuidance] sideFA=" + sideFA + " sideFT=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
+      //Debug.Log("[BoosterGuidance] sideFA(45 degrees)=" + sideFA + " sideFT(45 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
 
       return gain;
     }

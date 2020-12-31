@@ -31,9 +31,9 @@ namespace Trajectories
 
         public StockModel(Vessel ship, CelestialBody body) : base(ship, body) { }
 
-        protected override Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude)
+        protected override Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude, out Vector3d total_drag, out Vector3d total_lift)
         {
-            return (Vector3d)StockAeroUtil.SimAeroForce(vessel_, (Vector3)airVelocity, altitude);
+            return (Vector3d)StockAeroUtil.SimAeroForce(vessel_, (Vector3)airVelocity, altitude, 0, out total_drag, out total_lift);
         }
 
         public override Vector2 PackForces(Vector3d forces, double altitudeAboveSea, double velocity)

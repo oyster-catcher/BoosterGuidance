@@ -132,16 +132,18 @@ namespace Trajectories
 
         private double ComputeReferenceDrag()
         {
-            Vector3 forces = ComputeForces(3000, new Vector3d(3000.0, 0, 0), new Vector3(0, 1, 0), 0);
-            return forces.sqrMagnitude;
+            Vector3 forces = ComputeForces(3000, new Vector3d(3000.0, 0, 0), new Vector3(0, 1, 0), 0, out Vector3d total_drag, out Vector3d total_lift);
+            return forces.sqrMagnitude; // combined drag and lift
         }
 
         /// <summary>
         /// Returns the total aerodynamic forces that would be applied on the vessel if it was at bodySpacePosition with bodySpaceVelocity relatively to the specified celestial body
         /// This method makes use of the cache if available, otherwise it will call ComputeForces.
         /// </summary>
-        public Vector3d GetForces(CelestialBody body, Vector3d bodySpacePosition, Vector3d airVelocity, double angleOfAttack)
+        public Vector3d GetForces(CelestialBody body, Vector3d bodySpacePosition, Vector3d airVelocity, double angleOfAttack, out Vector3d total_drag, out Vector3d total_lift)
         {
+            total_drag = Vector3.zero;
+            total_lift = Vector3d.zero;
             if (body != vessel_.mainBody)
                 throw new Exception("Can't predict aerodynamic forces on another body in current implementation");
 
@@ -153,9 +155,9 @@ namespace Trajectories
 
             //Debug.Log("[Trajectories] GetForces useCache=" + UseCache);
             if (!UseCache)
-                return ComputeForces(altitudeAboveSea, airVelocity, bodySpacePosition, angleOfAttack);
+                return ComputeForces(altitudeAboveSea, airVelocity, bodySpacePosition, angleOfAttack, out total_drag, out total_lift);
 
-            Vector3d force = cachedForces.GetForce(airVelocity.magnitude, angleOfAttack, altitudeAboveSea);
+            Vector3d force = cachedForces.GetForce(airVelocity.magnitude, angleOfAttack, altitudeAboveSea, out total_drag, out total_lift);
 
             // adjust force using the more accurate air density that we can compute knowing where the vessel is relatively to the sun and body
             //Vector3d position = body.position + bodySpacePosition;
@@ -175,8 +177,10 @@ namespace Trajectories
         /// Compute the aerodynamic forces that would be applied to the vessel if it was in the specified situation (air velocity, altitude and angle of attack).
         /// </summary>
         /// <returns>The computed aerodynamic forces in world space</returns>
-        public Vector3d ComputeForces(double altitude, Vector3d airVelocity, Vector3d vup, double angleOfAttack)
+        public Vector3d ComputeForces(double altitude, Vector3d airVelocity, Vector3d vup, double angleOfAttack, out Vector3d res_drag, out Vector3d res_lift)
         {
+            res_drag = Vector3d.zero;
+            res_lift = Vector3d.zero;
             if (!vessel_.mainBody.atmosphere)
                 return Vector3d.zero;
             if (altitude >= body_.atmosphereDepth)
@@ -193,7 +197,7 @@ namespace Trajectories
 
             Vector3d airVelocityForFixedAoA = (vesselForward * Math.Cos(-angleOfAttack) + vesselUp * Math.Sin(-angleOfAttack)) * airVelocity.magnitude;
 
-            Vector3d totalForce = ComputeForces_Model(airVelocityForFixedAoA, altitude);
+            Vector3d totalForce = ComputeForces_Model(airVelocityForFixedAoA, altitude, out Vector3d totalDragForce, out Vector3d totalLiftForce);
 
             if (Double.IsNaN(totalForce.x) || Double.IsNaN(totalForce.y) || Double.IsNaN(totalForce.z))
             {
@@ -202,7 +206,9 @@ namespace Trajectories
             }
 
             // convert the force computed by the model (depends on the current vessel orientation, which is irrelevant for the prediction) to the predicted vessel orientation (which depends on the predicted velocity)
-            Vector3d localForce = new Vector3d(Vector3d.Dot(vesselRight, totalForce), Vector3d.Dot(vesselUp, totalForce), Vector3d.Dot(vesselBackward, totalForce));
+            //Vector3d localForce = new Vector3d(Vector3d.Dot(vesselRight, totalForce), Vector3d.Dot(vesselUp, totalForce), Vector3d.Dot(vesselBackward, totalForce));
+            Vector3d localDragForce = new Vector3d(Vector3d.Dot(vesselRight, totalDragForce), Vector3d.Dot(vesselUp, totalDragForce), Vector3d.Dot(vesselBackward, totalDragForce));
+            Vector3d localLiftForce = new Vector3d(Vector3d.Dot(vesselRight, totalLiftForce), Vector3d.Dot(vesselUp, totalLiftForce), Vector3d.Dot(vesselBackward, totalLiftForce));
 
             //if (Double.IsNaN(localForce.x) || Double.IsNaN(localForce.y) || Double.IsNaN(localForce.z))
             //    throw new Exception("localForce is NAN");
@@ -231,20 +237,24 @@ namespace Trajectories
             Vector3d predictedVesselRight = velRight;
             Vector3d predictedVesselUp = Vector3d.Cross(predictedVesselBackward, predictedVesselRight).normalized;
 
-            Vector3d res = predictedVesselRight * localForce.x + predictedVesselUp * localForce.y + predictedVesselBackward * localForce.z;
-            if (Double.IsNaN(res.x) || Double.IsNaN(res.y) || Double.IsNaN(res.z))
+            // Transform forces into vessel orientation
+            res_drag = predictedVesselRight * localDragForce.x + predictedVesselUp * localDragForce.y + predictedVesselBackward * localDragForce.z;
+            res_lift = predictedVesselRight * localLiftForce.x + predictedVesselUp * localLiftForce.y + predictedVesselBackward * localLiftForce.z;
+
+            if (Double.IsNaN(res_drag.x) || Double.IsNaN(res_drag.y) || Double.IsNaN(res_drag.z) ||
+                Double.IsNaN(res_lift.x) || Double.IsNaN(res_lift.y) || Double.IsNaN(res_lift.z))
             {
                 Debug.Log("Trajectories: res is NaN (altitude=" + altitude + ", airVelocity=" + airVelocity.magnitude + ", angleOfAttack=" + angleOfAttack);
                 return new Vector3d(0, 0, 0); // Don't send NaN into the simulation as it would cause bad things (infinite loops, crash, etc.). I think this case only happens at the atmosphere edge, so the total force should be 0 anyway.
             }
-            return res;
+            return res_drag + res_lift;
         }
 
         /// <summary>
         /// Computes the aerodynamic forces that would be applied to the vessel if it was in the specified situation (air velocity and altitude). The vessel is assumed to be in its current orientation (the air velocity is already adjusted as needed).
         /// </summary>
         /// <returns>The computed aerodynamic forces in world space</returns>
-        protected abstract Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude);
+        protected abstract Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude, out Vector3d total_drag, out Vector3d total_lift);
 
         /// <summary>
         /// Aerodynamic forces are roughly proportional to rho and squared air velocity, so we divide by these values to get something that can be linearly interpolated (the reverse operation is then applied after interpolation)
