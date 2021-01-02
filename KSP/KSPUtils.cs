@@ -184,22 +184,10 @@ namespace BoosterGuidance
       return shutdown;
     }
 
-    public static bool DeployLandingGears(Vessel vessel)
+    public static bool DeployLandingGear(Vessel vessel)
     {
-      bool deployed = false;
-      for (int i = 0; i < vessel.parts.Count; i++)
-      {
-        Part p = vessel.parts[i];
-        foreach (ModuleWheelDeployment wd in p.FindModulesImplementing<ModuleWheelDeployment>())
-        {
-          if (wd.fsm.CurrentState == wd.st_retracted || wd.fsm.CurrentState == wd.st_retracting)
-          {
-            wd.EventToggle();
-            deployed = true;
-          }
-        }
-      }
-      return deployed;
+      vessel.ActionGroups.SetGroup(KSPActionGroup.Gear, true);
+      return true;
     }
   }
 }

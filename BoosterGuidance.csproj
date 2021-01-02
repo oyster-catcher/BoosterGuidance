@@ -124,7 +124,8 @@
     <Compile Include="KSP\Trajectories\FARModel.cs" />
     <Compile Include="KSP\Trajectories\StockModel.cs" />
     <Compile Include="KSP\Trajectories\GLUtils.cs" />
-    <Compile Include="KSP\BoosterGuidanceVesselSettings.cs" />
+    <Compile Include="KSP\BoosterGuidanceCore.cs" />
+    <Compile Include="KSP\Targets.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TODO" />

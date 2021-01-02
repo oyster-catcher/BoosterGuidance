@@ -41,8 +41,8 @@ namespace BoosterGuidance
       bool bailOutLandingBurn = true;
       if (controller != null)
       {
-        bool landingGear, gridFins;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, out gridFins, bailOutLandingBurn);
+        bool landingGear;
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
         // Stop throttle so we don't take off again in timestep, dt
         // TODO - Fix HACK!!
         if (y < controller.TgtAlt + 50)
@@ -88,8 +88,8 @@ namespace BoosterGuidance
       {
         bool bailOutLandingBurn = true;
         bool simulate = true;
-        bool landingGear, gridFins;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, out gridFins, bailOutLandingBurn);
+        bool landingGear;
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
         if (throttle > 0)
         {
           F = steer * (minThrust + throttle * (maxThrust - minThrust));

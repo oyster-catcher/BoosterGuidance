@@ -1,5 +1,6 @@
 // Booster Landing Controller
 //   - does boostback, coasting, re-entry burn, and final descent
+//   - ideally this doesn't depend on KSP but thats not been completely possiblle
 
 using System;
 using System.Collections.Generic;
@@ -21,21 +22,20 @@ namespace BoosterGuidance
   public class BLController : Controller
   {
     // Public parameters
-    public float touchdownSpeed = 3;
+    public double touchdownSpeed = 3;
     public double aeroDescentMaxAoA = 20;
     public double aeroDescentSteerKp = 0.01f;
-    public double aeroDescentSteerKdProp = 0.01d;
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
+    public double reentryBurnSteerKp = 0.005f;
     public double reentryBurnMaxAoA = 20;
     public double landingBurnHeight = 0; // Maximum altitude to enable powered descent
     public double landingBurnSteerKp = 0.01f;
     public double landingBurnMaxAoA = 10;
-    public double suicideFactor = 0.6;
-    public double lowestY = 0;
-    public double reentryBurnSteerKp = 0.1;
-    public PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
-    public PIDclamp pid_landing = new PIDclamp("landingSteer", 1, 0, 0, 10);
+    private double suicideFactor = 0.6f;
+    private double lowestY = 0;
+    private PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
+    private PIDclamp pid_landing = new PIDclamp("landingSteer", 1, 0, 0, 10);
     public double igniteDelay = 3; // ignite engines this many seconds early
     public double simulationsPerSec = 10;
     public bool deployLandingGear = true;
@@ -45,11 +45,11 @@ namespace BoosterGuidance
     public bool deployGridFins = true;
 
     // Private parameters
-    private double minError = float.MaxValue;
+    private double minError = double.MaxValue;
     private System.IO.StreamWriter fp = null;
     private double logStartTime;
     private double logLastTime = 0;
-    private double logInterval = 0.1;
+    private double logInterval = 0.1f;
     private Transform logTransform;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
@@ -92,7 +92,6 @@ namespace BoosterGuidance
       reentryBurnTargetSpeed = v.reentryBurnTargetSpeed;
       aeroModel = v.aeroModel;
       aeroDescentSteerKp = v.aeroDescentSteerKp;
-      aeroDescentSteerKdProp = v.aeroDescentSteerKdProp;
       landingBurnHeight = v.landingBurnHeight;
       landingBurnAMax = v.landingBurnAMax;
       landingBurnSteerKp = v.landingBurnSteerKp;
@@ -101,7 +100,6 @@ namespace BoosterGuidance
       targetError = v.targetError;
       igniteDelay = v.igniteDelay;
       noSteerHeight = v.noSteerHeight;
-      enabled = v.enabled;
     }
 
     public BLController(Vessel a_vessel) : base()
@@ -116,6 +114,24 @@ namespace BoosterGuidance
       lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
     }
 
+    public void InitReentryBurn(float kP, float maxAngle, double alt, double tgtSpeed)
+    {
+      reentryBurnSteerKp = kP;
+      reentryBurnMaxAoA = maxAngle;
+      reentryBurnAlt = alt;
+      reentryBurnTargetSpeed = tgtSpeed;
+    }
+
+    public void InitAeroDescent(float kP, float maxAngle)
+    {
+      pid_aero = new PIDclamp("aeroSteer", kP, 0, 0, maxAngle);
+    }
+
+    public void InitLandingBurn(float kP, float maxAngle)
+    {
+      pid_landing = new PIDclamp("landingSteer", kP, 0, 0, maxAngle);
+    }
+
     public String SetLandingBurnEngines()
     {
       landingBurnEngines = KSPUtils.GetActiveEngines(vessel);
@@ -125,110 +141,11 @@ namespace BoosterGuidance
         return landingBurnEngines.Count.ToString();
     }
 
-    public List<BoosterGuidanceVesselSettings> GetSettingsModules(Vessel vessel)
-    {
-      List<BoosterGuidanceVesselSettings> modules = new List<BoosterGuidanceVesselSettings>();
-      foreach (var part in vessel.Parts)
-      {
-        foreach (var mod in part.Modules)
-        {
-          
-          if (mod.GetType() == typeof(BoosterGuidanceVesselSettings))
-          {
-            //Debug.Log("[BoosterGuidance] vessel=" + vessel.name + "part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
-            modules.Add((BoosterGuidanceVesselSettings)mod);
-          }
-        }
-      }
-      if (modules.Count == 0)
-        Debug.Log("[BoosterGuidance] No BoosterGuidanceVesselSettings module for vessel=" + vessel.name);
-      return modules;
-    }
-
     public void SetTarget(double latitude, double longitude, double alt)
     {
       tgtLatitude = latitude;
       tgtLongitude = longitude;
       tgtAlt = alt;
-      SaveToVessel();
-    }
-
-    public void SaveToVessel()
-    {
-      if (vessel == null)
-      {
-        Debug.Log("[BoosterGuidance] Can't save as no attached vessel");
-        return;
-      }
-      int m = 1;
-      foreach (var module in GetSettingsModules(vessel))
-      {
-        module.tgtLatitude = (float)tgtLatitude;
-        module.tgtLongitude = (float)tgtLongitude;
-        module.tgtAlt = (int)tgtAlt;
-        module.reentryBurnAlt = (int)reentryBurnAlt;
-        module.reentryBurnTargetSpeed = (int)reentryBurnTargetSpeed;
-        module.reentryBurnSteerKp = (float)reentryBurnSteerKp;
-        module.aeroDescentSteerKp = (float)aeroDescentSteerKp;
-        module.landingBurnSteerKp = (float)landingBurnSteerKp;
-        module.touchdownMargin = (int)touchdownMargin;
-        module.touchdownSpeed = (float)touchdownSpeed;
-        module.noSteerHeight = (int)noSteerHeight;
-        module.deployLandingGear = deployLandingGear;
-        module.deployLandingGearHeight = (int)deployLandingGearHeight;
-        if (phase == BLControllerPhase.BoostBack)
-          module.phase = "BoostBack";
-        else if (phase == BLControllerPhase.Coasting)
-          module.phase = "Coasting";
-        else if (phase == BLControllerPhase.ReentryBurn)
-          module.phase = "ReentryBurn";
-        else if (phase == BLControllerPhase.AeroDescent)
-          module.phase = "AeroDescent";
-        else if (phase == BLControllerPhase.LandingBurn)
-          module.phase = "LandingBurn";
-        else
-          module.phase = "Unset";
-        module.landingBurnEngines = GetLandingBurnEngineString();
-        //Debug.Log("[BoosterGuidance] Vessel settings saved for vessel=" + vessel.name + " module="+m);
-        m = m + 1;
-      }
-      Debug.Log("[BoosterGuidance] Vessel settings saved for " + vessel.name + "(" + m + " modules)");
-    }
-
-    public void LoadFromVessel()
-    {
-      if (vessel == null)
-        return;
-      foreach (var module in GetSettingsModules(vessel))
-      {
-        tgtLatitude = module.tgtLatitude;
-        tgtLongitude = module.tgtLongitude;
-        tgtAlt = (int)module.tgtAlt;
-        reentryBurnAlt = module.reentryBurnAlt;
-        reentryBurnSteerKp = module.reentryBurnSteerKp;
-        reentryBurnTargetSpeed = module.reentryBurnTargetSpeed;
-        aeroDescentSteerKp = module.aeroDescentSteerKp;
-        landingBurnSteerKp = module.landingBurnSteerKp;
-        touchdownMargin = module.touchdownMargin;
-        touchdownSpeed = module.touchdownSpeed;
-        noSteerHeight = module.noSteerHeight;
-        deployLandingGear = module.deployLandingGear;
-        deployLandingGearHeight = module.deployLandingGearHeight;
-        if (module.phase == "BoostBack")
-          phase = BLControllerPhase.BoostBack;
-        else if (module.phase == "Re-entry Burn")
-          phase = BLControllerPhase.ReentryBurn;
-        else if (module.phase == "Coasting")
-          phase = BLControllerPhase.Coasting;
-        else if (module.phase == "Aero Descent")
-          phase = BLControllerPhase.AeroDescent;
-        else if (module.phase == "Landing Burn")
-          phase = BLControllerPhase.LandingBurn;
-        else
-          phase = BLControllerPhase.Unset;
-        SetLandingBurnEnginesFromString(module.landingBurnEngines);
-        Debug.Log("[BoosterGuidance] Vessel settings loaded from " + vessel.name);
-      }
     }
 
     public String UnsetLandingBurnEngines()
@@ -286,7 +203,7 @@ namespace BoosterGuidance
 
     public void SetPhase(BLControllerPhase a_phase)
     {
-      minError = float.MaxValue; // reset so boostback doesn't give up
+      minError = double.MaxValue; // reset so boostback doesn't give up
 
       // Current phase unset and specified phase unset then find out suitable phase
       // otherwise use already set phase
@@ -331,13 +248,13 @@ namespace BoosterGuidance
     // Note: filename is the basename from which we appent
     //  .actual.dat
     //  .after_boostback.dat
-    public void StartLogging(string filename, Transform transform)
+    public void StartLogging(string filename)
     {
       if ((filename != "") && (fp == null))
       {
         fp = new System.IO.StreamWriter(filename+".Actual.dat");
         logFilename = filename;
-        logTransform = transform;
+        logTransform = Targets.SetUpTransform(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax steer_gain target_error totalMass");
         logStartTime = vessel.missionTime;
         LogSimulation();
@@ -370,8 +287,6 @@ namespace BoosterGuidance
       return Vector3d.Normalize(tgtError) * ang / 45.0;
     }
 
-    // liftFactor is the proportion of the atmospheric drag which is turned into lift at an angle-of-attack of 45 degrees
-    // a rough estimation is that is 50%. Perhaps it should always be 50%?
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass)
     {
       Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI, out Vector3d Faero_drag, out Vector3d Faero_lift); // 180 degrees (retrograde);
@@ -403,7 +318,6 @@ namespace BoosterGuidance
                     bool simulate, // if true just go retrograde (no corrections)
                     out double throttle, out Vector3d steer,
                     out bool landingGear, // true if landing gear requested (stays true)
-                    out bool gridFins,
                     bool bailOutLandingBurn = false) // if set too true on RO set throttle=0 if thrust > gravity at landing
 
     {
@@ -424,7 +338,6 @@ namespace BoosterGuidance
       steer = lastSteer;
       throttle = lastThrottle;
       landingGear = (y < deployLandingGearHeight) && (deployLandingGear);
-      gridFins = (alt < reentryBurnAlt) && (deployGridFins);
 
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
 
@@ -500,7 +413,7 @@ namespace BoosterGuidance
 
         if (errv > 0)
         {
-          double newThrottle = HGUtils.LinearMap((float)y, (float)reentryBurnAlt, (float)reentryBurnAlt - 8000, 0.1, 1);
+          double newThrottle = HGUtils.LinearMap((double)y, (double)reentryBurnAlt, (double)reentryBurnAlt - 8000, 0.1, 1);
           double da = g + Math.Max(errv * 0.4,10); // attempt to cancel 40% of extra velocity in 1 second and min of 10m/s/s
           newThrottle = (da - amin)/(0.01 + amax - amin) ; 
           throttle = Math.Max(minThrottle, newThrottle);
@@ -517,7 +430,7 @@ namespace BoosterGuidance
       if (phase == BLControllerPhase.AeroDescent)
       {
         pid_aero.kp = HGUtils.Clamp(aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
-        pid_aero.kd = pid_aero.kp * aeroDescentSteerKdProp;
+        pid_aero.kd = 0;
         steerGain = pid_aero.kp;
         double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang);
