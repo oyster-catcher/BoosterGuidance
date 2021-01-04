@@ -27,7 +27,7 @@ namespace BoosterGuidance
     public double reentryBurnTargetSpeed = 700;
 
     [KSPField(isPersistant = true, guiActive = false)]
-    public float reentryBurnSteerKp = 0.0003f;
+    public float reentryBurnSteerKp = 0.01f;
 
     [KSPField(isPersistant = true, guiActive = false)]
     public float reentryBurnMaxAoA = 30;
@@ -63,13 +63,27 @@ namespace BoosterGuidance
     public string landingBurnEngines = "current";
 
     [KSPField(isPersistant = true, guiActive = false)]
+    public float igniteDelay = 3;
+
+    [KSPField(isPersistant = true, guiActive = false)]
     public string phase = "Unset";
+
+    public bool logging = false;
+    public bool useFAR = false;
+    public string logFilename = "unset";
+    private string info = "Disabled";
 
     // Flight controller with copy of these settings
     BLController controller = null;
 
     // List of all active controllers
     public static List<BLController> controllers = new List<BLController>();
+
+    public void OnDestroy()
+    {
+      Debug.Log("[BoosterGuidance] BoosterGuidanceCore.OnDestroy()");
+      DisableGuidance();
+    }
 
     // Find first BoosterGuidanceCore module for vessel
     static public BoosterGuidanceCore GetBoosterGuidanceCore(Vessel vessel)
@@ -87,6 +101,12 @@ namespace BoosterGuidance
       }
       Debug.Log("[BoosterGuidance] No BoosterGuidanceCore module for vessel " + vessel.name);
       return null;
+    }
+
+    public void AttachVessel(Vessel vessel)
+    {
+      // Sets up Aero forces function again respected useFAR flag
+      controller.AttachVessel(vessel, useFAR);
     }
 
     public void AddController(BLController controller)
@@ -213,7 +233,7 @@ namespace BoosterGuidance
     [KSPAction("Enable BoosterGuidance")]
     public void EnableGuidance(KSPActionParam param)
     {
-      controller = new BLController(vessel);
+      controller = new BLController(vessel, useFAR);
       Changed(); // updates controller
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
@@ -223,27 +243,24 @@ namespace BoosterGuidance
       }
       if (!controller.enabled)
       {
-        Debug.Log("[BoosterGuidance] Enable Guidance for vessel " + FlightGlobals.ActiveVessel.name);
+        Debug.Log("[BoosterGuidnace] Enabled Guidance for vessel " + FlightGlobals.ActiveVessel.name);
         Vessel vessel = FlightGlobals.ActiveVessel;
         Targets.RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
+        if (logging)
+          StartLogging();
         vessel.OnFlyByWire += new FlightInputCallback(Fly);
       }
       controller.SetPhase(BLControllerPhase.Unset);
       GuiUtils.ScreenMessage("Enabled " + controller.PhaseStr());
       controller.enabled = true;
       AddController(controller);
-      // TODO
-      /*
-      if (logging)
-        core.StartLogging();
-      */
     }
 
-    public void StartLogging(string filename)
+    public void StartLogging()
     {
       if (controller != null)
-        controller.StartLogging(filename);
+        controller.StartLogging(logFilename);
     }
 
     public void StopLogging()
@@ -261,6 +278,8 @@ namespace BoosterGuidance
     [KSPAction("Disable BoosterGuidance")]
     public void DisableGuidance(KSPActionParam param)
     {
+      Debug.Log("[BoosterGuidance] Disabled Guidance for vessel " + controller.vessel.name);
+      GuiUtils.ScreenMessage("Disabled Guidance");
       vessel.OnFlyByWire -= new FlightInputCallback(Fly);
       vessel.Autopilot.Disable();
       StopLogging();
@@ -280,6 +299,7 @@ namespace BoosterGuidance
         GuiUtils.ScreenMessage("Vessel " + controller.vessel.name + " landed!");
         state.mainThrottle = 0;
         DisableGuidance();
+        info = "Landed " + (int)controller.targetError + "m from target";
         if (vessel == FlightGlobals.ActiveVessel)
           Targets.predictedCross.enabled = false;
         return;
@@ -333,10 +353,11 @@ namespace BoosterGuidance
 
     public string Info()
     {
+      // update if present, otherwise use last message
+      // e.g. distance from target at landing
       if (controller != null)
-        return controller.info;
-      else
-        return "Disabled";
+        info = controller.info;
+      return info;
     }
   }
 }
