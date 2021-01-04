@@ -95,8 +95,6 @@ namespace BoosterGuidance
         double d = Vector3d.Dot(cam_pos - ImpactPosition.Value, ImpactPosition.Value);
 
         // draw ground marker at this position
-        //Debug.Log("[BoosterGuidance] TargetingCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt+ "d="+d);
-        //Debug.Log("[BoosterGuidance] cam_pos=" + (Vector3)cam_pos);
         if (MapView.MapIsEnabled)
           DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
         else
@@ -138,12 +136,10 @@ namespace BoosterGuidance
         if (!enabled)
           return;
         // resize marker in respect to distance from camera - only for flight view
-        //Vector3d cam_pos = (Vector3d)FlightCamera.fetch.mainCamera.transform.position - ImpactBody.position;
         Vector3d cam_pos = (!MapView.MapIsEnabled) ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
         cam_pos = cam_pos - ImpactBody.position;
         double cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
         // draw ground marker at this position
-        //Debug.Log("[BoosterGuidance] PredictionCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt);
         if (MapView.MapIsEnabled)
           Targets.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
         else
