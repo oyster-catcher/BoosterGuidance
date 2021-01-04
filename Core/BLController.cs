@@ -34,6 +34,7 @@ namespace BoosterGuidance
     public double landingBurnMaxAoA = 10;
     private double suicideFactor = 0.6f;
     private double lowestY = 0;
+    private PIDclamp pid_reentry = new PIDclamp("reentrySteer", 1, 0, 0, 10);
     private PIDclamp pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, 10);
     private PIDclamp pid_landing = new PIDclamp("landingSteer", 1, 0, 0, 10);
     public double igniteDelay = 3; // ignite engines this many seconds early
@@ -42,7 +43,7 @@ namespace BoosterGuidance
     public double deployLandingGearHeight = 500;
     public double touchdownMargin = 30; // use touchdown speed from this height
     public double noSteerHeight = 200;
-    public bool deployGridFins = true;
+    public bool useFAR = false;
 
     // Private parameters
     private double minError = double.MaxValue;
@@ -102,15 +103,15 @@ namespace BoosterGuidance
       noSteerHeight = v.noSteerHeight;
     }
 
-    public BLController(Vessel a_vessel) : base()
+    public BLController(Vessel a_vessel, bool useFAR=false) : base()
     {
-      AttachVessel(a_vessel);
+      AttachVessel(a_vessel, useFAR);
     }
 
-    public void AttachVessel(Vessel a_vessel)
+    public void AttachVessel(Vessel a_vessel, bool useFAR=false)
     {
       vessel = a_vessel;
-      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody);
+      aeroModel = Trajectories.AerodynamicModelFactory.GetModel(vessel, vessel.mainBody, useFAR);
       lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
     }
 
@@ -289,17 +290,22 @@ namespace BoosterGuidance
 
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass)
     {
-      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI, out Vector3d Faero_drag, out Vector3d Faero_lift); // 180 degrees (retrograde);
-      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI - (45 * Math.PI / 180), out Vector3d Faero_drag2, out Vector3d Faero_lift2); // 45 degrees AoA from retrograde
-      double sideFA = Faero_lift2.magnitude; // aero dynamic lift at 45 degrees AoA
+      // TODO - Get this working for <45 degrees, ideally just 1 degree, but caching in aero forces is quantizing the AoA I think
+      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI); // 180 degrees (retrograde);
+      // Find lift by just considering change in aero force vector
+      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI - (15 * Math.PI / 180));
+      // Calculate lift vector orthogonal to the drag vector when retrograde
+      Vector3d Flift = Vector3d.Project(Faero2, Vector3d.Normalize(Faero));
+
+      double sideFA = Flift.magnitude; // aero dynamic lift at 5 degrees AoA
       double thrust = minThrust + throttle * (maxThrust - minThrust);
-      double sideFT = thrust * Math.Sin(45 * Math.PI / 180); // sideways component of thrust at 45 degrees
+      double sideFT = thrust * Math.Sin(15 * Math.PI / 180); // sideways component of thrust at 15 degrees
       double gain = 0;
       // When its a toss up whether thrust or aerodynamic steering is better gain can become very high or infinite
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
-        gain = totalMass / (sideFA - sideFT);
-      //Debug.Log("[BoosterGuidance] sideFA(45 degrees)=" + sideFA + " sideFT(45 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
+        gain = (60 * totalMass) / (sideFA - sideFT);  // Factor of 5 makes gain per 1 degree approx.
+      Debug.Log("[BoosterGuidance] sideFA(45 degrees)=" + sideFA + " sideFT(45 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
 
       return gain;
     }
@@ -404,11 +410,7 @@ namespace BoosterGuidance
       // RE-ENTRY BURN
       if (phase == BLControllerPhase.ReentryBurn)
       {
-        if (!simulate)
-        {
-          steerGain = -reentryBurnSteerKp; // override as gain is wrong at high speeds (always steer with thrust)
-          steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, steerGain, reentryBurnMaxAoA);
-        }
+        
         double errv = vel_air.magnitude - reentryBurnTargetSpeed;
 
         if (errv > 0)
@@ -420,6 +422,16 @@ namespace BoosterGuidance
         }
         else
           phase = BLControllerPhase.AeroDescent;
+
+        if (!simulate)
+        {
+          pid_reentry.kp = HGUtils.Clamp(reentryBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
+          //steerGain = -reentryBurnSteerKp; // override as gain is wrong at high speeds (always steer with thrust)
+          steerGain = pid_reentry.kp;
+          double ang = pid_reentry.Update(error.magnitude, Time.deltaTime);
+          //steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, steerGain, reentryBurnMaxAoA);
+          steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, reentryBurnMaxAoA);
+        }
       }
 
       // desired velocity - used in AERO DESCENT and LANDING BURN
@@ -476,6 +488,7 @@ namespace BoosterGuidance
           pid_landing.kp = HGUtils.Clamp(landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
           steerGain = pid_landing.kp;
           ang = pid_landing.Update(error.magnitude, Time.deltaTime);
+          Debug.Log("[BoosterGuidance] LandingBurn ang=" + ang);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
           steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, ang);
         }
@@ -503,8 +516,10 @@ namespace BoosterGuidance
       }
 
       // Logging
+      //Debug.Log("[BoosterGuidance] Check log");
       if (fp != null)
       {
+        //Debug.Log("[BoosterGuidance] Check log t="+t+" logLastTime="+logLastTime+" logInterval="+logInterval);
         if (t > logLastTime + logInterval)
         {
           Vector3d a = att * (amin + throttle * (amax - amin)); // this assumes engine is ignited though
