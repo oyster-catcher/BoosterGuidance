@@ -33,7 +33,6 @@
     </CustomCommands>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>..\..\GameData\BoosterGuidance\Plugins\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
@@ -103,6 +102,9 @@
     <Reference Include="UnityEngine.TextRenderingModule">
       <HintPath>..\..\..\..\KSP_Cutdown\KSP.app\Contents\Resources\Data\Managed\UnityEngine.TextRenderingModule.dll</HintPath>
     </Reference>
+    <Reference Include="FerramAerospaceResearch">
+      <HintPath>..\..\..\..\Library\Application Support\Steam\steamapps\common\Kerbal Space Program\GameData\FerramAerospaceResearch\Plugins\FerramAerospaceResearch.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="KSP/BoosterGuidanceApp.cs" />
@@ -133,6 +135,7 @@
     <None Include="KSP\Localization\en-us.cfg" />
     <None Include="GameData\BoosterGuidance\BoosterGuidanceIcon.png" />
     <None Include="LICENSE" />
+    <None Include="GameData\BoosterGuidance\BoosterGuidance.cfg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
