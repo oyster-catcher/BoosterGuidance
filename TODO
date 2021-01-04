@@ -1,14 +1,13 @@
 - On RO picking target jumps around. Store double's?
 - In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
 - Put engine shutdown code in again?
-- Fix unreliability of landing leg deployment. Use Gear ActionGroup ?
+- Fix unreliability of landing leg deployment. Use Gear ActionGroup ? Works in KSP 1.11 for Falcon
 - Target is visible from wrong side of planet
 - Prediction target shifts and jumps sometimes on Mun. Possibly only on timewarp and fixed?
 - Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
 - Use click-through preventer
-- Neaten set to nav point message. Too many decimal points
-- Landing burn max AoA always 0
-- Target locations switch on vessel switch, but target not at the correct place
 - Prediction target still shows when no controller enabled
-- MaxAoA not set correctly when starting
-- Sort out filename for logging with Core
+- Sometimes steers away from target at very high AoA with small test craft. retrograde+AoA wrong?. only 12 degree attitude error, but AoA 50+ degrees
+- problems with sharing violation on logging when enable/disable guidance
+- sometimes massive prediction target shows
+- Both targets sometimes too big. Force redraw?
