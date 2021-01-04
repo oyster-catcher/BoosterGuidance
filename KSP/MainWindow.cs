@@ -25,7 +25,7 @@ namespace BoosterGuidance
     int tab = 0;
     bool hidden = true;
     BoosterGuidanceCore core = null;
-    Rect windowRect = new Rect(150, 150, 220, 536);
+    Rect windowRect = new Rect(150, 150, 220, 544);
 
     // Main GUI Elements
     bool showTargets = true;
