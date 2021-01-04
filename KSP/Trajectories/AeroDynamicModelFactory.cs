@@ -24,34 +24,18 @@ namespace Trajectories
 {
     public static class AerodynamicModelFactory
     {
-        public static VesselAerodynamicModel GetModel(Vessel ship, CelestialBody body)
+        public static VesselAerodynamicModel GetModel(Vessel ship, CelestialBody body, bool useFAR=false)
         {
-            foreach (var loadedAssembly in AssemblyLoader.loadedAssemblies)
+            // Check for FAR by trying to call FAR function (FerramAeroSpaceResearch not in loadedAssemblies even when clearly loaded!)
+            try
             {
-                try
-                {
-                    switch (loadedAssembly.name)
-                    {/* TODO - Can't get this to link
-                        case "FerramAerospaceResearch":
-                            var FARAPIType = loadedAssembly.assembly.GetType("FerramAerospaceResearch.FARAPI");
-
-                                var FARAPI_CalculateVesselAeroForces = FARAPIType.GetMethodEx("CalculateVesselAeroForces", BindingFlags.Public | BindingFlags.Static, new Type[] { typeof(Vessel), typeof(Vector3).MakeByRefType(), typeof(Vector3).MakeByRefType(), typeof(Vector3), typeof(double) });
-
-                            return new FARModel(ship, body, FARAPI_CalculateVesselAeroForces);
-                     */
-                        //case "MyModAssembly":
-                        // implement here your atmo mod detection
-                        // return new MyModModel(ship, body, any other parameter);
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.Log("Trajectories: failed to interface with assembly " + loadedAssembly.name);
-                    Debug.Log("Using stock model instead");
-                    Debug.Log(e.ToString());
-                }
+              if (useFAR)
+                return new FARModel(ship, body);
             }
-
+            catch (Exception e)
+            {
+              Debug.Log("[BoosterGuidance] Failure to call FAR: " + e.ToString());
+            }
             // Using stock model if no other aerodynamic is detected or if any error occured
             return new StockModel(ship, body);
         }

@@ -117,24 +117,24 @@ namespace Trajectories
         }
 
         //*******************************************************
-        public static Vector3d SimAeroForce(Vessel _vessel, Vector3 v_wrld_vel, Vector3 position, out Vector3d total_drag, out Vector3d total_lift)
+        public static Vector3 SimAeroForce(Vessel _vessel, Vector3 v_wrld_vel, Vector3 position)
         {
             CelestialBody body = _vessel.mainBody;
             double latitude = body.GetLatitude(position) / 180.0 * Math.PI;
             double altitude = (position - body.position).magnitude - body.Radius;
+
             
-            SimAeroForce(_vessel, v_wrld_vel, altitude, latitude, out total_drag, out total_lift);
-            return total_drag + total_lift;
+            return SimAeroForce(_vessel, v_wrld_vel, altitude, latitude);
         }
 
         //*******************************************************
-        public static Vector3 SimAeroForce(Vessel _vessel, Vector3 v_wrld_vel, double altitude, double latitude, out Vector3d total_drag, out Vector3d total_lift)
+        public static Vector3 SimAeroForce(Vessel _vessel, Vector3 v_wrld_vel, double altitude, double latitude=0)
         {
             CelestialBody body = _vessel.mainBody;
             double pressure = body.GetPressure(altitude);
             // Lift and drag for force accumulation.
-            total_lift = Vector3d.zero;
-            total_drag = Vector3d.zero;
+            Vector3d total_lift = Vector3d.zero;
+            Vector3d total_drag = Vector3d.zero;
 
             // dynamic pressure for standard drag equation
             double rho = GetDensity(altitude, body);

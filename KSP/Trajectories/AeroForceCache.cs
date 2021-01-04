@@ -33,46 +33,41 @@ namespace Trajectories
         public int AoAResolution { get; private set; }
         public int AltitudeResolution { get; private set; }
 
-        private Vector2[,,] InternalArrayDrag;
-        private Vector2[,,] InternalArrayLift;
+        private Vector2[,,] InternalArray;
 
         private VesselAerodynamicModel Model;
 
         public AeroForceCache(double maxCacheVelocity, double maxCacheAoA, double atmosphereDepth, int vRes, int aoaRes, int altRes, VesselAerodynamicModel model)
         {
-          Model = model;
+            Model = model;
 
-          this.MaxVelocity = maxCacheVelocity;
-          this.MaxAoA = maxCacheAoA;
-          this.MaxAltitude = atmosphereDepth;
-          VelocityResolution = vRes;
-          AoAResolution = aoaRes;
-          AltitudeResolution = altRes;
+            this.MaxVelocity = maxCacheVelocity;
+            this.MaxAoA = maxCacheAoA;
+            this.MaxAltitude = atmosphereDepth;
+            VelocityResolution = vRes;
+            AoAResolution = aoaRes;
+            AltitudeResolution = altRes;
 
-          InternalArrayDrag = new Vector2[VelocityResolution, AoAResolution, AltitudeResolution];
-          InternalArrayLift = new Vector2[VelocityResolution, AoAResolution, AltitudeResolution];
-          for (int v = 0; v < VelocityResolution; ++v)
-            for (int a = 0; a < AoAResolution; ++a)
-              for (int m = 0; m < AltitudeResolution; ++m)
-              {
-                InternalArrayDrag[v, a, m] = new Vector2(float.NaN, float.NaN);
-                InternalArrayLift[v, a, m] = new Vector2(float.NaN, float.NaN);
-              }
+            InternalArray = new Vector2[VelocityResolution, AoAResolution, AltitudeResolution];
+            for (int v = 0; v < VelocityResolution; ++v)
+                for (int a = 0; a < AoAResolution; ++a)
+                    for (int m = 0; m < AltitudeResolution; ++m)
+                        InternalArray[v, a, m] = new Vector2(float.NaN, float.NaN);
         }
 
-        public Vector3d GetForce(double velocity, double angleOfAttack, double altitude, out Vector3d dragForce, out Vector3d liftForce)
+        public Vector3d GetForce(double velocity, double angleOfAttack, double altitude)
         {
             //Debug.Log("[Trajectories] GetForce(cached) angleOfAttack=" + angleOfAttack);
-            float vFrac = (float)(velocity / MaxVelocity * (double)(InternalArrayDrag.GetLength(0) - 1));
-            int vFloor = Math.Max(0, Math.Min(InternalArrayDrag.GetLength(0) - 2, (int)vFrac));
+            float vFrac = (float)(velocity / MaxVelocity * (double)(InternalArray.GetLength(0) - 1));
+            int vFloor = Math.Max(0, Math.Min(InternalArray.GetLength(0) - 2, (int)vFrac));
             vFrac = Math.Max(0.0f, Math.Min(1.0f, vFrac - (float)vFloor));
 
-            float aFrac = (float)((angleOfAttack / MaxAoA * 0.5 + 0.5) * (double)(InternalArrayDrag.GetLength(1) - 1));
-            int aFloor = Math.Max(0, Math.Min(InternalArrayDrag.GetLength(1) - 2, (int)aFrac));
+            float aFrac = (float)((angleOfAttack / MaxAoA * 0.5 + 0.5) * (double)(InternalArray.GetLength(1) - 1));
+            int aFloor = Math.Max(0, Math.Min(InternalArray.GetLength(1) - 2, (int)aFrac));
             aFrac = Math.Max(0.0f, Math.Min(1.0f, aFrac - (float)aFloor));
 
-            float mFrac = (float)(altitude / MaxAltitude * (double)(InternalArrayDrag.GetLength(2) - 1));
-            int mFloor = Math.Max(0, Math.Min(InternalArrayDrag.GetLength(2) - 2, (int)mFrac));
+            float mFrac = (float)(altitude / MaxAltitude * (double)(InternalArray.GetLength(2) - 1));
+            int mFloor = Math.Max(0, Math.Min(InternalArray.GetLength(2) - 2, (int)mFrac));
             mFrac = Math.Max(0.0f, Math.Min(1.0f, mFrac - (float)mFloor));
 
             //if (Verbose)
@@ -81,69 +76,52 @@ namespace Trajectories
             //    Util.PostSingleScreenMessage("altitude cell", "altitude cell: " + altitude + " / " + MaxAltitude + " * " + (double)(InternalArray.GetLength(2) - 1));
             //}
 
-            Sample3d(vFloor, vFrac, aFloor, aFrac, mFloor, mFrac, out Vector2 resDrag, out Vector2 resLift);
-            dragForce = Model.UnpackForces(resDrag, altitude, velocity);
-            liftForce = Model.UnpackForces(resLift, altitude, velocity);
-            return dragForce + liftForce;
-    }
-
-    private Vector2 Sample2d(int vFloor, float vFrac, int aFloor, float aFrac, int mFloor, out Vector2 drag, out Vector2 lift)
-        {
-            GetCachedForce(vFloor, aFloor, mFloor, out Vector2 d00, out Vector2 l00);
-            GetCachedForce(vFloor + 1, aFloor, mFloor, out Vector2 d10, out Vector2 l10);
-
-            GetCachedForce(vFloor, aFloor + 1, mFloor, out Vector2 d01, out Vector2 l01);
-            GetCachedForce(vFloor + 1, aFloor + 1, mFloor, out Vector2 d11, out Vector2 l11);
-
-
-            Vector2 d0 = d01 * aFrac + d00 * (1.0f - aFrac);
-            Vector2 d1 = d11 * aFrac + d10 * (1.0f - aFrac);
-            Vector2 l0 = l01 * aFrac + l00 * (1.0f - aFrac);
-            Vector2 l1 = l11 * aFrac + l10 * (1.0f - aFrac);
-
-            drag = d1 * vFrac + d0 * (1.0f - vFrac);
-            lift = l1 * vFrac + l0 * (1.0f - vFrac);
-            return drag + lift;
+            Vector2 res = Sample3d(vFloor, vFrac, aFloor, aFrac, mFloor, mFrac);
+            return Model.UnpackForces(res, altitude, velocity);
         }
 
-        private Vector2 Sample3d(int vFloor, float vFrac, int aFloor, float aFrac, int mFloor, float mFrac, out Vector2 drag, out Vector2 lift)
+        private Vector2 Sample2d(int vFloor, float vFrac, int aFloor, float aFrac, int mFloor)
         {
-            Sample2d(vFloor, vFrac, aFloor, aFrac, mFloor, out Vector2 d0, out Vector2 l0);
-            Sample2d(vFloor, vFrac, aFloor, aFrac, mFloor + 1, out Vector2 d1, out Vector2 l1);
+            Vector2 f00 = GetCachedForce(vFloor, aFloor, mFloor);
+            Vector2 f10 = GetCachedForce(vFloor + 1, aFloor, mFloor);
 
-            drag = d1 * mFrac + d0 * (1.0f - mFrac);
-            lift = d1 * mFrac + d0 * (1.0f - mFrac);
-            return drag + lift;
+            Vector2 f01 = GetCachedForce(vFloor, aFloor + 1, mFloor);
+            Vector2 f11 = GetCachedForce(vFloor + 1, aFloor + 1, mFloor);
+
+            Vector2 f0 = f01 * aFrac + f00 * (1.0f - aFrac);
+            Vector2 f1 = f11 * aFrac + f10 * (1.0f - aFrac);
+
+            return f1 * vFrac + f0 * (1.0f - vFrac);
         }
 
-        private Vector2 GetCachedForce(int v, int a, int m, out Vector2 fdrag,out Vector2 flift)
+        private Vector2 Sample3d(int vFloor, float vFrac, int aFloor, float aFrac, int mFloor, float mFrac)
         {
-            fdrag = InternalArrayDrag[v, a, m];
-            flift = InternalArrayLift[v, a, m];
-            if (float.IsNaN(fdrag.x))
-            {
-              ComputeCacheEntry(v, a, m, out fdrag, out flift);
-            }
+            Vector2 f0 = Sample2d(vFloor, vFrac, aFloor, aFrac, mFloor);
+            Vector2 f1 = Sample2d(vFloor, vFrac, aFloor, aFrac, mFloor + 1);
 
-            return fdrag + flift;
+            return f1 * mFrac + f0 * (1.0f - mFrac);
         }
 
-        private Vector2 ComputeCacheEntry(int v, int a, int m, out Vector2 fdrag, out Vector2 flift)
+        private Vector2 GetCachedForce(int v, int a, int m)
         {
-            double vel = MaxVelocity * (double)v / (double)(InternalArrayDrag.GetLength(0) - 1);
+            Vector2 f = InternalArray[v, a, m];
+
+            if (float.IsNaN(f.x))
+                f = ComputeCacheEntry(v, a, m);
+
+            return f;
+        }
+
+        private Vector2 ComputeCacheEntry(int v, int a, int m)
+        {
+            double vel = MaxVelocity * (double)v / (double)(InternalArray.GetLength(0) - 1);
             Vector3d velocity = new Vector3d(vel, 0, 0);
-            double AoA = MaxAoA * ((double)a / (double)(InternalArrayDrag.GetLength(1) - 1) * 2.0 - 1.0);
-            double currentAltitude = MaxAltitude * (double)m / (double)(InternalArrayDrag.GetLength(2) - 1);
+            double AoA = MaxAoA * ((double)a / (double)(InternalArray.GetLength(1) - 1) * 2.0 - 1.0);
+            double currentAltitude = MaxAltitude * (double)m / (double)(InternalArray.GetLength(2) - 1);
 
-            Vector3d total_drag;
-            Vector3d total_lift;
-            Model.ComputeForces(currentAltitude, velocity, new Vector3(0, 1, 0), AoA, out total_drag, out total_lift);
-            fdrag = Model.PackForces(total_drag, currentAltitude, vel);
-            flift = Model.PackForces(total_lift, currentAltitude, vel);
+            Vector2 packedForce = Model.PackForces(Model.ComputeForces(currentAltitude, velocity, new Vector3(0, 1, 0), AoA), currentAltitude, vel);
 
-            InternalArrayDrag[v, a, m] = fdrag;
-            InternalArrayLift[v, a, m] = flift;
-            return fdrag + flift;
+            return InternalArray[v, a, m] = packedForce;
         }
-  }
+    }
 }
