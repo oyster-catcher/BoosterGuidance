@@ -26,6 +26,15 @@ using UnityEngine;
 
 namespace Trajectories
 {
+    class TestFAR
+    {
+      public TestFAR()
+      {
+        // This will cause an exception of FAR is not loaded//
+        FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(FlightGlobals.ActiveVessel, out Vector3 res_drag, out Vector3 torque, Vector3d.zero, 100000);
+      }
+    }
+
     class FARModel: VesselAerodynamicModel
     {
         //private MethodInfo FARAPI_CalculateVesselAeroForces;
@@ -36,9 +45,7 @@ namespace Trajectories
          public FARModel(Vessel ship, CelestialBody body)
          : base(ship, body)
         {
-          //FARAPI_CalculateVesselAeroForces = CalculateVesselAeroForces;
-          // Test
-          FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(ship, out Vector3 res_drag, out Vector3 torque, Vector3d.zero, 100000);
+          //FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(ship, out Vector3 res_drag, out Vector3 torque, Vector3d.zero, 100000);
         }
 
         protected override Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude)

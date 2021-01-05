@@ -22,22 +22,36 @@ using UnityEngine;
 
 namespace Trajectories
 {
-    public static class AerodynamicModelFactory
+  public static class AerodynamicModelFactory
+  {
+    public static bool HasFAR()
     {
-        public static VesselAerodynamicModel GetModel(Vessel ship, CelestialBody body, bool useFAR=false)
-        {
-            // Check for FAR by trying to call FAR function (FerramAeroSpaceResearch not in loadedAssemblies even when clearly loaded!)
-            try
-            {
-              if (useFAR)
-                return new FARModel(ship, body);
-            }
-            catch (Exception e)
-            {
-              Debug.Log("[BoosterGuidance] Failure to call FAR: " + e.ToString());
-            }
-            // Using stock model if no other aerodynamic is detected or if any error occured
-            return new StockModel(ship, body);
-        }
+      try
+      {
+        var x = new TestFAR();
+      }
+      catch (Exception e)
+      {
+        Debug.Log("[BoosterGuidance] Checking for FAR: " + e.ToString());
+        return false;
+      }
+      return true;
     }
+
+    public static VesselAerodynamicModel GetModel(Vessel ship, CelestialBody body, bool useFAR=false)
+    {
+      // Check for FAR by trying to call FAR function (FerramAeroSpaceResearch not in loadedAssemblies even when clearly loaded!)
+      try
+      {
+        if (useFAR)
+          return new FARModel(ship, body);
+      }
+      catch (Exception e)
+      {
+        Debug.Log("[BoosterGuidance] Failure to call FAR: " + e.ToString());
+      }
+      // Using stock model if no other aerodynamic is detected or if any error occured
+      return new StockModel(ship, body);
+    }
+  }
 }
