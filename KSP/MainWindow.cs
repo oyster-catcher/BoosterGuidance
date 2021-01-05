@@ -25,7 +25,7 @@ namespace BoosterGuidance
     int tab = 0;
     bool hidden = true;
     BoosterGuidanceCore core = null;
-    Rect windowRect = new Rect(150, 150, 220, 544);
+    Rect windowRect = new Rect(150, 150, 220, 528);
 
     // Main GUI Elements
     bool showTargets = true;
@@ -56,12 +56,14 @@ namespace BoosterGuidance
 
     // GUI Elements
     Color red = new Color(1, 0, 0, 0.5f);
+    bool hasFAR = false;
 
     public void OnGUI()
     {
       if (!hidden)
       {
         windowRect = GUI.Window(0, windowRect, WindowFunction, "Booster Guidance");
+        hasFAR = Trajectories.AerodynamicModelFactory.HasFAR();
       }
     }
 
@@ -183,7 +185,7 @@ namespace BoosterGuidance
       {
         if (!controller.vessel.loaded)
         {
-          GuiUtils.ScreenMessage("[BoosterGuidance] Guidance disabled for " + controller.vessel.name + " as out of physics range");
+          GuiUtils.ScreenMessage("Guidance disabled for " + controller.vessel.name + " as out of physics range");
           DisableGuidance();
         }
       }
@@ -242,8 +244,17 @@ namespace BoosterGuidance
       GuiUtils.SimpleTextBox("Engine startup", igniteDelay, "s", 65);
       GUILayout.EndHorizontal();
 
+      if (hasFAR)
+      {
+        GUILayout.BeginHorizontal();
+        bool lastUseFar = core.useFAR;
+        core.useFAR = GUILayout.Toggle(core.useFAR, "Use FAR");
+        if (lastUseFar != core.useFAR)
+          core.AttachVessel(FlightGlobals.ActiveVessel);
+        GUILayout.EndHorizontal();
+      }
+
       // Show all active vessels
-      /*
       GUILayout.Space(10);
       GUILayout.BeginHorizontal();
       GUILayout.Label("Other vessels:");
@@ -252,22 +263,24 @@ namespace BoosterGuidance
       info_style.normal.textColor = Color.white;
       foreach(var controller in BoosterGuidanceCore.controllers)
       {
-        GUILayout.BeginHorizontal();
-        GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
-        GUILayout.FlexibleSpace();
-        //if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
-        //  DisableGuidance();
-        GUILayout.EndHorizontal();
+        if (controller.enabled)
+        {
+          GUILayout.BeginHorizontal();
+          GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
+          GUILayout.FlexibleSpace();
+          //if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
+          //  DisableGuidance();
+          GUILayout.EndHorizontal();
 
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("  " + controller.info, info_style);
-        GUILayout.EndHorizontal();
+          GUILayout.BeginHorizontal();
+          GUILayout.Label("  " + controller.info, info_style);
+          GUILayout.EndHorizontal();
 
-        GUILayout.BeginHorizontal();
-        GUILayout.Label("  " + controller.PhaseStr(), info_style);
-        GUILayout.EndHorizontal();
+          GUILayout.BeginHorizontal();
+          GUILayout.Label("  " + controller.PhaseStr(), info_style);
+          GUILayout.EndHorizontal();
+        }
       }
-      */
 
       GUI.DragWindow();
       return GUI.changed;
@@ -346,13 +359,6 @@ namespace BoosterGuidance
         if ((prevLogging) && (!core.logging)) // logging switched off
           core.StopLogging();
       }
-      GUILayout.EndHorizontal();
-
-      GUILayout.BeginHorizontal();
-      bool lastUseFar = core.useFAR;
-      core.useFAR = GUILayout.Toggle(core.useFAR, "Use FAR");
-      if (lastUseFar != core.useFAR)
-        core.AttachVessel(FlightGlobals.ActiveVessel);
       GUILayout.EndHorizontal();
 
       // Info box
