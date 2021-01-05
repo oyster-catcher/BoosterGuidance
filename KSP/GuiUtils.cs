@@ -324,7 +324,7 @@ namespace BoosterGuidance
 
     public static void ScreenMessage(string message)
     {
-      ScreenMessages.PostScreenMessage("BoosterGuidance: " + message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
+      ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
     }
   }
 
