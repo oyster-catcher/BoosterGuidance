@@ -1,5 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
+
 using UnityEngine;
+using UnityEngine.UI;
+
+using KSPAssets;
 
 namespace BoosterGuidance
 {
@@ -7,6 +12,8 @@ namespace BoosterGuidance
   {
     public static TargetingCross targetingCross;
     public static PredictionCross predictedCross;
+    static GameObject _steer_obj = null;
+    static LineRenderer _steer_line = null; // so it can be updated
     public static bool map = false; // detect switch from map/flight to re-create targets
 
     static Material _material;
@@ -46,6 +53,33 @@ namespace BoosterGuidance
       //targetingCross.enabled = true;
       predictedCross.SetColor(Color.red);
       //predictedCross.enabled = false;
+    }
+
+    static public void DrawSteer(Vector3d steer, Transform a_transform, Color color)
+    {
+      if (_steer_obj != null)
+      {
+        UnityEngine.Object.Destroy(_steer_obj);
+        _steer_obj = null;
+        _steer_line = null;
+      }
+
+      if (_steer_line == null)
+      {
+        _steer_obj = new GameObject("Steer");
+        _steer_line = _steer_obj.AddComponent<LineRenderer>();
+      }
+      _steer_line.transform.parent = a_transform;
+      _steer_line.useWorldSpace = true;
+      _steer_line.material = new Material(Shader.Find("KSP/Alpha/Unlit Transparent"));
+      _steer_line.material.color = color;
+      _steer_line.startWidth = 0.3f;
+      _steer_line.endWidth = 0.3f;
+      _steer_line.positionCount = 2;
+      //_steer_line.SetPosition(0, a_transform.TransformPoint(Vector3d.zero));
+      //_steer_line.SetPosition(1, a_transform.TransformPoint(steer));
+      _steer_line.SetPosition(0, Vector3d.zero);
+      _steer_line.SetPosition(1, steer);
     }
 
     public class TargetingCross : MonoBehaviour
