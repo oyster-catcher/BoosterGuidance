@@ -11,3 +11,11 @@
 - problems with sharing violation on logging when enable/disable guidance
 - sometimes massive prediction target shows
 - Both targets sometimes too big. Force redraw?
+- Add info message which give hints about settings: touchdown margin, no steer height and touchdown speed
+- Use higher suicideFactor, up to 1 if "too heavy" is found. Limit maximum acceration to say 5g's ?
+- Use higher iteration rate in landing burn or the very highest when within noSteerHeight, and can avoid calculating error?
+- Show other controller vessels
+- Compute distance from ground wherever you are landing
+- Not showing target on map
+- Reentry burn gain sometimes 60 when loading Falcon 9 craft
+- Is aerodescent and landing burn limited to Max AOA? Doesnt look like it
