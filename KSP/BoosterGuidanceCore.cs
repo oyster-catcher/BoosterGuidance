@@ -345,6 +345,8 @@ namespace BoosterGuidance
         vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
         Targets.RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above ground
+
+        Targets.DrawSteer(vessel.vesselSize.x * Vector3d.Normalize(steer), null, Color.green);
       }
       state.mainThrottle = (float)throttle;
       vessel.Autopilot.SAS.lockedMode = false;
