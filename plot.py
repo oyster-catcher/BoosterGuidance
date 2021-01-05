@@ -185,7 +185,7 @@ def plot(labels,dmin,dmax,emax,tmin,tmax,vmax,ymax,
     xx,yy=[],[]
     #plot_line(ax10,data,'downrange','y',color=colors[di],label=filenames[di])
     # width at max thrust is 1% of width of XY plot
-    widthscale = 0.03 * (dmax - dmin) / 30  # assume 30m/s/s accel is reference
+    widthscale = 0.01 * (dmax - dmin) / accelmax  # assume 30m/s/s accel is reference
     plot_variable_line(ax10,data,'downrange','y','mag_accel',widthscale=widthscale,color=colors[di],label=filenames[di])
     if marktime:
       plot_markers(ax10,data,'downrange','y',[marktime],color=colors[di],markersize=10,alpha=0.5)
