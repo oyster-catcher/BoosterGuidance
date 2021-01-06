@@ -25,17 +25,22 @@ namespace BoosterGuidance
     int tab = 0;
     bool hidden = true;
     BoosterGuidanceCore core = null;
+    float maxReentryGain = 0.001f;
+    float maxAeroDescentGain = 0.02f;
+    float maxLandingBurnGain = 0.02f;
+    float maxSteerAngle = 30; // 30 degrees
     Rect windowRect = new Rect(150, 150, 220, 528);
 
     // Main GUI Elements
     bool showTargets = true;
+    bool debug = false; // show steer
     EditableAngle tgtLatitude = 0;
     EditableAngle tgtLongitude = 0;
     EditableInt tgtAlt = 0;
     EditableInt reentryBurnAlt = 55000;
     EditableInt reentryBurnTargetSpeed = 700;
-    float aeroDescentSteerLogKp = 5.5f;
-    float landingBurnSteerLogKp = 2.5f;
+    //float aeroDescentSteerLogKp = 5.5f;
+    //float landingBurnSteerLogKp = 2.5f;
     string numLandingBurnEngines = "current";
 
     // Advanced GUI Elements
@@ -123,7 +128,9 @@ namespace BoosterGuidance
       BoosterGuidanceCore core = CheckCore(FlightGlobals.ActiveVessel);
       if (core == null)
       {
-        Debug.Log("[BoosterGuidance] core==null");
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("No BoosterGuidance Core");
+        GUILayout.EndHorizontal();
         return;
       }
 
@@ -254,6 +261,11 @@ namespace BoosterGuidance
         GUILayout.EndHorizontal();
       }
 
+      GUILayout.BeginHorizontal();
+      debug = GUILayout.Toggle(debug, "Debug");
+      Targets.showSteer = debug;
+      GUILayout.EndHorizontal();
+
       // Show all active vessels
       GUILayout.Space(10);
       GUILayout.BeginHorizontal();
@@ -263,7 +275,7 @@ namespace BoosterGuidance
       info_style.normal.textColor = Color.white;
       foreach(var controller in BoosterGuidanceCore.controllers)
       {
-        if (controller.enabled)
+        if ((controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
         {
           GUILayout.BeginHorizontal();
           GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
@@ -412,8 +424,8 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
-      aeroDescentSteerLogKp = GUILayout.HorizontalSlider(aeroDescentSteerLogKp, 0, 7);
-      core.aeroDescentSteerKp = Mathf.Exp(aeroDescentSteerLogKp);
+      core.aeroDescentSteerKp = GUILayout.HorizontalSlider(core.aeroDescentSteerKp, 0, 0.02f); // max turn 2 degrees for 100m error
+      //core.aeroDescentSteerKp = Mathf.Exp(aeroDescentSteerLogKp);
       GUILayout.Label(((int)core.aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
@@ -459,8 +471,8 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
-      landingBurnSteerLogKp = GUILayout.HorizontalSlider(landingBurnSteerLogKp, 0, 7);
-      core.landingBurnSteerKp = Mathf.Exp(landingBurnSteerLogKp);
+      core.landingBurnSteerKp = GUILayout.HorizontalSlider(core.landingBurnSteerKp, 0, maxLandingBurnGain);
+      //core.landingBurnSteerKp = Mathf.Exp(landingBurnSteerLogKp);
       GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
@@ -503,10 +515,10 @@ namespace BoosterGuidance
       reentryBurnAlt = (int)core.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)core.reentryBurnTargetSpeed;
       // TODO: Read from PID
-      aeroDescentSteerLogKp = Mathf.Log((float)core.aeroDescentSteerKp);
+      //aeroDescentSteerLogKp = Mathf.Log((float)core.aeroDescentSteerKp);
       reentryBurnAlt = (int)core.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)core.reentryBurnTargetSpeed;
-      landingBurnSteerLogKp = Mathf.Log((float)core.landingBurnSteerKp);
+      //landingBurnSteerLogKp = Mathf.Log((float)core.landingBurnSteerKp);
       tgtLatitude = core.tgtLatitude;
       tgtLongitude = core.tgtLongitude;
       tgtAlt = (int)core.tgtAlt;
@@ -524,10 +536,15 @@ namespace BoosterGuidance
       deployLandingGearHeight = (int)core.deployLandingGearHeight;
       Targets.RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
 
+      // Apply limits
+      core.reentryBurnSteerKp = Mathf.Clamp(core.reentryBurnSteerKp, 0, maxReentryGain);
+      core.aeroDescentSteerKp = Mathf.Clamp(core.aeroDescentSteerKp, 0, maxAeroDescentGain);
+      core.landingBurnSteerKp = Mathf.Clamp(core.landingBurnSteerKp, 0, maxLandingBurnGain);
+
       // Set MaxAoA from core - overriden
-      core.reentryBurnMaxAoA = (core.reentryBurnSteerKp / 0.005f) * 30;
-      core.aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp / 7);
-      core.landingBurnMaxAoA = 30 * (landingBurnSteerLogKp / 7);
+      core.reentryBurnMaxAoA = maxSteerAngle * (core.reentryBurnSteerKp / maxReentryGain);
+      core.aeroDescentMaxAoA = maxSteerAngle * (core.aeroDescentSteerKp / maxAeroDescentGain);
+      core.landingBurnMaxAoA = maxSteerAngle * (core.landingBurnSteerKp / maxLandingBurnGain);
     }
 
     public void UpdateCore()
@@ -536,9 +553,9 @@ namespace BoosterGuidance
       core.tgtLongitude = tgtLongitude;
       core.tgtAlt = tgtAlt;
       // Set Angle - of - Attack from gains
-      core.reentryBurnMaxAoA = (core.reentryBurnSteerKp / 0.005f) * 30;
-      core.aeroDescentMaxAoA = 30 * (aeroDescentSteerLogKp / 7);
-      core.landingBurnMaxAoA = 30 * (landingBurnSteerLogKp / 7);
+      core.reentryBurnMaxAoA = maxSteerAngle * (core.reentryBurnSteerKp / maxReentryGain);
+      core.aeroDescentMaxAoA = maxSteerAngle * (core.aeroDescentSteerKp / maxAeroDescentGain);
+      core.landingBurnMaxAoA = maxSteerAngle * (core.landingBurnSteerKp / maxLandingBurnGain);
       // Other
       core.touchdownMargin = touchdownMargin;
       core.touchdownSpeed = (float)touchdownSpeed;
@@ -592,6 +609,7 @@ namespace BoosterGuidance
     void OnUpdate()
     {
       // Set visibility of targets
+      Targets.InitTargets(); // ensure updated with map switch
       Targets.SetVisibility(showTargets, core.Enabled() && showTargets);
       if (pickingPositionTarget)
         OnPickingPositionTarget();
