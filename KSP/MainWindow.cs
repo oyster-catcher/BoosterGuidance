@@ -26,8 +26,8 @@ namespace BoosterGuidance
     bool hidden = true;
     BoosterGuidanceCore core = null;
     float maxReentryGain = 0.001f;
-    float maxAeroDescentGain = 0.02f;
-    float maxLandingBurnGain = 0.02f;
+    float maxAeroDescentGain = 0.002f;
+    float maxLandingBurnGain = 0.002f;
     float maxSteerAngle = 30; // 30 degrees
     Rect windowRect = new Rect(150, 150, 220, 528);
 
@@ -61,19 +61,24 @@ namespace BoosterGuidance
 
     // GUI Elements
     Color red = new Color(1, 0, 0, 0.5f);
-    bool hasFAR = false;
+    static bool hasFAR = false;
+
+    public void Start()
+    {
+      Debug.Log("[BoosterGuidance] Start");
+      hasFAR = Trajectories.AerodynamicModelFactory.HasFAR();
+      Debug.Log("[BoosterGuidance] Start hasFAR="+hasFAR);
+    }
 
     public void OnGUI()
     {
       if (!hidden)
-      {
         windowRect = GUI.Window(0, windowRect, WindowFunction, "Booster Guidance");
-        hasFAR = Trajectories.AerodynamicModelFactory.HasFAR();
-      }
     }
 
     public void OnDestroy()
     {
+      Debug.Log("[BoosterGuidance] Destroy");
       hidden = true;
       Targets.targetingCross.enabled = false;
       Targets.predictedCross.enabled = false;
@@ -211,10 +216,7 @@ namespace BoosterGuidance
       }
 
       if (changed)
-      {
         UpdateCore();
-        core.Changed(); // Force update of controller       
-      }
     }
 
     bool AdvancedTab(int windowID)
@@ -275,7 +277,7 @@ namespace BoosterGuidance
       info_style.normal.textColor = Color.white;
       foreach(var controller in BoosterGuidanceCore.controllers)
       {
-        if ((controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
+        if ((controller!=null) && (controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
         {
           GUILayout.BeginHorizontal();
           GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
@@ -411,7 +413,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
-      core.reentryBurnSteerKp = GUILayout.HorizontalSlider(core.reentryBurnSteerKp, 0, 0.005f);
+      core.reentryBurnSteerKp = GUILayout.HorizontalSlider(core.reentryBurnSteerKp, 0, maxReentryGain);
       GUILayout.Label(((int)(core.reentryBurnMaxAoA)).ToString()+ "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
@@ -424,8 +426,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
-      core.aeroDescentSteerKp = GUILayout.HorizontalSlider(core.aeroDescentSteerKp, 0, 0.02f); // max turn 2 degrees for 100m error
-      //core.aeroDescentSteerKp = Mathf.Exp(aeroDescentSteerLogKp);
+      core.aeroDescentSteerKp = GUILayout.HorizontalSlider(core.aeroDescentSteerKp, 0, maxAeroDescentGain); // max turn 2 degrees for 100m error
       GUILayout.Label(((int)core.aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
@@ -530,7 +531,7 @@ namespace BoosterGuidance
         numLandingBurnEngines = "current";
       */
       numLandingBurnEngines = core.landingBurnEngines;
-      //igniteDelay = (int)core.igniteDelay;
+      igniteDelay = (int)core.igniteDelay;
       noSteerHeight = (int)core.noSteerHeight;
       deployLandingGear = core.deployLandingGear;
       deployLandingGearHeight = (int)core.deployLandingGearHeight;
@@ -561,6 +562,7 @@ namespace BoosterGuidance
       core.touchdownSpeed = (float)touchdownSpeed;
       core.deployLandingGear = deployLandingGear;
       core.deployLandingGearHeight = deployLandingGearHeight;
+      core.Changed();
     }
 
     void OnPickingPositionTarget()
@@ -594,7 +596,7 @@ namespace BoosterGuidance
       if (isHit)
       {
         Targets.RedrawTarget(vessel.mainBody, pickLat, pickLon, pickAlt);
-        if (Input.GetMouseButton(0))  // Picked
+        if ((Input.GetMouseButton(0)) && (!GuiUtils.MouseIsOverWindow(windowRect))) // Picked
         {
           // Update GUI
           tgtLatitude = pickLat;
