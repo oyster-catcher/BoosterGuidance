@@ -137,6 +137,7 @@ namespace BoosterGuidance
       other.tgtLongitude = tgtLongitude;
       other.touchdownMargin = touchdownMargin;
       other.touchdownSpeed = touchdownSpeed;
+      other.igniteDelay = igniteDelay;
       other.phase = phase;
     }
     
@@ -204,13 +205,13 @@ namespace BoosterGuidance
         controller.touchdownSpeed = touchdownSpeed;
         controller.deployLandingGear = deployLandingGear;
         controller.deployLandingGearHeight = deployLandingGearHeight;
+        controller.igniteDelay = igniteDelay;
       }
       CopyToOtherCores();
     }
 
     public void CopyToOtherCores()
     {
-      //Debug.Log("[BoosterGuidance] CopyToOtherCores");
       foreach (var part in vessel.Parts)
       {
         foreach (var mod in part.Modules)
@@ -278,7 +279,8 @@ namespace BoosterGuidance
     [KSPAction("Disable BoosterGuidance")]
     public void DisableGuidance(KSPActionParam param)
     {
-      Debug.Log("[BoosterGuidance] Disabled Guidance for vessel " + controller.vessel.name);
+      if (controller != null)
+        Debug.Log("[BoosterGuidance] Disabled Guidance for vessel " + controller.vessel.name);
       GuiUtils.ScreenMessage("Disabled Guidance");
       vessel.OnFlyByWire -= new FlightInputCallback(Fly);
       vessel.Autopilot.Disable();
@@ -310,8 +312,9 @@ namespace BoosterGuidance
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
 
       bool landingGear;
+      bool bailOutLandingBurn = true; // cut thrust if near ground and have too much thrust to reach ground
       controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
-        controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear);
+        controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn);
       if ((landingGear) && KSPUtils.DeployLandingGear(vessel))
         GuiUtils.ScreenMessage("Deploying landing gear");
    
