@@ -322,6 +322,11 @@ namespace BoosterGuidance
       return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, (1 << 15), QueryTriggerInteraction.Ignore);
     }
 
+    public static bool MouseIsOverWindow(Rect rect)
+    {
+      return (rect.Contains(new Vector2(Input.mousePosition.x, Input.mousePosition.y)));
+    }
+
     public static void ScreenMessage(string message)
     {
       ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
