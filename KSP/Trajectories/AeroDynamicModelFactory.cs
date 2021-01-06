@@ -35,6 +35,7 @@ namespace Trajectories
         Debug.Log("[BoosterGuidance] Checking for FAR: " + e.ToString());
         return false;
       }
+      Debug.Log("[BoosterGuidance] Checking for FAR - success!");
       return true;
     }
 
