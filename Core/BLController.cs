@@ -52,6 +52,7 @@ namespace BoosterGuidance
     private double logLastTime = 0;
     private double logInterval = 0.1f;
     private Transform logTransform;
+    private const float deg2rad = Mathf.PI / 180;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
@@ -125,7 +126,7 @@ namespace BoosterGuidance
     public void InitAeroDescent(float kP, float maxAngle)
     {
       pid_aero = new PIDclamp("aeroSteer", kP, 0, 0, maxAngle);
-      reentryBurnMaxAoA = maxAngle;
+      aeroDescentMaxAoA = maxAngle;
     }
 
     public void InitLandingBurn(float kP, float maxAngle)
@@ -277,8 +278,8 @@ namespace BoosterGuidance
     // otherwise steer to fire thrust in opposite direction
     private Vector3d GetSteerAdjust(Vector3d tgtError, double gain, double maxAoA)
     {
-      Vector3d adj = tgtError * gain / 45.0;
-      double maxAdj = maxAoA / 45.0; // approx as 45 degress sideways component so unit vector is 1
+      Vector3d adj = tgtError * gain * deg2rad;
+      double maxAdj = maxAoA * deg2rad; // approx as 45 degress sideways component so unit vector is 1
       if (adj.magnitude > maxAdj)
         adj = Vector3d.Normalize(adj) * maxAdj;
       return adj;
@@ -286,10 +287,11 @@ namespace BoosterGuidance
 
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass)
     {
-      // TODO - Get this working for <45 degrees, ideally just 1 degree, but caching in aero forces is quantizing the AoA I think
       Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI); // 180 degrees (retrograde);
+
       // Find lift by just considering change in aero force vector
       Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI - (15 * Math.PI / 180));
+
       // Calculate lift vector orthogonal to the drag vector when retrograde
       Vector3d Flift = Vector3d.Project(Faero2, Vector3d.Normalize(Faero));
 
@@ -301,7 +303,7 @@ namespace BoosterGuidance
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
         gain = totalMass / (sideFA - sideFT);
-      //Debug.Log("[BoosterGuidance] sideFA(45 degrees)=" + sideFA + " sideFT(45 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
+      //Debug.Log("[BoosterGuidance] sideFA(15 degrees)=" + sideFA + " sideFT(15 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
 
       return Math.Sign(gain);
     }
@@ -335,12 +337,15 @@ namespace BoosterGuidance
       BLControllerPhase lastPhase = phase;
 
       // Actual height from all objects when low in case we land in the wrong place
+      // Doesn't work!
+      /*
       if ((y < 500) && (!simulate))
       {
         y = vessel.GetHeightFromSurface() - touchdownMargin + lowestY;
         //if (!simulate)
         //  Debug.Log("[BoosterGuidance] using heightFromSurface y=" + y);
       }
+      */
 
       System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
       timer.Start();
@@ -465,8 +470,8 @@ namespace BoosterGuidance
         // Interpolate to avoid rapid swings
         steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation to damp rapid oscillations
 
-        //if (!simulate)
-        //  Debug.Log("[BoosterGuidance] vel_air=" + Vector3d.Normalize(vel_air).magnitude + " adj=" + GetSteerAdjust(error, ang, aeroDescentMaxAoA).magnitude + " ang="+ang+" maxAoA="+aeroDescentMaxAoA);
+        if (!simulate)
+          Debug.Log("[BoosterGuidance] vel_air=" + Vector3d.Normalize(vel_air).magnitude + " adj=" + GetSteerAdjust(error, ang, aeroDescentMaxAoA).magnitude + " ang="+ang+" maxAoA="+aeroDescentMaxAoA);
       }
 
       // LANDING BURN (suicide burn)
@@ -505,10 +510,10 @@ namespace BoosterGuidance
         double minHeight = KSPUtils.MinHeightAtMinThrust(y, vy, amin, g);
         // Criteria for shutting down engines
         // - we could not reach ground at minimum thrust (would ascend)
-        // - falling less than 20m/s (otherwise can decide to shutdown engines when still high and travelling fast)
+        // - falling less than touchdown speed (otherwise can decide to shutdown engines when still high and travelling fast)
         // This is particulary done to stop the simulation never hitting the ground and making pretty circles through the sky
         // until the maximum time is exceeded. The predicted impact position will vary widely and this was incur a lot of time to calculate
-        bool cant_reach_ground = (minHeight > 0) && (vy > -30);
+        bool cant_reach_ground = (minHeight > 0) && (vy > -touchdownSpeed);
         if ((cant_reach_ground) && (bailOutLandingBurn))
           throttle = 0;
 
