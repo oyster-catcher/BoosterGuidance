@@ -15,6 +15,7 @@ namespace BoosterGuidance
     static GameObject _steer_obj = null;
     static LineRenderer _steer_line = null; // so it can be updated
     public static bool map = false; // detect switch from map/flight to re-create targets
+    public static bool showSteer = false;
 
     static Material _material;
     static Material material
@@ -64,6 +65,9 @@ namespace BoosterGuidance
         _steer_line = null;
       }
 
+      if (!showSteer)
+        return;
+
       if (_steer_line == null)
       {
         _steer_obj = new GameObject("Steer");
@@ -76,8 +80,6 @@ namespace BoosterGuidance
       _steer_line.startWidth = 0.3f;
       _steer_line.endWidth = 0.3f;
       _steer_line.positionCount = 2;
-      //_steer_line.SetPosition(0, a_transform.TransformPoint(Vector3d.zero));
-      //_steer_line.SetPosition(1, a_transform.TransformPoint(steer));
       _steer_line.SetPosition(0, Vector3d.zero);
       _steer_line.SetPosition(1, steer);
     }
@@ -130,7 +132,7 @@ namespace BoosterGuidance
 
         // draw ground marker at this position
         if (MapView.MapIsEnabled)
-          DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
+          DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 80);
         else
           DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 5), 15000));
       }
@@ -175,7 +177,7 @@ namespace BoosterGuidance
         double cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
         // draw ground marker at this position
         if (MapView.MapIsEnabled)
-          Targets.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
+          Targets.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 80);
         else
           Targets.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 5), 15000));
       }
@@ -258,19 +260,19 @@ namespace BoosterGuidance
     public static void RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
       InitTargets();
-      bool showTargets = true;
-      Transform transform = Targets.SetUpTransform(body, lat, lon, alt);
+      //bool showTargets = true;
+      //Transform transform = Targets.SetUpTransform(body, lat, lon, alt);
       // Only sure when set (ideally use a separate flag!)
       // TODO
-      targetingCross.enabled = showTargets && ((lat != 0) || (lon != 0) || (alt != 0));
+      //targetingCross.enabled = showTargets && ((lat != 0) || (lon != 0) || (alt != 0));
       targetingCross.SetLatLonAlt(body, lat, lon, alt);
     }
 
     public static void RedrawPrediction(CelestialBody body, double lat, double lon, double alt)
     {
       InitTargets();
-      bool showTargets = true;
-      predictedCross.enabled = showTargets;
+      //bool showTargets = true;
+      //predictedCross.enabled = showTargets;
       predictedCross.SetLatLonAlt(body, lat, lon, alt);
     }
   }
