@@ -54,7 +54,6 @@ namespace BoosterGuidance
     private Transform logTransform;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
-    private double steerGainLimit = 1; // limits extreme steering to steerGainLimit degrees / target_error(m)
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
     private String logFilename; // basename for logging of several files
 
@@ -126,11 +125,13 @@ namespace BoosterGuidance
     public void InitAeroDescent(float kP, float maxAngle)
     {
       pid_aero = new PIDclamp("aeroSteer", kP, 0, 0, maxAngle);
+      reentryBurnMaxAoA = maxAngle;
     }
 
     public void InitLandingBurn(float kP, float maxAngle)
     {
       pid_landing = new PIDclamp("landingSteer", kP, 0, 0, maxAngle);
+      landingBurnMaxAoA = maxAngle;
     }
 
     public String SetLandingBurnEngines()
@@ -276,7 +277,7 @@ namespace BoosterGuidance
     // otherwise steer to fire thrust in opposite direction
     private Vector3d GetSteerAdjust(Vector3d tgtError, double gain, double maxAoA)
     {
-      Vector3d adj = tgtError * gain * Math.PI / 180;
+      Vector3d adj = tgtError * gain / 45.0;
       double maxAdj = maxAoA / 45.0; // approx as 45 degress sideways component so unit vector is 1
       if (adj.magnitude > maxAdj)
         adj = Vector3d.Normalize(adj) * maxAdj;
@@ -299,10 +300,10 @@ namespace BoosterGuidance
       // When its a toss up whether thrust or aerodynamic steering is better gain can become very high or infinite
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
-        gain = (10 * totalMass) / (sideFA - sideFT);
+        gain = totalMass / (sideFA - sideFT);
       //Debug.Log("[BoosterGuidance] sideFA(45 degrees)=" + sideFA + " sideFT(45 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
 
-      return gain;
+      return Math.Sign(gain);
     }
 
     public override void GetControlOutputs(
@@ -334,7 +335,7 @@ namespace BoosterGuidance
       BLControllerPhase lastPhase = phase;
 
       // Actual height from all objects when low in case we land in the wrong place
-      if (y < 500)
+      if ((y < 500) && (!simulate))
       {
         y = vessel.GetHeightFromSurface() - touchdownMargin + lowestY;
         //if (!simulate)
@@ -428,8 +429,7 @@ namespace BoosterGuidance
 
         if (!simulate)
         {
-          pid_reentry.kp = HGUtils.Clamp(reentryBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
-          //steerGain = -reentryBurnSteerKp; // override as gain is wrong at high speeds (always steer with thrust)
+          pid_reentry.kp = reentryBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass);
           steerGain = pid_reentry.kp;
           double ang = pid_reentry.Update(error.magnitude, Time.deltaTime);
           steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, reentryBurnMaxAoA);
@@ -443,7 +443,7 @@ namespace BoosterGuidance
       // AERO DESCENT
       if (phase == BLControllerPhase.AeroDescent)
       {
-        pid_aero.kp = HGUtils.Clamp(aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
+        pid_aero.kp = aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass);
         steerGain = pid_aero.kp;
         double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, aeroDescentMaxAoA);
@@ -464,6 +464,9 @@ namespace BoosterGuidance
         }
         // Interpolate to avoid rapid swings
         steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation to damp rapid oscillations
+
+        //if (!simulate)
+        //  Debug.Log("[BoosterGuidance] vel_air=" + Vector3d.Normalize(vel_air).magnitude + " adj=" + GetSteerAdjust(error, ang, aeroDescentMaxAoA).magnitude + " ang="+ang+" maxAoA="+aeroDescentMaxAoA);
       }
 
       // LANDING BURN (suicide burn)
@@ -484,10 +487,9 @@ namespace BoosterGuidance
         {
           double ang;
           // If almost no throttle then still use aero steering gain
-          pid_landing.kp = HGUtils.Clamp(landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass), -steerGainLimit, steerGainLimit);
+          pid_landing.kp = landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass);
           steerGain = pid_landing.kp;
           ang = pid_landing.Update(error.magnitude, Time.deltaTime);
-          //Debug.Log("[BoosterGuidance] LandingBurn ang=" + ang);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
           steer = -Vector3d.Normalize(vel_air - 20*up) + GetSteerAdjust(error, ang, landingBurnMaxAoA);
         }
