@@ -513,7 +513,10 @@ namespace BoosterGuidance
         // - falling less than touchdown speed (otherwise can decide to shutdown engines when still high and travelling fast)
         // This is particulary done to stop the simulation never hitting the ground and making pretty circles through the sky
         // until the maximum time is exceeded. The predicted impact position will vary widely and this was incur a lot of time to calculate
-        bool cant_reach_ground = (minHeight > 0) && (vy > -touchdownSpeed);
+        // - this is very tricky to get right for the actual vessel since in RO engines take time to throttle down, so it needs to be done
+        //   early, allowing for the fact the residual engine thrust will slow the rocket more for the next 2-3 secs
+        // - the engine will restart again if landing doesn't happen with 2-3 secs
+        bool cant_reach_ground = (minHeight > 0) && (vy > -30);
         if ((cant_reach_ground) && (bailOutLandingBurn))
           throttle = 0;
 
