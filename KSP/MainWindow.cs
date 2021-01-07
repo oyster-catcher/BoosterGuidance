@@ -29,7 +29,7 @@ namespace BoosterGuidance
     float maxAeroDescentGain = 0.002f;
     float maxLandingBurnGain = 0.002f;
     float maxSteerAngle = 30; // 30 degrees
-    Rect windowRect = new Rect(150, 150, 220, 528);
+    Rect windowRect = new Rect(150, 150, 220, 520);
 
     // Main GUI Elements
     bool showTargets = true;
