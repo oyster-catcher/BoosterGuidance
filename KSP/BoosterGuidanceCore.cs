@@ -149,8 +149,6 @@ namespace BoosterGuidance
       tgtAlt = (int)alt;
       if (controller != null)
         controller.SetTarget(latitude, longitude, alt);
-      // Assume already done
-      //Targets.RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
     }
 
     public void SetPhase(BLControllerPhase phase)
