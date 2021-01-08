@@ -88,6 +88,7 @@ namespace BoosterGuidance
     {
       if (core == null)
       {
+        Debug.Log("[BoosterGuidance] core==null vessel=" + vessel + " map=" + MapView.MapIsEnabled);
         core = BoosterGuidanceCore.GetBoosterGuidanceCore(vessel);
         UpdateFromCore();
         Targets.SetVisibility(showTargets, showTargets && core.Enabled() && (FlightGlobals.ActiveVessel == core.vessel));
@@ -96,6 +97,7 @@ namespace BoosterGuidance
       {
         if (core.vessel != vessel)
         {
+          Debug.Log("[BoosterGuidance] core.vessel!=vessel vessel=" + vessel + " map=" + MapView.MapIsEnabled);
           // Get new BoosterGuidanceCore as vessel changed
           core = BoosterGuidanceCore.GetBoosterGuidanceCore(vessel);
           UpdateFromCore();
@@ -253,16 +255,6 @@ namespace BoosterGuidance
       GuiUtils.SimpleTextBox("Engine startup", igniteDelay, "s", 65);
       GUILayout.EndHorizontal();
 
-      if (hasFAR)
-      {
-        GUILayout.BeginHorizontal();
-        bool lastUseFar = core.useFAR;
-        core.useFAR = GUILayout.Toggle(core.useFAR, "Use FAR");
-        if (lastUseFar != core.useFAR)
-          core.AttachVessel(FlightGlobals.ActiveVessel);
-        GUILayout.EndHorizontal();
-      }
-
       GUILayout.BeginHorizontal();
       debug = GUILayout.Toggle(debug, "Debug");
       Targets.showSteer = debug;
@@ -277,9 +269,9 @@ namespace BoosterGuidance
       info_style.normal.textColor = Color.white;
       foreach(var controller in BoosterGuidanceCore.controllers)
       {
-        if ((controller!=null) && (controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
+        if ((controller != null) && (controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
         {
-          GUILayout.BeginHorizontal();
+           GUILayout.BeginHorizontal();
           GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
           GUILayout.FlexibleSpace();
           //if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
@@ -515,21 +507,12 @@ namespace BoosterGuidance
     {
       reentryBurnAlt = (int)core.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)core.reentryBurnTargetSpeed;
-      // TODO: Read from PID
-      //aeroDescentSteerLogKp = Mathf.Log((float)core.aeroDescentSteerKp);
       reentryBurnAlt = (int)core.reentryBurnAlt;
       reentryBurnTargetSpeed = (int)core.reentryBurnTargetSpeed;
-      //landingBurnSteerLogKp = Mathf.Log((float)core.landingBurnSteerKp);
       tgtLatitude = core.tgtLatitude;
       tgtLongitude = core.tgtLongitude;
       tgtAlt = (int)core.tgtAlt;
-      /*
-       * TODO
-      if (core.landingBurnEngines != null)
-        numLandingBurnEngines = core.landingBurnEngines;
-      else
-        numLandingBurnEngines = "current";
-      */
+      // This is bit-field
       numLandingBurnEngines = core.landingBurnEngines;
       igniteDelay = (int)core.igniteDelay;
       noSteerHeight = (int)core.noSteerHeight;
@@ -642,6 +625,8 @@ namespace BoosterGuidance
     {
       BoosterGuidanceCore core = BoosterGuidanceCore.GetBoosterGuidanceCore(FlightGlobals.ActiveVessel);
       KSPActionParam param = new KSPActionParam(KSPActionGroup.None, KSPActionType.Activate);
+      core.useFAR = hasFAR;
+      Debug.Log("[BoosterGuidance] Vessel=" + FlightGlobals.ActiveVessel.name + " useFAR=" + core.useFAR);
       core.EnableGuidance(param);
       core.SetPhase(phase);
     }
