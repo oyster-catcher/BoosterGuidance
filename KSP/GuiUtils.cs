@@ -324,7 +324,7 @@ namespace BoosterGuidance
 
     public static bool MouseIsOverWindow(Rect rect)
     {
-      return (rect.Contains(new Vector2(Input.mousePosition.x, Input.mousePosition.y)));
+      return (rect.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y)));
     }
 
     public static void ScreenMessage(string message)
