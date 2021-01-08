@@ -346,17 +346,9 @@ namespace BoosterGuidance
       if (GUILayout.Button("Set Here"))
         SetTargetHere();
       GUILayout.EndHorizontal();
-      /*
-      GUILayout.BeginHorizontal();
-      EditableInt preTgtAlt = tgtAlt;
-      GuiUtils.SimpleTextBox("Target altitude", tgtAlt, "m", 65);
-      GUILayout.EndHorizontal();
-      */
 
       GUILayout.BeginHorizontal();
       showTargets = GUILayout.Toggle(showTargets, "Show targets");
-      Targets.predictedCross.enabled = showTargets;
-      Targets.targetingCross.enabled = showTargets;
 
       bool prevLogging = core.logging;
       // TODO
@@ -413,6 +405,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
+      core.reentryBurnSteerKp = Mathf.Clamp(core.reentryBurnSteerKp, 0, maxReentryGain);
       core.reentryBurnSteerKp = GUILayout.HorizontalSlider(core.reentryBurnSteerKp, 0, maxReentryGain);
       GUILayout.Label(((int)(core.reentryBurnMaxAoA)).ToString()+ "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
@@ -426,6 +419,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
+      core.aeroDescentSteerKp = Mathf.Clamp(core.aeroDescentSteerKp, 0, maxAeroDescentGain);
       core.aeroDescentSteerKp = GUILayout.HorizontalSlider(core.aeroDescentSteerKp, 0, maxAeroDescentGain); // max turn 2 degrees for 100m error
       GUILayout.Label(((int)core.aeroDescentMaxAoA).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
@@ -472,6 +466,7 @@ namespace BoosterGuidance
 
       GUILayout.BeginHorizontal();
       GUILayout.Label("Steer", GUILayout.Width(40));
+      core.landingBurnSteerKp = Mathf.Clamp(core.landingBurnSteerKp, 0, maxLandingBurnGain);
       core.landingBurnSteerKp = GUILayout.HorizontalSlider(core.landingBurnSteerKp, 0, maxLandingBurnGain);
       //core.landingBurnSteerKp = Mathf.Exp(landingBurnSteerLogKp);
       GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
@@ -540,9 +535,7 @@ namespace BoosterGuidance
 
     public void UpdateCore()
     {
-      core.tgtLatitude = tgtLatitude;
-      core.tgtLongitude = tgtLongitude;
-      core.tgtAlt = tgtAlt;
+      core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
       // Set Angle - of - Attack from gains
       core.reentryBurnMaxAoA = maxSteerAngle * (core.reentryBurnSteerKp / maxReentryGain);
       core.aeroDescentMaxAoA = maxSteerAngle * (core.aeroDescentSteerKp / maxAeroDescentGain);
@@ -553,6 +546,7 @@ namespace BoosterGuidance
       core.deployLandingGear = deployLandingGear;
       core.deployLandingGearHeight = deployLandingGearHeight;
       core.Changed();
+      Targets.RedrawTarget(FlightGlobals.ActiveVessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
     }
 
     void OnPickingPositionTarget()
