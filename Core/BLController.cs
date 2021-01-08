@@ -50,7 +50,7 @@ namespace BoosterGuidance
     private System.IO.StreamWriter fp = null;
     private double logStartTime;
     private double logLastTime = 0;
-    private double logInterval = 0.1f;
+    //private double logInterval = 0.1f;
     private Transform logTransform;
     private const float deg2rad = Mathf.PI / 180;
     
@@ -76,6 +76,7 @@ namespace BoosterGuidance
 
     ~BLController()
     {
+      BoosterGuidanceCore.controllers.Remove(this);
       StopLogging();
     }
 
@@ -469,9 +470,6 @@ namespace BoosterGuidance
         }
         // Interpolate to avoid rapid swings
         steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation to damp rapid oscillations
-
-        if (!simulate)
-          Debug.Log("[BoosterGuidance] vel_air=" + Vector3d.Normalize(vel_air).magnitude + " adj=" + GetSteerAdjust(error, ang, aeroDescentMaxAoA).magnitude + " ang="+ang+" maxAoA="+aeroDescentMaxAoA);
       }
 
       // LANDING BURN (suicide burn)
@@ -516,7 +514,7 @@ namespace BoosterGuidance
         // - this is very tricky to get right for the actual vessel since in RO engines take time to throttle down, so it needs to be done
         //   early, allowing for the fact the residual engine thrust will slow the rocket more for the next 2-3 secs
         // - the engine will restart again if landing doesn't happen with 2-3 secs
-        bool cant_reach_ground = (minHeight > 0) && (vy > -30);
+        bool cant_reach_ground = (minHeight > 0) && (vy > -40);
         if ((cant_reach_ground) && (bailOutLandingBurn))
           throttle = 0;
 
@@ -525,19 +523,14 @@ namespace BoosterGuidance
       }
 
       // Logging
-      //Debug.Log("[BoosterGuidance] Check log");
       if (fp != null)
       {
-        //Debug.Log("[BoosterGuidance] Check log t="+t+" logLastTime="+logLastTime+" logInterval="+logInterval);
-        //if (t > logLastTime + logInterval)
-        //{
         Vector3d a = att * (amin + throttle * (amax - amin)); // this assumes engine is ignited though
         Vector3d tr = logTransform.InverseTransformPoint(r);
         Vector3d tv = logTransform.InverseTransformVector(vel_air);
         Vector3d ta = logTransform.InverseTransformVector(a);
         fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
         logLastTime = t;
-        //}
       }
 
       lastt = t;
