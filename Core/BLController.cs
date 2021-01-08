@@ -551,10 +551,16 @@ namespace BoosterGuidance
       elapsed_secs = timer.ElapsedMilliseconds * 0.001;
 
       // Set info message
-      if (vessel.checkLanded())
-        info = string.Format("Landed {0:F1}m from target", targetError);
+
+      string tgtErrStr;
+      if (targetError > 100000)
+        tgtErrStr = string.Format("{0:F0}km", targetError * 0.001);
       else
-        info = string.Format("Err: {0:F0}m {1:F0}° Time: {2:F0}s [{3:F0}ms]", targetError, attitudeError, targetT, elapsed_secs * 1000);
+        tgtErrStr = string.Format("{0:F0}m", targetError);
+      if (vessel.checkLanded())
+        info = string.Format("Landed {0} from target", tgtErrStr);
+      else
+        info = string.Format("Err: {0} {1:F0}° Time: {2:F0}s [{3:F0}ms]", tgtErrStr, attitudeError, targetT, elapsed_secs * 1000);
     }
   }  
 }
