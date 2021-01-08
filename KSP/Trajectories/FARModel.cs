@@ -26,21 +26,30 @@ using UnityEngine;
 
 namespace Trajectories
 {
+    class TestFAR
+    {
+      public TestFAR()
+      {
+        // This will cause an exception of FAR is not loaded//
+        FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(FlightGlobals.ActiveVessel, out Vector3 res_drag, out Vector3 torque, Vector3d.zero, 100000);
+      }
+    }
+
     class FARModel: VesselAerodynamicModel
     {
-        private MethodInfo FARAPI_CalculateVesselAeroForces;
+        //private MethodInfo FARAPI_CalculateVesselAeroForces;
 
         public override string AerodynamicModelName { get { return "FAR"; } }
 
-        public FARModel(Vessel ship, CelestialBody body, MethodInfo CalculateVesselAeroForces)
-            : base(ship, body)
+         //public FARModel(Vessel ship, CelestialBody body, MethodInfo CalculateVesselAeroForces)
+         public FARModel(Vessel ship, CelestialBody body)
+         : base(ship, body)
         {
-            FARAPI_CalculateVesselAeroForces = CalculateVesselAeroForces;
+          //FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(ship, out Vector3 res_drag, out Vector3 torque, Vector3d.zero, 100000);
         }
 
         protected override Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude)
         {
-            //Debug.Log("Trajectories: getting FAR forces");
             if (vessel_ == null || vessel_.packed)
                 return Vector3.zero;
 
@@ -51,9 +60,12 @@ namespace Trajectories
             }
 
             Vector3 worldAirVel = new Vector3((float)airVelocity.x, (float)airVelocity.y, (float)airVelocity.z);
-            var parameters = new object[] { vessel_, new Vector3(), new Vector3(), worldAirVel, altitude };
-            FARAPI_CalculateVesselAeroForces.Invoke(null, parameters);
-            return (Vector3)parameters[1];
+            //var parameters = new object[] { vessel_, new Vector3(), new Vector3(), worldAirVel, altitude };
+            //FARAPI_CalculateVesselAeroForces.Invoke(null, parameters);
+
+            // Force direct call of API. Why not?
+            FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(vessel_, out Vector3 res_drag, out Vector3 torque, worldAirVel, altitude);
+            return (Vector3d)res_drag;
         }
 
         public override Vector2 PackForces(Vector3d forces, double altitudeAboveSea, double velocity)

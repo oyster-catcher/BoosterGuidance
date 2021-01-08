@@ -38,14 +38,12 @@ namespace BoosterGuidance
                bool simulate,
                out double throttle, out Vector3d steer,
                out bool landingGear,
-               out bool gridFins,
                bool bailOutLandingBurn = false)
 
     {
       throttle = 0;
       steer = Vector3d.up;
       landingGear = false;
-      gridFins = false;
     }
 
     virtual public string PhaseStr()

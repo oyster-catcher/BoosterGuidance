@@ -216,28 +216,6 @@ namespace BoosterGuidance
       return ArrowSelector(index, modulo, drawLabel);
     }
 
-
-    static public Transform SetUpTransform(CelestialBody body, double latitude, double longitude, double alt)
-    {
-      // Set up transform so Y is up and (0,0,0) is target position
-      Vector3d origin = body.GetWorldSurfacePosition(latitude, longitude, alt);
-      Vector3d vEast = body.GetWorldSurfacePosition(latitude, longitude - 0.1, alt) - origin;
-      Vector3d vUp = body.GetWorldSurfacePosition(latitude, longitude, alt + 1) - origin;
-      // Convert to body co-ordinates
-      origin = body.transform.InverseTransformPoint(origin);
-      vEast = body.transform.InverseTransformVector(vEast);
-      vUp = body.transform.InverseTransformVector(vUp);
-
-      GameObject go = new GameObject();
-      // Need to rotation that converts (0,1,0) to vUp in the body transform
-      Quaternion quat = Quaternion.FromToRotation(new Vector3(0, 1, 0), vUp);
-
-      Transform o_transform = go.transform;
-      o_transform.SetPositionAndRotation(origin, quat);
-      o_transform.SetParent(body.transform, false);
-      return o_transform;
-    }
-
     // Credits to https://github.com/jrossignol/WaypointManager/blob/master/source/WaypointManager/CustomWaypointGUI.cs
     // for this code
     public static bool GetBodyRayIntersect(CelestialBody targetBody, bool map, out double latitude, out double longitude, out double altitude)
@@ -276,7 +254,7 @@ namespace BoosterGuidance
           else
           {
             lastRadius = curRadius;
-            curRadius = 0.5*alt + 0.5*curRadius;
+            curRadius = 0.5 * alt + 0.5 * curRadius;
             loops++;
           }
         }
@@ -344,112 +322,14 @@ namespace BoosterGuidance
       return Physics.Raycast(ray.origin, ray.direction, out hit, Mathf.Infinity, (1 << 15), QueryTriggerInteraction.Ignore);
     }
 
+    public static bool MouseIsOverWindow(Rect rect)
+    {
+      return (rect.Contains(new Vector2(Input.mousePosition.x, Screen.height - Input.mousePosition.y)));
+    }
+
     public static void ScreenMessage(string message)
     {
-      ScreenMessages.PostScreenMessage("BoosterGuidance: " + message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
-    }
-
-    public class TargetingCross : MonoBehaviour
-    {
-      public const double markerSize = 2.0d; // in meters
-
-      // I find use of statics weird, and the duplication of code in PredictionCross
-      // but its the only way I've found to avoid an accumulation of targets in subsequent flights
-      // It doesn't seem possible to trap all the deletions needs
-      public static double impactLat = 0d;
-      public static double impactLon = 0d;
-      public static double impactAlt = 0d;
-      public GameObject mesh = null;
-      private double cross_dist = 0d;
-      private Color color = Color.green;
-
-      public Vector3? ImpactPosition { get; internal set; }
-      public CelestialBody ImpactBody { get; internal set; }
-      public Color Color { get; internal set; }
-
-      public void SetLatLonAlt(CelestialBody body, double lat, double lon, double alt)
-      {
-        ImpactBody = body;
-        impactLat = lat;
-        impactLon = lon;
-        impactAlt = alt;
-        ImpactPosition = ImpactBody.GetWorldSurfacePosition(impactLat, impactLon, impactAlt) - ImpactBody.position;
-      }
-
-      public void SetColor(Color a_color)
-      {
-        color = a_color;
-      }
-
-      public void OnPostRender()
-      {
-        if (ImpactBody == null)
-          return;
-        if (!enabled)
-          return;
-        // resize marker in respect to distance from camera - only for flight view
-        Vector3d cam_pos = (!MapView.MapIsEnabled) ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
-        cam_pos = cam_pos - ImpactBody.position;
-        cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
-
-        // Is marker on this side of planet?
-        double d = Vector3d.Dot(cam_pos - ImpactPosition.Value, ImpactPosition.Value);
-
-        // draw ground marker at this position
-        //Debug.Log("[BoosterGuidance] TargetingCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt+ "d="+d);
-        //Debug.Log("[BoosterGuidance] cam_pos=" + (Vector3)cam_pos);
-        if (MapView.MapIsEnabled)
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
-        else
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 5), 15000));
-      }
-    }
-
-    public class PredictionCross : MonoBehaviour
-    {
-      public const double markerSize = 2.0d; // in meters
-
-      public static double impactLat = 0d;
-      public static double impactLon = 0d;
-      public static double impactAlt = 0d;
-      private Color color = Color.green;
-
-      public Vector3? ImpactPosition { get; internal set; }
-      public CelestialBody ImpactBody { get; internal set; }
-      public Color Color { get; internal set; }
-
-      public void SetLatLonAlt(CelestialBody body, double lat, double lon, double alt)
-      {
-        ImpactBody = body;
-        impactLat = lat;
-        impactLon = lon;
-        impactAlt = alt;
-        ImpactPosition = ImpactBody.GetWorldSurfacePosition(impactLat, impactLon, impactAlt) - ImpactBody.position;
-      }
-
-      public void SetColor(Color a_color)
-      {
-        color = a_color;
-      }
-
-      public void OnPostRender()
-      {
-        if (ImpactBody == null)
-          return;
-        if (!enabled)
-          return;
-        // resize marker in respect to distance from camera - only for flight view
-        //Vector3d cam_pos = (Vector3d)FlightCamera.fetch.mainCamera.transform.position - ImpactBody.position;
-        Vector3d cam_pos = (!MapView.MapIsEnabled) ? (Vector3d)FlightCamera.fetch.mainCamera.transform.position : (Vector3d)PlanetariumCamera.fetch.transform.position;
-        cam_pos = cam_pos - ImpactBody.position;
-        double cross_dist = System.Math.Max(Vector3.Distance(cam_pos, ImpactPosition.Value) / 80.0d, 1.0d);
-        // draw ground marker at this position
-        //Debug.Log("[BoosterGuidance] PredictionCross.DrawGroundMarker lat=" + impactLat + " impactLon=" + impactLon + " impactAlt=" + impactAlt);
-        if (MapView.MapIsEnabled)
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, ImpactBody.Radius / 40);
-        else
-          GLUtils.DrawGroundMarker(ImpactBody, impactLat, impactLon, impactAlt, color, MapView.MapIsEnabled, 0, Math.Min(Math.Max(markerSize * cross_dist, 5), 15000));
-      }
+      ScreenMessages.PostScreenMessage(message, 3.0f, ScreenMessageStyle.UPPER_CENTER);
     }
   }
 

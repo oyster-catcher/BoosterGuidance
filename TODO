@@ -1,8 +1,16 @@
 - On RO picking target jumps around. Store double's?
 - In low gravity use larger dt as time to compute goes from 1ms (Kerbin) to 10-12ms and flight time 460 secs
 - Put engine shutdown code in again?
-- Fix unreliability of landing leg deployment
+- Fix unreliability of landing leg deployment. Use Gear ActionGroup ? Works in KSP 1.11 for Falcon
 - Target is visible from wrong side of planet
 - Prediction target shifts and jumps sometimes on Mun. Possibly only on timewarp and fixed?
 - Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
-- Slow to open BoosterGuidance window. 1-2 secs. Why?
+- sometimes problem with sharing violation on logging when enable/disable guidance
+- sometimes massive prediction target shows
+- Both targets sometimes too big. Force redraw?
+- Add info message which give hints about settings: touchdown margin, no steer height and touchdown speed
+- Compute distance from ground wherever you are landing
+- Failure to show AdvancedTab as NullReference to previous controller? possibly fixed
+- Lots of BoosterGuidanceCore.OnDestroy() exceptions with reference to non-instance (BLController). Why?
+- Show target error in km when large to avoid wrapping line. Perhaps to nearest km when over 100km?
+- Gains can be well out of range when loading saved game, and on loaded just built vessel

@@ -6,12 +6,25 @@ import sys
 import pylab as P
 import numpy as np
 from matplotlib.patches import Circle
+from matplotlib.collections import LineCollection
 
 def plot_line(ax,data,fx,fy,color='black',label='',linestyle='-'):
   xx=[float(d[fx]) for d in data]
   yy=[float(d[fy]) for d in data]
   ax.plot(xx,yy,color=color,label=label,linestyle=linestyle)
 
+def plot_variable_line(ax,data,fx,fy,widthfield,widthscale,color='black',label='',linestyle='-'):
+  xx=[float(d[fx]) for d in data]
+  yy=[float(d[fy]) for d in data]
+  xx=np.array(xx)
+  yy=np.array(yy)
+  lwidths=[1+float(d[widthfield])*widthscale for d in data]
+  segments=[]
+  for i in range(len(xx)-1):
+    segments.append( [(xx[i],yy[i]),(xx[i+1],yy[i+1])] )
+  print(segments[:5])
+  lc = LineCollection(segments, linewidths=lwidths[:-1],color=color)
+  ax.add_collection(lc)
 
 def plot_times(ax, times, color):
   for t in times:
@@ -28,7 +41,6 @@ def plot_markers(ax,data,fx,fy,times,color='black',marker='o',markersize=4,alpha
           cy.append(data[i][fy])
           done = True
   ax.plot(cx,cy,color=color,marker=marker,markersize=markersize,linestyle='',alpha=alpha)
-
 
 def add_derived_columns(data, vd):
   """Add columns: downrange, velocity, mag_accel"""
@@ -171,11 +183,17 @@ def plot(labels,dmin,dmax,emax,tmin,tmax,vmax,ymax,
 
     # plot side view of X,Y
     xx,yy=[],[]
-    plot_line(ax10,data,'x','y',color=colors[di],label=filenames[di])
+    #plot_line(ax10,data,'downrange','y',color=colors[di],label=filenames[di])
+    # width at max thrust is 1% of width of XY plot
+    widthscale = 0.01 * (dmax - dmin) / accelmax  # assume 30m/s/s accel is reference
+    plot_variable_line(ax10,data,'downrange','y','mag_accel',widthscale=widthscale,color=colors[di],label=filenames[di])
     if marktime:
-      plot_markers(ax10,data,'x','y',[marktime],color=colors[di],markersize=10,alpha=0.5)
+      plot_markers(ax10,data,'downrange','y',[marktime],color=colors[di],markersize=10,alpha=0.5)
     # Show checkpoints
-    plot_markers(ax10,data,'x','y',check_times,color=colors[di])
+    plot_markers(ax10,data,'downrange','y',check_times,color=colors[di])
+
+    # Plot when thrust is applied
+    #plot_thrust(ax10,data,'downrange','y','mag_accel',color=colors[di],markersize=10)
 
   # Draw body
   if bodyposition:
