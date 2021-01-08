@@ -271,7 +271,7 @@ namespace BoosterGuidance
       {
         if ((controller != null) && (controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
         {
-           GUILayout.BeginHorizontal();
+          GUILayout.BeginHorizontal();
           GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
           GUILayout.FlexibleSpace();
           //if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
@@ -550,6 +550,9 @@ namespace BoosterGuidance
 
     void OnPickingPositionTarget()
     {
+      if (GuiUtils.MouseIsOverWindow(windowRect))
+        return;
+
       if (Input.GetKeyDown(KeyCode.Escape))
       {
         // Previous position
