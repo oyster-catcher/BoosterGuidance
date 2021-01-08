@@ -81,8 +81,9 @@ namespace BoosterGuidance
 
     public void OnDestroy()
     {
+      if (controller != null)
+        DisableGuidance();
       Debug.Log("[BoosterGuidance] BoosterGuidanceCore.OnDestroy()");
-      DisableGuidance();
     }
 
     // Find first BoosterGuidanceCore module for vessel
@@ -148,7 +149,8 @@ namespace BoosterGuidance
       tgtAlt = (int)alt;
       if (controller != null)
         controller.SetTarget(latitude, longitude, alt);
-      Targets.RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
+      // Assume already done
+      //Targets.RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
     }
 
     public void SetPhase(BLControllerPhase phase)
@@ -235,6 +237,7 @@ namespace BoosterGuidance
     public void EnableGuidance(KSPActionParam param)
     {
       controller = new BLController(vessel, useFAR);
+      controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       Changed(); // updates controller
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
@@ -279,13 +282,22 @@ namespace BoosterGuidance
     [KSPAction("Disable BoosterGuidance")]
     public void DisableGuidance(KSPActionParam param)
     {
+      Debug.Log("[BoosterGuidance] Disabling Guidance");
       if (controller != null)
+      {
+        Debug.Log("[BoosterGuidance] RemoveController");
+        RemoveController(controller);
+        Debug.Log("[BoosterGuidance] stopLogging");
+        controller.StopLogging();
         Debug.Log("[BoosterGuidance] Disabled Guidance for vessel " + controller.vessel.name);
+      }
+      if ((vessel) && vessel.enabled) // extra checks
+      {
+        Debug.Log("[BoosterGuidance] Removing FlyByWire");
+        vessel.OnFlyByWire -= new FlightInputCallback(Fly);
+        vessel.Autopilot.Disable();
+      }
       GuiUtils.ScreenMessage("Disabled Guidance");
-      vessel.OnFlyByWire -= new FlightInputCallback(Fly);
-      vessel.Autopilot.Disable();
-      StopLogging();
-      RemoveController(controller);
       controller = null;
     }
 
@@ -295,17 +307,6 @@ namespace BoosterGuidance
       Vector3d steer;
       double minThrust;
       double maxThrust;
-
-      if (vessel.checkLanded())
-      {
-        GuiUtils.ScreenMessage("Vessel " + controller.vessel.name + " landed!");
-        state.mainThrottle = 0;
-        DisableGuidance();
-        info = "Landed " + (int)controller.targetError + "m from target";
-        if (vessel == FlightGlobals.ActiveVessel)
-          Targets.predictedCross.enabled = false;
-        return;
-      }
 
       KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
 
@@ -317,6 +318,14 @@ namespace BoosterGuidance
         controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn);
       if ((landingGear) && KSPUtils.DeployLandingGear(vessel))
         GuiUtils.ScreenMessage("Deploying landing gear");
+
+      if (vessel.checkLanded())
+      {
+        DisableGuidance();
+        state.mainThrottle = 0;
+        GuiUtils.ScreenMessage("Vessel " + controller.vessel.name + " landed!");
+        return;
+      }
    
       // Set active engines in landing burn
       if (controller.phase == BLControllerPhase.LandingBurn)
