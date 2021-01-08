@@ -31,14 +31,24 @@ namespace BoosterGuidance
 
     static public void InitTargets()
     {
-      // No need to re-init
+      // No need to re-init?
       if ((map == MapView.MapIsEnabled) && (targetingCross != null) && (predictedCross != null))
         return;
 
-      //if (targetingCross != null)
-      //  targetingCross.enabled = false;
-      //if (predictedCross != null)
-      //  predictedCross.enabled = false;
+      double tgtLat = 0;
+      double tgtLon = 0;
+      double tgtAlt = 0;
+      CelestialBody tgtBody = null;
+      if (targetingCross != null)
+      {
+        tgtBody = targetingCross.ImpactBody;
+        tgtLat = TargetingCross.impactLat;
+        tgtLon = TargetingCross.impactLon;
+        tgtAlt = TargetingCross.impactAlt;
+        targetingCross.enabled = false;
+      }
+      if (predictedCross != null)
+        predictedCross.enabled = false;
       if (MapView.MapIsEnabled)
       {
         targetingCross = PlanetariumCamera.fetch.gameObject.AddComponent<Targets.TargetingCross>();
@@ -49,11 +59,12 @@ namespace BoosterGuidance
         targetingCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<Targets.TargetingCross>();
         predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<Targets.PredictionCross>();
       }
-      map = MapView.MapIsEnabled;
       targetingCross.SetColor(Color.yellow);
-      //targetingCross.enabled = true;
+      targetingCross.SetLatLonAlt(tgtBody, tgtLat, tgtLon, tgtAlt);
+      targetingCross.enabled = true;
       predictedCross.SetColor(Color.red);
-      //predictedCross.enabled = false;
+      predictedCross.enabled = false;
+      map = MapView.MapIsEnabled;
     }
 
     static public void DrawSteer(Vector3d steer, Transform a_transform, Color color)
@@ -96,7 +107,7 @@ namespace BoosterGuidance
       public static double impactAlt = 0d;
       public GameObject mesh = null;
       private double cross_dist = 0d;
-      private Color color = Color.green;
+      private Color color = Color.yellow;
 
       public Vector3? ImpactPosition { get; internal set; }
       public CelestialBody ImpactBody { get; internal set; }
@@ -145,7 +156,7 @@ namespace BoosterGuidance
       public static double impactLat = 0d;
       public static double impactLon = 0d;
       public static double impactAlt = 0d;
-      private Color color = Color.green;
+      private Color color = Color.red;
 
       public Vector3? ImpactPosition { get; internal set; }
       public CelestialBody ImpactBody { get; internal set; }
@@ -254,25 +265,15 @@ namespace BoosterGuidance
       InitTargets();
       targetingCross.enabled = target;
       predictedCross.enabled = prediction;
-      //Debug.Log("[BoosterGuidance] SetVisibility target=" + target + " prediction=" + prediction);
     }
 
     public static void RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
-      InitTargets();
-      //bool showTargets = true;
-      //Transform transform = Targets.SetUpTransform(body, lat, lon, alt);
-      // Only sure when set (ideally use a separate flag!)
-      // TODO
-      //targetingCross.enabled = showTargets && ((lat != 0) || (lon != 0) || (alt != 0));
       targetingCross.SetLatLonAlt(body, lat, lon, alt);
     }
 
     public static void RedrawPrediction(CelestialBody body, double lat, double lon, double alt)
     {
-      InitTargets();
-      //bool showTargets = true;
-      //predictedCross.enabled = showTargets;
       predictedCross.SetLatLonAlt(body, lat, lon, alt);
     }
   }
