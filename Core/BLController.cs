@@ -514,7 +514,7 @@ namespace BoosterGuidance
         // - this is very tricky to get right for the actual vessel since in RO engines take time to throttle down, so it needs to be done
         //   early, allowing for the fact the residual engine thrust will slow the rocket more for the next 2-3 secs
         // - the engine will restart again if landing doesn't happen with 2-3 secs
-        bool cant_reach_ground = (minHeight > 0) && (vy > -40);
+        bool cant_reach_ground = (minHeight > 0) && (vy > -50);
         if ((cant_reach_ground) && (bailOutLandingBurn))
           throttle = 0;
 
