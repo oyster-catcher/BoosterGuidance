@@ -191,7 +191,7 @@ namespace BoosterGuidance
 
     public bool Enabled()
     {
-      return (controller != null);
+      return (controller != null) && (controller.enabled);
     }
 
     // BoosterGuidanceCore params changed so update controller
