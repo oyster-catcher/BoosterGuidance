@@ -167,16 +167,33 @@ namespace BoosterGuidance
 
     public string SetLandingBurnEngines()
     {
-      controller.SetLandingBurnEngines();
-      landingBurnEngines = controller.GetLandingBurnEngineString();
-      return controller.landingBurnEngines.Count().ToString();
+      List<ModuleEngines> activeEngines = KSPUtils.GetActiveEngines(vessel);
+      // get string
+      List<string> s = new List<string>();
+      int num = 0;
+      foreach(var engine in KSPUtils.GetAllEngines(vessel))
+      {
+        if (activeEngines.Contains(engine))
+        {
+          s.Add("1");
+          num++;
+        }
+        else
+          s.Add("0");
+      }
+      landingBurnEngines = String.Join(",", s.ToArray());
+      Debug.Log("[BoosterGuidance] landingBurnEngines=" + landingBurnEngines);
+      if (controller != null)
+        controller.SetLandingBurnEnginesFromString(landingBurnEngines);
+      return num.ToString();
     }
 
     public string UnsetLandingBurnEngines()
     {
-      controller.UnsetLandingBurnEngines();
-      landingBurnEngines = controller.GetLandingBurnEngineString();
-      return "current";
+      landingBurnEngines = "current";
+      if (controller != null)
+        controller.SetLandingBurnEnginesFromString(landingBurnEngines);
+      return landingBurnEngines;
     }
 
     public double LandingBurnHeight()
@@ -206,6 +223,7 @@ namespace BoosterGuidance
         controller.deployLandingGear = deployLandingGear;
         controller.deployLandingGearHeight = deployLandingGearHeight;
         controller.igniteDelay = igniteDelay;
+        controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       }
       CopyToOtherCores();
     }
@@ -235,7 +253,6 @@ namespace BoosterGuidance
     public void EnableGuidance(KSPActionParam param)
     {
       controller = new BLController(vessel, useFAR);
-      controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       Changed(); // updates controller
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))

@@ -57,6 +57,7 @@ namespace BoosterGuidance
     private Trajectories.VesselAerodynamicModel aeroModel = null;
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
     private String logFilename; // basename for logging of several files
+    private bool setLandingEnginesDone = false;
 
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
@@ -102,6 +103,7 @@ namespace BoosterGuidance
       targetError = v.targetError;
       igniteDelay = v.igniteDelay;
       noSteerHeight = v.noSteerHeight;
+      setLandingEnginesDone = false;
     }
 
     public BLController(Vessel a_vessel, bool useFAR=false) : base()
@@ -136,6 +138,7 @@ namespace BoosterGuidance
       landingBurnMaxAoA = maxAngle;
     }
 
+    /*
     public String SetLandingBurnEngines()
     {
       landingBurnEngines = KSPUtils.GetActiveEngines(vessel);
@@ -144,20 +147,20 @@ namespace BoosterGuidance
       else
         return landingBurnEngines.Count.ToString();
     }
-
+    */
     public void SetTarget(double latitude, double longitude, double alt)
     {
       tgtLatitude = latitude;
       tgtLongitude = longitude;
       tgtAlt = alt;
     }
-
+    /*
     public String UnsetLandingBurnEngines()
     {
       landingBurnEngines = null;
       return "current";
     }
-
+    
     public String GetLandingBurnEngineString()
     {
       if ((vessel == null) || (landingBurnEngines == null))
@@ -179,9 +182,10 @@ namespace BoosterGuidance
       else
         return "current";
     }
-
+    */
     public void SetLandingBurnEnginesFromString(string s)
     {
+      Debug.Log("[BoosterGuidance] SetLandingBurnEngines " + s);
       if (vessel == null)
         return;
       if (s == "current")
@@ -200,9 +204,11 @@ namespace BoosterGuidance
           if (flags[i] == "1")
             landingBurnEngines.Add(engines[i]);
           else if (flags[i] != "0")
-            Debug.Log("[BoosterGuidance] Found invalid string '" + s + "' for landingBurnEngines. Expected a boolean list for active engines. e.g. 0,0,1,1,0 or current");
+            Debug.Log("[BoosterGuidance] Found invalid string '" + s + "' for landingBurnEngines. Expected a boolean list of active engines. e.g. 0,0,1,1,0 or current");
         }
       }
+      if (landingBurnEngines != null)
+        Debug.Log("[BoosterGuidance] Set landing burn engines from string "+s+" "+landingBurnEngines.Count);
     }
 
     public void SetPhase(BLControllerPhase a_phase)
@@ -288,23 +294,23 @@ namespace BoosterGuidance
 
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass)
     {
-      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI); // 180 degrees (retrograde);
+      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, 180 * deg2rad); // 180 degrees (retrograde);
 
       // Find lift by just considering change in aero force vector
-      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, Math.PI - (15 * Math.PI / 180));
+      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, (180 - 15) * deg2rad);
 
       // Calculate lift vector orthogonal to the drag vector when retrograde
       Vector3d Flift = Vector3d.Project(Faero2, Vector3d.Normalize(Faero));
 
-      double sideFA = Flift.magnitude; // aero dynamic lift at 5 degrees AoA
+      double sideFA = Flift.magnitude; // aero dynamic lift at 15 degrees AoA
       double thrust = minThrust + throttle * (maxThrust - minThrust);
-      double sideFT = thrust * Math.Sin(15 * Math.PI / 180); // sideways component of thrust at 15 degrees
+      double sideFT = thrust * Math.Sin(15 * deg2rad); // sideways component of thrust at 15 degrees
       double gain = 0;
       // When its a toss up whether thrust or aerodynamic steering is better gain can become very high or infinite
       // Dont steer in the region since the gain estimate might also have the wrong sign
       if (Math.Abs(sideFA - sideFT) > 0)
         gain = totalMass / (sideFA - sideFT);
-      //Debug.Log("[BoosterGuidance] sideFA(15 degrees)=" + sideFA + " sideFT(15 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
+      Debug.Log("[BoosterGuidance] sideFA(15 degrees)=" + sideFA + " sideFT(15 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain);
 
       return Math.Sign(gain);
     }
@@ -456,6 +462,10 @@ namespace BoosterGuidance
 
         double landingMinThrust, landingMaxThrust;
         KSPUtils.ComputeMinMaxThrust(vessel, out landingMinThrust, out landingMaxThrust, false, landingBurnEngines);
+        if (landingBurnEngines != null)
+          Debug.Log("[BoosterGuidance] ComputeMinMaxThrust min=" + landingMinThrust + " max=" + landingMaxThrust+" num="+landingBurnEngines.Count);
+        else
+          Debug.Log("[BoosterGuidance] ComputeMinMaxThrust min=" + landingMinThrust + " max=" + landingMaxThrust);
         double newLandingBurnAMax = landingMaxThrust / totalMass;
 
         if (Math.Abs(landingBurnAMax - newLandingBurnAMax) > 0.02)
@@ -475,6 +485,11 @@ namespace BoosterGuidance
       // LANDING BURN (suicide burn)
       if (phase == BLControllerPhase.LandingBurn)
       {
+        if ((landingBurnEngines != null) && (!setLandingEnginesDone) && (!simulate))
+        {
+          KSPUtils.SetActiveEngines(vessel, landingBurnEngines);
+          setLandingEnginesDone = true;
+        }
         av = Math.Max(0.1, landingBurnAMax - g); // wrong on first iteration
         if (y > 0)
           dvy = -Math.Sqrt((1 + suicideFactor) * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel

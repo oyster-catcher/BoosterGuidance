@@ -52,6 +52,23 @@ namespace BoosterGuidance
       return activeEngines;
     }
 
+    public static void SetActiveEngines(Vessel vessel, List<ModuleEngines> active)
+    {
+      foreach(var engine in KSPUtils.GetAllEngines(vessel))
+      {
+        if (active.Contains(engine))
+        {
+          if (!engine.isOperational)
+            engine.Activate();
+        }
+        else
+        {
+          if (engine.isOperational)
+            engine.Shutdown();
+        }
+      }
+    }
+
     public static List<ModuleEngines> GetAllEngines(Vessel vessel)
     {
       List<ModuleEngines> engines = new List<ModuleEngines>();
