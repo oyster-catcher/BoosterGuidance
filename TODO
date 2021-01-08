@@ -12,3 +12,5 @@
 - Compute distance from ground wherever you are landing
 - Failure to show AdvancedTab as NullReference to previous controller? possibly fixed
 - Lots of BoosterGuidanceCore.OnDestroy() exceptions with reference to non-instance (BLController). Why?
+- Landing Burn steer direction wrong for large test craft. Things aerodynamics dominates but it doesn't
+- Is setting the landing burn engines working correctly?
