@@ -269,22 +269,30 @@ namespace BoosterGuidance
       info_style.normal.textColor = Color.white;
       foreach(var controller in BoosterGuidanceCore.controllers)
       {
-        if ((controller != null) && (controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
+        try
         {
-          GUILayout.BeginHorizontal();
-          GUILayout.Label(controller.vessel.name + " ("+ (int)controller.vessel.altitude + "m)");
-          GUILayout.FlexibleSpace();
-          //if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
-          //  DisableGuidance();
-          GUILayout.EndHorizontal();
+          if ((controller != null) && (controller.enabled) && (controller.vessel != FlightGlobals.ActiveVessel))
+          {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(controller.vessel.name + " (" + (int)controller.vessel.altitude + "m)");
+            GUILayout.FlexibleSpace();
+            //if (GUILayout.Button("X", GUILayout.Width(26))) // Cancel guidance
+            //  DisableGuidance();
+            GUILayout.EndHorizontal();
 
-          GUILayout.BeginHorizontal();
-          GUILayout.Label("  " + controller.info, info_style);
-          GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("  " + controller.info, info_style);
+            GUILayout.EndHorizontal();
 
-          GUILayout.BeginHorizontal();
-          GUILayout.Label("  " + controller.PhaseStr(), info_style);
-          GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("  " + controller.PhaseStr(), info_style);
+            GUILayout.EndHorizontal();
+          }
+        }
+        catch(Exception e) // TODO - Use correct exception to invalid reference
+        {
+          Debug.Log("[BoosterGuidance] Removing controller: " + e.Message);
+          BoosterGuidanceCore.controllers.Remove(controller);
         }
       }
 
@@ -491,8 +499,7 @@ namespace BoosterGuidance
     public void Show()
     {
       hidden = false;
-      Targets.targetingCross.enabled = showTargets;
-      Targets.predictedCross.enabled = showTargets;
+      tab = 0; // Switch to main tab incase Advanced tab got broken
     }
 
     public void Hide()
