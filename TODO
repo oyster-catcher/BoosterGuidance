@@ -14,3 +14,6 @@
 - Lots of BoosterGuidanceCore.OnDestroy() exceptions with reference to non-instance (BLController). Why?
 - Landing Burn steer direction wrong for large test craft. Things aerodynamics dominates but it doesn't
 - Is setting the landing burn engines working correctly?
+- Messages when switching phase and reason why
+- Tool tips
+- Language translations
