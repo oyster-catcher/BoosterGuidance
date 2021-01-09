@@ -68,6 +68,9 @@ namespace BoosterGuidance
     [KSPField(isPersistant = true, guiActive = false)]
     public string phase = "Unset";
 
+    [KSPField(isPersistant = true, guiActive = false)]
+    public float aeroMult = 1;
+
     public bool logging = false;
     public bool useFAR = false;
     public string logFilename = "unset";
@@ -126,7 +129,7 @@ namespace BoosterGuidance
       other.deployLandingGear = deployLandingGear;
       other.deployLandingGearHeight = deployLandingGearHeight;
       // can't sensibly clone this to other cores as once staged they will have different sets of engines
-      other.landingBurnEngines = "current";
+      other.landingBurnEngines = landingBurnEngines;
       other.landingBurnMaxAoA = landingBurnMaxAoA;
       other.landingBurnSteerKp = landingBurnSteerKp;
       other.reentryBurnAlt = reentryBurnAlt;
@@ -190,6 +193,7 @@ namespace BoosterGuidance
 
     public string UnsetLandingBurnEngines()
     {
+      Debug.Log("[BoosterGuidance] UnsetLandingBurnEngines");
       landingBurnEngines = "current";
       if (controller != null)
         controller.SetLandingBurnEnginesFromString(landingBurnEngines);
@@ -223,6 +227,7 @@ namespace BoosterGuidance
         controller.deployLandingGear = deployLandingGear;
         controller.deployLandingGearHeight = deployLandingGearHeight;
         controller.igniteDelay = igniteDelay;
+        controller.aeroMult = aeroMult;
         controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       }
       CopyToOtherCores();

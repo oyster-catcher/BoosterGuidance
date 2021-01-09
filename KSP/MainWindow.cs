@@ -50,6 +50,7 @@ namespace BoosterGuidance
     bool deployLandingGear = true;
     EditableInt deployLandingGearHeight = 500;
     EditableInt igniteDelay = 3; // Needed for RO
+    double aeroMult = 1;
 
     // Targeting
     ITargetable lastVesselTarget = null;
@@ -256,6 +257,13 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
+      GUILayout.Label("Aero multiplier");
+      core.aeroMult = GUILayout.HorizontalSlider(core.aeroMult, 1, 5);
+      GUILayout.Label(string.Format("{0:F1}",core.aeroMult.ToString()));
+      GUILayout.EndHorizontal();
+
+
+      GUILayout.BeginHorizontal();
       debug = GUILayout.Toggle(debug, "Debug");
       Targets.showSteer = debug;
       GUILayout.EndHorizontal();
@@ -458,9 +466,7 @@ namespace BoosterGuidance
       else
       {
         if (GUILayout.Button("Unset"))  // Set to currently active engines
-        {
           numLandingBurnEngines = core.UnsetLandingBurnEngines();
-        }
       }
       GUILayout.EndHorizontal();
 
@@ -468,7 +474,6 @@ namespace BoosterGuidance
       GUILayout.Label("Steer", GUILayout.Width(40));
       core.landingBurnSteerKp = Mathf.Clamp(core.landingBurnSteerKp, 0, maxLandingBurnGain);
       core.landingBurnSteerKp = GUILayout.HorizontalSlider(core.landingBurnSteerKp, 0, maxLandingBurnGain);
-      //core.landingBurnSteerKp = Mathf.Exp(landingBurnSteerLogKp);
       GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
