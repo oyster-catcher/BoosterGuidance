@@ -257,9 +257,9 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Aero multiplier");
+      GUILayout.Label("Aero mult");
       core.aeroMult = GUILayout.HorizontalSlider(core.aeroMult, 1, 5);
-      GUILayout.Label(string.Format("{0:F1}",core.aeroMult.ToString()));
+      GUILayout.Label(((int)core.aeroMult).ToString(), GUILayout.Width(15));
       GUILayout.EndHorizontal();
 
 
