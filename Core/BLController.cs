@@ -54,7 +54,6 @@ namespace BoosterGuidance
     //private double logInterval = 0.1f;
     private Transform logTransform;
     private const float deg2rad = Mathf.PI / 180;
-    private bool calibrate = true;
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
@@ -150,7 +149,6 @@ namespace BoosterGuidance
     
     public void SetLandingBurnEnginesFromString(string s)
     {
-      Debug.Log("[BoosterGuidance] SetLandingBurnEngines " + s);
       if (vessel == null)
         return;
       if (s == "current")
@@ -175,8 +173,6 @@ namespace BoosterGuidance
             Debug.Log("[BoosterGuidance] Found invalid string '" + s + "' for landingBurnEngines. Expected a boolean list of active engines. e.g. 0,0,1,1,0 or current");
         }
       }
-      if (landingBurnEngines != null)
-        Debug.Log("[BoosterGuidance] Set landing burn engines from string "+s+" "+landingBurnEngines.Count);
       setLandingEnginesDone = false;
     }
 
@@ -234,10 +230,7 @@ namespace BoosterGuidance
         fp = new System.IO.StreamWriter(filename+".Actual.dat");
         logFilename = filename;
         logTransform = Targets.SetUpTransform(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
-        if (calibrate)
-          fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax steer_gain target_error totalMass AOA actual_lift predicted_lift");
-        else
-          fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax steer_gain target_error totalMass");
+        fp.WriteLine("time phase x y z vx vy vz ax ay az att_err amin amax steer_gain target_error totalMass");
         logStartTime = vessel.missionTime;
         LogSimulation();
       }
@@ -264,32 +257,6 @@ namespace BoosterGuidance
       return adj;
     }
 
-    private double PredictedLift(Vector3d vel_air, Vector3d r, double y, double AoA)
-    {
-      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r - vessel.mainBody.position, vel_air, 180 * deg2rad); // 180 degrees (retrograde);
-
-      Debug.Log("[BoosterGuidance] velairTOaero ang=" + HGUtils.angle_between(-vel_air, Faero));
-
-      // Find lift by just considering change in aero force vector
-      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r - vessel.mainBody.position, vel_air, (180 - AoA) * deg2rad);
-
-      // Calculate lift vector orthogonal to the drag vector when retrograde
-      //Vector3d Flift = Faero2 - Vector3d.Project(Faero2, Vector3d.Normalize(Faero));
-      Vector3d Flift = (Faero2 - Faero) - Vector3d.Project(Faero2 - Faero, Faero);
-
-      return Flift.magnitude * aeroMult;
-    }
-
-    private double ActualLift(Vector3d r, Vector3d vel_air, Vector3d last_vel_air, double dt)
-    {
-      // Acceleration
-      Vector3d F = vessel.totalMass * (vel_air - last_vel_air) / dt;
-      // g
-      // Lift is orthogonal to velocity in air - gravity ignored (assume at terminal velocity)
-      Vector3d Flift = F - Vector3d.Project(F, Vector3d.Normalize(vel_air));
-      return Flift.magnitude;
-    }
-
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass, bool log)
     {
       Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r - vessel.mainBody.position, vel_air, 180 * deg2rad); // 180 degrees (retrograde);
@@ -298,13 +265,10 @@ namespace BoosterGuidance
       Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r - vessel.mainBody.position, vel_air, (180 - 15) * deg2rad);
 
       // Calculate lift vector orthogonal to the drag vector when retrograde
-      //Vector3d Flift = Faero2 - Vector3d.Project(Faero2, Vector3d.Normalize(Faero));
       Vector3d Fdiff = Faero2 - Faero;
       Vector3d Flift = Fdiff - Vector3d.Project(Fdiff, Faero);
 
       double sideFA = Flift.magnitude; // aero dynamic lift at 15 degrees AoA
-      // Fudge factor
-      sideFA = sideFA * aeroMult;
       double thrust = minThrust + throttle * (maxThrust - minThrust);
       double sideFT = thrust * Math.Sin(15 * deg2rad); // sideways component of thrust at 15 degrees
       double gain = 0;
@@ -345,17 +309,6 @@ namespace BoosterGuidance
       double amax = maxThrust / totalMass;
       float minThrottle = 0.01f;
       BLControllerPhase lastPhase = phase;
-
-      // Actual height from all objects when low in case we land in the wrong place
-      // Doesn't work!
-      /*
-      if ((y < 500) && (!simulate))
-      {
-        y = vessel.GetHeightFromSurface() - touchdownMargin + lowestY;
-        //if (!simulate)
-        //  Debug.Log("[BoosterGuidance] using heightFromSurface y=" + y);
-      }
-      */
 
       System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
       timer.Start();
@@ -444,7 +397,7 @@ namespace BoosterGuidance
 
         if (!simulate)
         {
-          pid_reentry.kp = reentryBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass, !simulate);
+          pid_reentry.kp = reentryBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass, false);
           steerGain = pid_reentry.kp;
           double ang = pid_reentry.Update(error.magnitude, Time.deltaTime);
           steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, reentryBurnMaxAoA);
@@ -458,17 +411,13 @@ namespace BoosterGuidance
       // AERO DESCENT
       if (phase == BLControllerPhase.AeroDescent)
       {
-        pid_aero.kp = aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass, !simulate);
+        pid_aero.kp = aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass, false);
         steerGain = pid_aero.kp;
         double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
         steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, aeroDescentMaxAoA);
 
         double landingMinThrust, landingMaxThrust;
         KSPUtils.ComputeMinMaxThrust(vessel, out landingMinThrust, out landingMaxThrust, false, landingBurnEngines);
-        if (landingBurnEngines != null)
-          Debug.Log("[BoosterGuidance] ComputeMinMaxThrust min=" + landingMinThrust + " max=" + landingMaxThrust+" num="+landingBurnEngines.Count);
-        else
-          Debug.Log("[BoosterGuidance] ComputeMinMaxThrust min=" + landingMinThrust + " max=" + landingMaxThrust);
         double newLandingBurnAMax = landingMaxThrust / totalMass;
 
         if (Math.Abs(landingBurnAMax - newLandingBurnAMax) > 0.02)
@@ -488,8 +437,6 @@ namespace BoosterGuidance
       // LANDING BURN (suicide burn)
       if (phase == BLControllerPhase.LandingBurn)
       {
-        if (!simulate)
-          Debug.Log("[BoosterGuidance] setLandingEnginesDone=" + setLandingEnginesDone + " landingBurnEngines=" + landingBurnEngines);
         if ((landingBurnEngines != null) && (!setLandingEnginesDone) && (!simulate))
         {
           KSPUtils.SetActiveEngines(vessel, landingBurnEngines);
@@ -510,7 +457,7 @@ namespace BoosterGuidance
         {
           double ang;
           // If almost no throttle then still use aero steering gain
-          pid_landing.kp = landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass, !simulate);
+          pid_landing.kp = landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass, false);
           steerGain = pid_landing.kp;
           ang = pid_landing.Update(error.magnitude, Time.deltaTime);
           // Steer retrograde with added up component to damp oscillations at slow speed near ground
@@ -549,20 +496,7 @@ namespace BoosterGuidance
         Vector3d tr = logTransform.InverseTransformPoint(r);
         Vector3d tv = logTransform.InverseTransformVector(vel_air);
         Vector3d ta = logTransform.InverseTransformVector(a);
-        if (calibrate)
-        {
-          double AoA = HGUtils.angle_between(-vel_air, att);
-          double actual_lift = ActualLift(r, vel_air, last_vel_air, t - lastt);
-          double predicted_lift = PredictedLift(vel_air, r, y, AoA);
-          double l0 = PredictedLift(vel_air, r, y, 0);
-          double l5 = PredictedLift(vel_air, r, y, 5);
-          double l10 = PredictedLift(vel_air, r, y, 10);
-          double l15 = PredictedLift(vel_air, r, y, 15);
-          Debug.Log("[BoosterGuidance] alt="+y+" vel="+vel_air.magnitude+" lift0=" + l0 + " lift5=" + l5 + " lift10=" + l10 + " lift15=" + l15);
-          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2} {17:F1} {18:F2} {19:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass, AoA, actual_lift, predicted_lift);
-        }
-        else
-          fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
+        fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
         logLastTime = t;
         last_vel_air = vel_air;
       }

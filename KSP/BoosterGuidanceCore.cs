@@ -86,7 +86,6 @@ namespace BoosterGuidance
     {
       if (controller != null)
         DisableGuidance();
-      Debug.Log("[BoosterGuidance] BoosterGuidanceCore.OnDestroy()");
     }
 
     // Find first BoosterGuidanceCore module for vessel
@@ -125,10 +124,8 @@ namespace BoosterGuidance
 
     public void CopyToOtherCore(BoosterGuidanceCore other)
     {
-      //Debug.Log("[BoosterGuidance] CopyToOtherCore");
       other.deployLandingGear = deployLandingGear;
       other.deployLandingGearHeight = deployLandingGearHeight;
-      // can't sensibly clone this to other cores as once staged they will have different sets of engines
       other.landingBurnEngines = landingBurnEngines;
       other.landingBurnMaxAoA = landingBurnMaxAoA;
       other.landingBurnSteerKp = landingBurnSteerKp;
@@ -227,7 +224,6 @@ namespace BoosterGuidance
         controller.deployLandingGear = deployLandingGear;
         controller.deployLandingGearHeight = deployLandingGearHeight;
         controller.igniteDelay = igniteDelay;
-        controller.aeroMult = aeroMult;
         controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       }
       CopyToOtherCores();
@@ -302,18 +298,13 @@ namespace BoosterGuidance
     [KSPAction("Disable BoosterGuidance")]
     public void DisableGuidance(KSPActionParam param)
     {
-      Debug.Log("[BoosterGuidance] Disabling Guidance");
       if (controller != null)
       {
-        Debug.Log("[BoosterGuidance] RemoveController");
         RemoveController(controller);
-        Debug.Log("[BoosterGuidance] stopLogging");
         controller.StopLogging();
-        Debug.Log("[BoosterGuidance] Disabled Guidance for vessel " + controller.vessel.name);
       }
       if ((vessel) && vessel.enabled) // extra checks
       {
-        Debug.Log("[BoosterGuidance] Removing FlyByWire");
         vessel.OnFlyByWire -= new FlightInputCallback(Fly);
         vessel.Autopilot.Disable();
       }

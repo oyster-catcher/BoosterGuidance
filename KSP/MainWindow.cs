@@ -50,7 +50,6 @@ namespace BoosterGuidance
     bool deployLandingGear = true;
     EditableInt deployLandingGearHeight = 500;
     EditableInt igniteDelay = 3; // Needed for RO
-    double aeroMult = 1;
 
     // Targeting
     ITargetable lastVesselTarget = null;
@@ -255,13 +254,6 @@ namespace BoosterGuidance
       GUILayout.BeginHorizontal();
       GuiUtils.SimpleTextBox("Engine startup", igniteDelay, "s", 65);
       GUILayout.EndHorizontal();
-
-      GUILayout.BeginHorizontal();
-      GUILayout.Label("Aero mult");
-      core.aeroMult = GUILayout.HorizontalSlider(core.aeroMult, 1, 5);
-      GUILayout.Label(((int)core.aeroMult).ToString(), GUILayout.Width(15));
-      GUILayout.EndHorizontal();
-
 
       GUILayout.BeginHorizontal();
       debug = GUILayout.Toggle(debug, "Debug");
