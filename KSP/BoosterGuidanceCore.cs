@@ -245,6 +245,15 @@ namespace BoosterGuidance
       }
     }
 
+    [KSPAction("Toggle BoosterGuidance")]
+    public void ToggleGuidance(KSPActionParam param)
+    {
+      if (controller == null)
+        EnableGuidance(param);
+      else
+        DisableGuidance(param);
+    }
+
     public void EnableGuidance()
     {
       KSPActionParam param = new KSPActionParam(KSPActionGroup.None, KSPActionType.Activate);
