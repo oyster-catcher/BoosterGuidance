@@ -1,6 +1,9 @@
 v1.1.0
 - Finally fixed steer gain calculation (perhaps) as several bugs discovered
 - Added action group to toggle guidance
+- Added language localization tags for all text. Included en-us.cfg
+- Reports messages to screen from controller such as phase changes
+- Landing burn gain reduced
 
 v1.0.4
 - Will now always use FerramAerospaceResearch for aerodynamic calculations if its available. FAR seems to predict higher drag so landing burn alt often way lower
@@ -28,13 +31,11 @@ v1.0.3
 - Bug fix to ensure target is updated for vessel
 - Added ModuleManager DLL as Command Modules are patched to add BoosterGuidanceVesselSettings module
 - Reports message to user when vessels go outside the 20km physics bubble and can no longer be controlled due to game limitation
-Other changes/bug fixes
-
-Fixes for navigation target bugs such as stickiness
-Fixes when setting target to another vessel
-Fix bug which randomly set target to below current position when it wasn't set (in fact it was set but was just switching vessels)
-Use extra thrust in landing burn when vessel is leaned over (previously calculated thrust assuming vertical which could lead to insufficient thrust and a crash)
-Target can be set anywhere on planet in Flight or Map modes
+- Fixes for navigation target bugs such as stickiness
+- Fixes when setting target to another vessel
+- Fix bug which randomly set target to below current position when it wasn't set (in fact it was set but was just switching vessels)
+- Use extra thrust in landing burn when vessel is leaned over (previously calculated thrust assuming vertical which could lead to insufficient thrust and a crash)
+- Target can be set anywhere on planet in Flight or Map modes
 
 v1.0.2
 - Major improvements to pick targets. You can now pick a target anywhere in the flight or map view!
