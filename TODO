@@ -6,14 +6,9 @@
 - Prediction target shifts and jumps sometimes on Mun. Possibly only on timewarp and fixed?
 - Keep thrust high for re-entry when velocity means predicted impact is moving fast away from us (activate from orbit)
 - sometimes problem with sharing violation on logging when enable/disable guidance
-- sometimes massive prediction target shows
-- Both targets sometimes too big. Odd because size is calculated every frame they are drawn
 - Add info message which give hints about settings: touchdown margin, no steer height and touchdown speed
 - Compute distance from ground wherever you are landing
-- Failure to show AdvancedTab as NullReference to previous controller? possibly fixed
-- Lots of BoosterGuidanceCore.OnDestroy() exceptions with reference to non-instance (BLController). Why?
-- Landing Burn steer direction wrong for large test craft. Things aerodynamics dominates but it doesn't
-- Is setting the landing burn engines working correctly?
 - Messages when switching phase and reason why
 - Tool tips
 - Language translations
+- Add Guidance Toggle as action group

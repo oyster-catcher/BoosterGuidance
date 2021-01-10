@@ -1,0 +1,44 @@
+v1.1.0
+- Finally fixed steer gain calculation (perhaps) as several bugs discovered
+
+v1.0.4
+- Will now always use FerramAerospaceResearch for aerodynamic calculations if its available. FAR seems to predict higher drag so landing burn alt often way lower
+- Better calculation of lift which means vessels should steer in the correct direction in landing burn (mostly!)
+- Considers aerodynamic lift in re-entry burn so if this lasts to the thick atmosphere steering will reverse
+- Only sign of gain (steer direction), rather than value is calculated by aerodynamic lift vs thrust. This means that gains are more stable between different vessel, RO, FAR, etc... and leads to less over-steering. Steer gain is still best set to max angle of 1-5 degrees with FAR though (for a typical Falcon-9 with gridfins) otherwise over-steers
+- Will cutout engine in final landing burn if too much minimum thrust. Only occurs in RO. This is hit and miss due to the time to throttle down engine
+- Major re-factoring to use BoosterGuidanceCore (the vessel part) as a central class. Code is cleaner and more reliable and fewer bugs for load/save/switch vessel
+- Target error is reported in km when >100km
+- Bug fixes to show/hide prediction/target
+- Size of prediction/target on map reduced
+- Click through prevention for pick target when under window
+- Many minor bug fixes
+- Stores engine ignite delay with BoosterGuidanceCore
+- Enable/Disable Guidance added as an Action Group
+
+v1.0.3a
+- Removed ModuleManager from zip file (ModuleManager is required though to include the BoosterGuidance settings in saved craft's and games, so please ensure it is installed)
+
+v1.0.3
+- Improvements for controlling multiple vessels simultaneously
+- Lots of bug fixes when switching vessels, e.g. show correct target, use correct settings
+- Add settings module which means settings are saved (e.g. target, re-entry alt, etc...) with the vessel in saved games. Will even save enable/disable guidance and phase so quick saves continue with vessels still controlled
+- Advanced menu can show brief info about other controlled vessels
+- Bug fix to ensure target is updated for vessel
+- Added ModuleManager DLL as Command Modules are patched to add BoosterGuidanceVesselSettings module
+- Reports message to user when vessels go outside the 20km physics bubble and can no longer be controlled due to game limitation
+Other changes/bug fixes
+
+Fixes for navigation target bugs such as stickiness
+Fixes when setting target to another vessel
+Fix bug which randomly set target to below current position when it wasn't set (in fact it was set but was just switching vessels)
+Use extra thrust in landing burn when vessel is leaned over (previously calculated thrust assuming vertical which could lead to insufficient thrust and a crash)
+Target can be set anywhere on planet in Flight or Map modes
+
+v1.0.2
+- Major improvements to pick targets. You can now pick a target anywhere in the flight or map view!
+- Increased touchdown margin for safety as rockets were crashing into the ground
+- In landing burn compensates for leaned over rockets by using extra thrust
+- Can now set target to navigation waypoints (note that they are currently sticky and you can't edit the lat/lon/alt until waypoint is deactivated)
+- Landing on Mun better tested and works but sometimes timewarp seems to move vessel oddly and throw out predictions (very odd)
+- Can now edit lat/lon with arrow adjusters so you can now fly back multiple cores and ensure they don't land on each other!
