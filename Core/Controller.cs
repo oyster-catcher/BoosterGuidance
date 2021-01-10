@@ -29,7 +29,7 @@ namespace BoosterGuidance
     {
     }
 
-    virtual public void GetControlOutputs(Vessel vessel,
+    virtual public string GetControlOutputs(Vessel vessel,
                double totalMass,
                Vector3d r, Vector3d v, Vector3d att,
                double y, double amin, double amax, double t,
@@ -44,6 +44,7 @@ namespace BoosterGuidance
       throttle = 0;
       steer = Vector3d.up;
       landingGear = false;
+      return "";
     }
 
     virtual public string PhaseStr()
