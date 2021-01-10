@@ -1,5 +1,6 @@
 v1.1.0
 - Finally fixed steer gain calculation (perhaps) as several bugs discovered
+- Added action group to toggle guidance
 
 v1.0.4
 - Will now always use FerramAerospaceResearch for aerodynamic calculations if its available. FAR seems to predict higher drag so landing burn alt often way lower

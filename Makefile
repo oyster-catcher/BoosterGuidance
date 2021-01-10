@@ -15,6 +15,7 @@ BoosterGuidance-${VER}.zip: ./obj/Release/BoosterGuidance.dll ${GAMEDATADEPS}
 	cp LICENSE GameData/BoosterGuidance
 	cp README.md GameData/BoosterGuidance
 	cp CHANGES GameData/BoosterGuidance
+	cp -r KSP/Localization GameData/BoosterGuidance
 	rm -f BoosterGuidance-${VER}.zip
 	cd GameData; find BoosterGuidance | zip -@ ../BoosterGuidance-${VER}.zip
 

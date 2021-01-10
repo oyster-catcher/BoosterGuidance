@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using KSP;
+using KSP.Localization;
 
 namespace BoosterGuidance
 {
@@ -59,6 +59,7 @@ namespace BoosterGuidance
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
     private String logFilename; // basename for logging of several files
     private bool setLandingEnginesDone = false;
+    private bool noSteerReported = false;
 
     // Outputs
     public Vector3d predWorldPos = Vector3d.zero;
@@ -201,16 +202,16 @@ namespace BoosterGuidance
     public override string PhaseStr()
     {
       if (phase == BLControllerPhase.BoostBack)
-        return "Boostback";
+        return Localizer.Format("#BoosterGuidance_Boostback");
       if (phase == BLControllerPhase.Coasting)
-        return "Coasting";
+        return Localizer.Format("#BoosterGuidance_Coasting");
       if (phase == BLControllerPhase.ReentryBurn)
-        return "Re-entry Burn";
+        return Localizer.Format("#BoosterGuidance_ReentryBurn");
       if (phase == BLControllerPhase.AeroDescent)
-        return "Aero Descent";
+        return Localizer.Format("#BoosterGuidance_AeroDescent");
       if (phase == BLControllerPhase.LandingBurn)
-        return "Landing Burn";
-      return "Unset";
+        return Localizer.Format("#BoosterGuidance_LandingBurn");
+      return Localizer.Format("#BoosterGuidance_Unset");
     }
 
     public void LogSimulation()
@@ -296,7 +297,7 @@ namespace BoosterGuidance
       return gain;
     }
 
-    public override void GetControlOutputs(
+    public override string GetControlOutputs(
                     Vessel vessel,
                     double totalMass, 
                     Vector3d r, // world pos
@@ -326,6 +327,7 @@ namespace BoosterGuidance
 
       System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
       timer.Start();
+      string msg = ""; // return message about the status
 
       steer = lastSteer;
       throttle = lastThrottle;
@@ -337,7 +339,7 @@ namespace BoosterGuidance
         throttleGain = 5 / (amax - amin); // cancel velocity over 1.25 seconds
 
       if ((t < lastt + 1.0/Math.Max(simulationsPerSec,0.1)) && (y>500))
-        return;
+        return msg;
 
       // No thrust - retrograde relative to surface (default and Coasting phase
       throttle = 0;
@@ -376,18 +378,27 @@ namespace BoosterGuidance
         if ((targetError > minError * 1.5) || (targetError < 10))
         {
           if (targetError < 5000) // check if error changes dramatically but still far from target
+          {
             phase = BLControllerPhase.Coasting;
+            msg = Localizer.Format("#BoosterGuidance_SwitchedToCoasting");
+          }
         }
         minError = Math.Min(targetError, minError);
         if ((y < reentryBurnAlt) && (vy < 0)) // falling
+        {
           phase = BLControllerPhase.ReentryBurn;
+          msg = Localizer.Format("#BoosterGuidance_SwitchedToReentryBurn");
+        }
       }
 
       // COASTING
       if (phase == BLControllerPhase.Coasting)
       {
         if ((y < reentryBurnAlt) && (vy < 0))
+        {
           phase = BLControllerPhase.ReentryBurn;
+          msg = Localizer.Format("#BoosterGuidance_SwitchedToReentryBurn");
+        }
       }
 
       // Set default gains for steering
@@ -402,12 +413,15 @@ namespace BoosterGuidance
         if (errv > 0)
         {
           double newThrottle = HGUtils.LinearMap((double)y, (double)reentryBurnAlt, (double)reentryBurnAlt - 8000, 0.1, 1);
-          double da = g + Math.Max(errv * 0.4,10); // attempt to cancel 40% of extra velocity in 1 second and min of 10m/s/s
-          newThrottle = (da - amin)/(0.01 + amax - amin) ; 
+          double da = g + Math.Max(errv * 0.4, 10); // attempt to cancel 40% of extra velocity in 1 second and min of 10m/s/s
+          newThrottle = (da - amin) / (0.01 + amax - amin);
           throttle = HGUtils.Clamp(newThrottle, minThrottle, 1);
         }
         else
+        {
           phase = BLControllerPhase.AeroDescent;
+          msg = Localizer.Format("#BoosterGuidance_SwitchedToAeroDescent");
+        }
 
         if (!simulate)
         {
@@ -443,6 +457,7 @@ namespace BoosterGuidance
         {
           lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
           phase = BLControllerPhase.LandingBurn;
+          msg = Localizer.Format("#BoosterGuidance_SwitchedToLandingBurn");
         }
         // Interpolate to avoid rapid swings
         steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation to damp rapid oscillations
@@ -454,6 +469,7 @@ namespace BoosterGuidance
         if ((landingBurnEngines != null) && (!setLandingEnginesDone) && (!simulate))
         {
           KSPUtils.SetActiveEngines(vessel, landingBurnEngines);
+          msg = string.Format(Localizer.Format("#BoosterGuidance_SetXEnginesForLanding", landingBurnEngines.Count.ToString()));
           setLandingEnginesDone = true;
         }
         av = Math.Max(0.1, landingBurnAMax - g); // wrong on first iteration
@@ -481,6 +497,11 @@ namespace BoosterGuidance
         {
           // Just cancel velocity with significant upwards component to stay upright
           steer = -Vector3d.Normalize(vel_air - 20 * up);
+        }
+        if ((y < noSteerHeight) && (!noSteerReported))
+        {
+          msg = string.Format(Localizer.Format("#BoosterGuidance_NoSteerHeightReached"));
+          noSteerReported = true;
         }
     
         // Decide to shutdown engines for final touch down? (within 3 secs)
@@ -533,16 +554,36 @@ namespace BoosterGuidance
       elapsed_secs = timer.ElapsedMilliseconds * 0.001;
 
       // Set info message
-
       string tgtErrStr;
-      if (targetError > 100000)
-        tgtErrStr = string.Format("{0:F0}km", targetError * 0.001);
+      if (targetError > 1000)
+        if (targetError > 100000)
+          tgtErrStr = string.Format("{0:F0}km", targetError * 0.001);
+        else
+        {
+          if (targetError > 10000)
+            tgtErrStr = string.Format("{0:F1}km", targetError * 0.001);
+          else
+            tgtErrStr = string.Format("{0:F2}km", targetError * 0.001);
+        }
       else
         tgtErrStr = string.Format("{0:F0}m", targetError);
       if (vessel.checkLanded())
-        info = string.Format("Landed {0} from target", tgtErrStr);
+      {
+        info = string.Format(Localizer.Format("#BoosterGuidance_LandedXFromTarget", tgtErrStr));
+      }
       else
-        info = string.Format("Err: {0} {1:F0}° Time: {2:F0}s [{3:F0}ms]", tgtErrStr, attitudeError, targetT, elapsed_secs * 1000);
+      {
+        string s1 = tgtErrStr;
+        string s2 = string.Format("{0:F0}", attitudeError);
+        string s3 = string.Format("{0:F0}", targetT);
+        string s4 = string.Format("{0:F0}", elapsed_secs * 1000);
+        info = string.Format(Localizer.Format("#BoosterGuidance_ErrorXTimeXCPUX", s1, s2, s3, s4));
+      }
+
+      if (msg != "")
+        info = msg;
+
+      return msg;
     }
   }  
 }
