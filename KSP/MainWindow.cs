@@ -25,9 +25,9 @@ namespace BoosterGuidance
     int tab = 0;
     bool hidden = true;
     BoosterGuidanceCore core = null;
-    float maxReentryGain = 0.001f;
-    float maxAeroDescentGain = 0.002f;
-    float maxLandingBurnGain = 0.002f;
+    float maxReentryGain = 3;
+    float maxAeroDescentGain = 3;
+    float maxLandingBurnGain = 3;
     float maxSteerAngle = 30; // 30 degrees
     Rect windowRect = new Rect(150, 150, 220, 520);
 
@@ -466,6 +466,7 @@ namespace BoosterGuidance
       GUILayout.Label("Steer", GUILayout.Width(40));
       core.landingBurnSteerKp = Mathf.Clamp(core.landingBurnSteerKp, 0, maxLandingBurnGain);
       core.landingBurnSteerKp = GUILayout.HorizontalSlider(core.landingBurnSteerKp, 0, maxLandingBurnGain);
+      //Debug.Log("[BoosterGuidance] Slider kp=" + core.landingBurnSteerKp + " maxLandingBurnGain=" + maxLandingBurnGain);
       GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 

@@ -24,13 +24,13 @@ namespace BoosterGuidance
     // Public parameters
     public double touchdownSpeed = 3;
     public double aeroDescentMaxAoA = 20;
-    public double aeroDescentSteerKp = 0.01f;
+    public double aeroDescentSteerKp = 0.001f;
     public double reentryBurnAlt = 70000;
     public double reentryBurnTargetSpeed = 700;
-    public double reentryBurnSteerKp = 0.005f;
+    public double reentryBurnSteerKp = 0.001f;
     public double reentryBurnMaxAoA = 20;
     public double landingBurnHeight = 0; // Maximum altitude to enable powered descent
-    public double landingBurnSteerKp = 0.01f;
+    public double landingBurnSteerKp = 0.001f;
     public double landingBurnMaxAoA = 10;
     private double suicideFactor = 0.9f;
     private double lowestY = 0;
@@ -44,16 +44,16 @@ namespace BoosterGuidance
     public double touchdownMargin = 30; // use touchdown speed from this height
     public double noSteerHeight = 200;
     public bool useFAR = false;
-    public float aeroMult = 0.3f;
 
     // Private parameters
     private double minError = double.MaxValue;
     private System.IO.StreamWriter fp = null;
     private double logStartTime;
     private double logLastTime = 0;
-    //private double logInterval = 0.1f;
     private Transform logTransform;
     private const float deg2rad = Mathf.PI / 180;
+    private float aeroMult = 3;
+    private float aeroThrustPropMargin = 0.3f; // if FAaero or Fthrust more than 10% of max(FAero,Fthrust) play safe the don't steer
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
     private double landingBurnAMax = 100; // amax when landing burn alt computed (so we can recalc if needed)
@@ -122,6 +122,7 @@ namespace BoosterGuidance
 
     public void InitReentryBurn(float kP, float maxAngle, double alt, double tgtSpeed)
     {
+      pid_reentry = new PIDclamp("reentrySteer", 1, 0, 0, maxAngle);
       reentryBurnSteerKp = kP;
       reentryBurnMaxAoA = maxAngle;
       reentryBurnAlt = alt;
@@ -130,13 +131,15 @@ namespace BoosterGuidance
 
     public void InitAeroDescent(float kP, float maxAngle)
     {
-      pid_aero = new PIDclamp("aeroSteer", kP, 0, 0, maxAngle);
+      pid_aero = new PIDclamp("aeroSteer", 1, 0, 0, maxAngle);
+      aeroDescentSteerKp = kP;
       aeroDescentMaxAoA = maxAngle;
     }
 
     public void InitLandingBurn(float kP, float maxAngle)
     {
-      pid_landing = new PIDclamp("landingSteer", kP, 0, 0, maxAngle);
+      pid_landing = new PIDclamp("landingSteer", 1, 0, 0, maxAngle);
+      landingBurnSteerKp = kP;
       landingBurnMaxAoA = maxAngle;
     }
 
@@ -268,18 +271,29 @@ namespace BoosterGuidance
       Vector3d Fdiff = Faero2 - Faero;
       Vector3d Flift = Fdiff - Vector3d.Project(Fdiff, Faero);
 
-      double sideFA = Flift.magnitude; // aero dynamic lift at 15 degrees AoA
+      double sideFA = Flift.magnitude * aeroMult; // aero dynamic lift at 15 degrees AoA
       double thrust = minThrust + throttle * (maxThrust - minThrust);
       double sideFT = thrust * Math.Sin(15 * deg2rad); // sideways component of thrust at 15 degrees
       double gain = 0;
       // When its a toss up whether thrust or aerodynamic steering is better gain can become very high or infinite
+
       // Dont steer in the region since the gain estimate might also have the wrong sign
+      // This ensures that either the thrust or aero factor is more than twice the size of the other in order to steer at all
+      if (Math.Min(sideFA, sideFT) / Math.Max(sideFA, sideFT) > aeroThrustPropMargin)
+      {
+        gain = 0;
+        if (log)
+          Debug.Log("[BoosterGuidance] sideFA(15 degrees)=" + sideFA + " sideFT(15 degrees)=" + sideFT + " throttle=" + throttle + " alt=" + vessel.altitude + " gain=" + gain + " minThrust=" + minThrust + " maxThrust=" + maxThrust);
+        return gain;
+      }
+
       if (Math.Abs(sideFA - sideFT) > 0)
         gain = totalMass / (sideFA - sideFT);
-      if (log)
-        Debug.Log("[BoosterGuidance] sideFA(15 degrees)=" + sideFA + " sideFT(15 degrees)=" + sideFT + " throttle=" + throttle + " alt="+ vessel.altitude + " gain=" + gain+" minThrust="+minThrust+" maxThrust="+maxThrust);
 
-      return Math.Sign(gain);
+      if (log)
+        Debug.Log("[BoosterGuidance] sideFA(15 degrees)=" + sideFA + " sideFT(15 degrees)=" + sideFT + " throttle=" + throttle + " alt=" + vessel.altitude + " gain=" + gain + " minThrust=" + minThrust + " maxThrust=" + maxThrust);
+
+      return gain;
     }
 
     public override void GetControlOutputs(
