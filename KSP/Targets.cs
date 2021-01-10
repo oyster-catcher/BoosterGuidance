@@ -60,7 +60,8 @@ namespace BoosterGuidance
         predictedCross = FlightCamera.fetch.mainCamera.gameObject.AddComponent<Targets.PredictionCross>();
       }
       targetingCross.SetColor(Color.yellow);
-      targetingCross.SetLatLonAlt(tgtBody, tgtLat, tgtLon, tgtAlt);
+      if (tgtBody != null)
+        targetingCross.SetLatLonAlt(tgtBody, tgtLat, tgtLon, tgtAlt);
       targetingCross.enabled = true;
       predictedCross.SetColor(Color.red);
       predictedCross.enabled = false;

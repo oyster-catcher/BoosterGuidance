@@ -75,6 +75,7 @@ namespace BoosterGuidance
     public bool useFAR = false;
     public string logFilename = "unset";
     private string info = "Disabled";
+    private bool reportedLandingGear = false;
 
     // Flight controller with copy of these settings
     BLController controller = null;
@@ -244,6 +245,15 @@ namespace BoosterGuidance
       }
     }
 
+    [KSPAction("Toggle BoosterGuidance")]
+    public void ToggleGuidance(KSPActionParam param)
+    {
+      if (controller == null)
+        EnableGuidance(param);
+      else
+        DisableGuidance(param);
+    }
+
     public void EnableGuidance()
     {
       KSPActionParam param = new KSPActionParam(KSPActionGroup.None, KSPActionType.Activate);
@@ -254,16 +264,17 @@ namespace BoosterGuidance
     public void EnableGuidance(KSPActionParam param)
     {
       controller = new BLController(vessel, useFAR);
+      reportedLandingGear = false;
       Changed(); // updates controller
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
       {
-        GuiUtils.ScreenMessage("No target set!");
+        GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_NoTargetSet"));
         return;
       }
       if (!controller.enabled)
       {
-        Debug.Log("[BoosterGuidnace] Enabled Guidance for vessel " + FlightGlobals.ActiveVessel.name);
+        Debug.Log("[BoosterGuidance] Enabled Guidance for vessel " + FlightGlobals.ActiveVessel.name);
         Vessel vessel = FlightGlobals.ActiveVessel;
         Targets.RedrawTarget(vessel.mainBody, tgtLatitude, tgtLongitude, tgtAlt);
         vessel.Autopilot.Enable(VesselAutopilot.AutopilotMode.StabilityAssist);
@@ -272,7 +283,7 @@ namespace BoosterGuidance
         vessel.OnFlyByWire += new FlightInputCallback(Fly);
       }
       controller.SetPhase(BLControllerPhase.Unset);
-      GuiUtils.ScreenMessage("Enabled " + controller.PhaseStr());
+      GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_Enabled") + " " + controller.PhaseStr());
       controller.enabled = true;
       AddController(controller);
     }
@@ -308,7 +319,7 @@ namespace BoosterGuidance
         vessel.OnFlyByWire -= new FlightInputCallback(Fly);
         vessel.Autopilot.Disable();
       }
-      GuiUtils.ScreenMessage("Disabled Guidance");
+      GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_DisabledGuidance"));
       controller = null;
     }
 
@@ -325,16 +336,21 @@ namespace BoosterGuidance
 
       bool landingGear;
       bool bailOutLandingBurn = true; // cut thrust if near ground and have too much thrust to reach ground
-      controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
+      string msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
         controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn);
-      if ((landingGear) && KSPUtils.DeployLandingGear(vessel))
-        GuiUtils.ScreenMessage("Deploying landing gear");
+      if ((landingGear) && (!reportedLandingGear))
+      {
+        KSPUtils.DeployLandingGear(vessel);
+        GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_DeployingLandingGear"));
+      }
+
+      if (msg != "")
+        GuiUtils.ScreenMessage(msg);
 
       if (vessel.checkLanded())
       {
         DisableGuidance();
         state.mainThrottle = 0;
-        GuiUtils.ScreenMessage("Vessel " + controller.vessel.name + " landed!");
         return;
       }
    

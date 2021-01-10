@@ -163,7 +163,8 @@ namespace BoosterGuidance
           tgtLongitude = target.longitude;
           tgtAlt = (int)target.altitude;
           core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
-          GuiUtils.ScreenMessage("Picked target location " + target.name);
+          string msg = String.Format(Localizer.Format("#BoosterGuidance_TargetSetToX"),target.name);
+          GuiUtils.ScreenMessage(msg);
         }
         lastVesselTarget = core.vessel.targetObject;
       }
@@ -188,7 +189,8 @@ namespace BoosterGuidance
           //tgtAlt = (int)nav.Altitude;
           tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
           core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
-          GuiUtils.ScreenMessage("Target set to nav location " + pos.ToStringDMS());
+          string msg = String.Format(Localizer.Format("#BoosterGuidance_TargetSetToX"), pos.ToStringDMS());
+          GuiUtils.ScreenMessage(msg);
         }
       }
       else
@@ -208,7 +210,7 @@ namespace BoosterGuidance
       }
       
 
-      tab = GUILayout.Toolbar(tab, new string[] { "Main", "Advanced" });
+      tab = GUILayout.Toolbar(tab, new string[] { Localizer.Format("#BoosterGuidance_Main"), Localizer.Format("Advanced")});
       bool changed = false;
       switch(tab)
       {
@@ -232,41 +234,41 @@ namespace BoosterGuidance
       // No steer height
    
       GUILayout.BeginHorizontal();
-      deployLandingGear = GUILayout.Toggle(deployLandingGear, "Deploy landing gear");
+      deployLandingGear = GUILayout.Toggle(deployLandingGear, Localizer.Format("#BoosterGuidance_DeployGear"));
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Deploy gear height", deployLandingGearHeight, "m", 65);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_DeployGearHeight"), deployLandingGearHeight, "m", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("No steer height", noSteerHeight, "m", 65);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_NoSteerHeight"), noSteerHeight, "m", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Touchdown margin", touchdownMargin, "m", 65);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_TouchdownMargin"), touchdownMargin, "m", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Touchdown speed", touchdownSpeed, "m/s", 65);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_TouchdownSpeed"), touchdownSpeed, "m/s", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Engine startup", igniteDelay, "s", 65);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_IgniteDelay"), igniteDelay, "s", 65);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      debug = GUILayout.Toggle(debug, "Debug");
+      debug = GUILayout.Toggle(debug, Localizer.Format("#BoosterGuidance_Debug"));
       Targets.showSteer = debug;
       GUILayout.EndHorizontal();
 
       // Show all active vessels
       GUILayout.Space(10);
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Other vessels:");
+      GUILayout.Label(Localizer.Format("#BoosterGuidance_OtherVessels")+":");
       GUILayout.EndHorizontal();
       GUIStyle info_style = new GUIStyle();
       info_style.normal.textColor = Color.white;
@@ -312,7 +314,7 @@ namespace BoosterGuidance
       // Target:
 
       // Draw any Controls inside the window here
-      GUILayout.Label("Target");//Target coordinates:
+      GUILayout.Label(Localizer.Format("#BoosterGuidance_Target"));//Target coordinates:
 
       GUILayout.BeginHorizontal();
       double step = 1.0 / (60 * 60); // move by 1 arc second
@@ -344,14 +346,14 @@ namespace BoosterGuidance
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button("Pick Target"))
+      if (GUILayout.Button(Localizer.Format("#BoosterGuidance_PickTarget")))
         PickTarget();
       if (GUILayout.Button("Set Here"))
         SetTargetHere();
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      showTargets = GUILayout.Toggle(showTargets, "Show targets");
+      showTargets = GUILayout.Toggle(showTargets, Localizer.Format("#BoosterGuidance_ShowTargets"));
 
       bool prevLogging = core.logging;
       // TODO
@@ -360,7 +362,7 @@ namespace BoosterGuidance
       filename = filename.Replace("(", "");
       filename = filename.Replace(")", "");
       core.logFilename = filename;
-      core.logging = GUILayout.Toggle(core.logging, "Logging");
+      core.logging = GUILayout.Toggle(core.logging, Localizer.Format("#BoosterGuidance_Logging"));
       if (core.Enabled())
       {
         if ((!prevLogging) && (core.logging)) // logging switched on
@@ -378,31 +380,31 @@ namespace BoosterGuidance
       // Boostback
       SetEnabledColors((phase == BLControllerPhase.BoostBack) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button(new GUIContent("Boostback", "Enable thrust towards target when out of atmosphere")))
+      if (GUILayout.Button(new GUIContent(Localizer.Format("#BoosterGuidance_Boostback"), "Enable thrust towards target when out of atmosphere")))
         EnableGuidance(BLControllerPhase.BoostBack);
       GUILayout.EndHorizontal();
 
       // Coasting
       SetEnabledColors((phase == BLControllerPhase.Coasting) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button(new GUIContent("Coasting", "Turn to retrograde attitude and wait for Aero Descent phase")))
+      if (GUILayout.Button(new GUIContent(Localizer.Format("#BoosterGuidance_Coasting"), "Turn to retrograde attitude and wait for Aero Descent phase")))
         EnableGuidance(BLControllerPhase.Coasting);
       GUILayout.EndHorizontal();
 
       // Re-Entry Burn
       SetEnabledColors((phase == BLControllerPhase.ReentryBurn) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button(new GUIContent("Re-Entry Burn", "Ignite engine on re-entry to reduce overheating")))
+      if (GUILayout.Button(new GUIContent(Localizer.Format("#BoosterGuidance_ReentryBurn"), "Ignite engine on re-entry to reduce overheating")))
         EnableGuidance(BLControllerPhase.ReentryBurn);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Enable altitude", reentryBurnAlt, "m", 65);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_EnableAltitude"), reentryBurnAlt, "m", 65);
       core.reentryBurnAlt = reentryBurnAlt;
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GuiUtils.SimpleTextBox("Target speed", reentryBurnTargetSpeed, "m/s", 40);
+      GuiUtils.SimpleTextBox(Localizer.Format("#BoosterGuidance_TargetSpeed"), reentryBurnTargetSpeed, "m/s", 40);
       core.reentryBurnTargetSpeed = reentryBurnTargetSpeed;
       GUILayout.EndHorizontal();
 
@@ -416,7 +418,7 @@ namespace BoosterGuidance
       // Aero Descent
       SetEnabledColors((phase == BLControllerPhase.AeroDescent) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button(new GUIContent("Aero Descent", "No thrust aerodynamic descent, steering with gridfins within atmosphere")))
+      if (GUILayout.Button(new GUIContent(Localizer.Format("#BoosterGuidance_AeroDescent"), "No thrust aerodynamic descent, steering with gridfins within atmosphere")))
         EnableGuidance(BLControllerPhase.AeroDescent);
       GUILayout.EndHorizontal();
 
@@ -430,12 +432,12 @@ namespace BoosterGuidance
       // Landing Burn
       SetEnabledColors((phase == BLControllerPhase.LandingBurn) || (phase == BLControllerPhase.Unset));
       GUILayout.BeginHorizontal();
-      if (GUILayout.Button("Landing Burn"))
+      if (GUILayout.Button(Localizer.Format("#BoosterGuidance_LandingBurn")))
         EnableGuidance(BLControllerPhase.LandingBurn);
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Enable altitude");
+      GUILayout.Label(Localizer.Format("#BoosterGuidance_EnableAltitude"));
       String text = "n/a";
       if (core.Enabled())
       {
@@ -444,23 +446,26 @@ namespace BoosterGuidance
         else
         {
           if (core.LandingBurnHeight() < 0)
-            text = "too heavy";
+            text = Localizer.Format("#BoosterGuidance_TooHeavy");
         }
       }
       GUILayout.Label(text, GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
       GUILayout.BeginHorizontal();
-      GUILayout.Label("Engines");
-      GUILayout.Label(numLandingBurnEngines);
+      GUILayout.Label(Localizer.Format("#BoosterGuidance_Engines"));
+      if (numLandingBurnEngines == Localizer.Format("#BoosterGuidance_Current"))
+        GUILayout.Label(numLandingBurnEngines);
+      else
+        GUILayout.Label(numLandingBurnEngines);
       if (numLandingBurnEngines == "current")  // Save active engines
       {
-        if (GUILayout.Button("Set"))  // Set to currently active engines
+        if (GUILayout.Button(Localizer.Format("#BoosterGuidance_Set")))  // Set to currently active engines
           numLandingBurnEngines = core.SetLandingBurnEngines();
       }
       else
       {
-        if (GUILayout.Button("Unset"))  // Set to currently active engines
+        if (GUILayout.Button(Localizer.Format("#BoosterGuidance_Unset")))  // Set to currently active engines
           numLandingBurnEngines = core.UnsetLandingBurnEngines();
       }
       GUILayout.EndHorizontal();
@@ -469,8 +474,8 @@ namespace BoosterGuidance
       GUILayout.Label("Steer", GUILayout.Width(40));
       core.landingBurnSteerKp = Mathf.Clamp(core.landingBurnSteerKp, 0, maxLandingBurnGain);
       core.landingBurnSteerKp = GUILayout.HorizontalSlider(core.landingBurnSteerKp, 0, maxLandingBurnGain);
-      //Debug.Log("[BoosterGuidance] Slider kp=" + core.landingBurnSteerKp + " maxLandingBurnGain=" + maxLandingBurnGain);
-      GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
+      string max = Localizer.Format("#BoosterGuidance_Max");
+      GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°("+max+")", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 
       // Activate guidance
@@ -478,12 +483,12 @@ namespace BoosterGuidance
       GUILayout.BeginHorizontal();
       if (!core.Enabled())
       {
-        if (GUILayout.Button("Enable Guidance"))
+        if (GUILayout.Button(Localizer.Format("#BoosterGuidance_EnableGuidance")))
           core.EnableGuidance();
       }
       else
       {
-        if (GUILayout.Button("Disable Guidance"))
+        if (GUILayout.Button(Localizer.Format("#BoosterGuidance_DisableGuidance")))
           core.DisableGuidance();
       }
       GUILayout.EndHorizontal();
@@ -610,8 +615,7 @@ namespace BoosterGuidance
     {
       showTargets = true;
       pickingPositionTarget = true;
-      string message = "Click to select a target";
-      GuiUtils.ScreenMessage(message);
+      GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_ClickToPickTarget"));
     }
 
 
@@ -623,7 +627,7 @@ namespace BoosterGuidance
       tgtAlt = (int)FlightGlobals.ActiveVessel.altitude + (int)lowestY;
       core.SetTarget(FlightGlobals.ActiveVessel.latitude, FlightGlobals.ActiveVessel.longitude, tgtAlt);
       core.Changed();
-      GuiUtils.ScreenMessage("Target set to vessel location");
+      GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_TargetSetToVessel"));
     }
 
     void EnableGuidance(BLControllerPhase phase)
