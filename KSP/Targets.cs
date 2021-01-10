@@ -269,11 +269,13 @@ namespace BoosterGuidance
 
     public static void RedrawTarget(CelestialBody body, double lat, double lon, double alt)
     {
+      InitTargets();
       targetingCross.SetLatLonAlt(body, lat, lon, alt);
     }
 
     public static void RedrawPrediction(CelestialBody body, double lat, double lon, double alt)
     {
+      InitTargets();
       predictedCross.SetLatLonAlt(body, lat, lon, alt);
     }
   }

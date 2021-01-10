@@ -3,7 +3,7 @@ KSP=/Users/${USER}/Library/Application\ Support/Steam/steamapps/common/Kerbal\ S
 # Additional install locations
 KSP_CUTDOWN=~/KSP_Cutdown
 KSP_RO=~/KSP_RO
-VER=v1.0.4
+VER=v1.1.0
 GAMEDATADEPS=GameData/BoosterGuidance/BoosterGuidance.cfg
 
 .PHONY: all install

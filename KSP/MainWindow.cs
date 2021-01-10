@@ -25,9 +25,9 @@ namespace BoosterGuidance
     int tab = 0;
     bool hidden = true;
     BoosterGuidanceCore core = null;
-    float maxReentryGain = 0.001f;
-    float maxAeroDescentGain = 0.002f;
-    float maxLandingBurnGain = 0.002f;
+    float maxReentryGain = 1;
+    float maxAeroDescentGain = 1;
+    float maxLandingBurnGain = 1;
     float maxSteerAngle = 30; // 30 degrees
     Rect windowRect = new Rect(150, 150, 220, 520);
 
@@ -39,8 +39,6 @@ namespace BoosterGuidance
     EditableInt tgtAlt = 0;
     EditableInt reentryBurnAlt = 55000;
     EditableInt reentryBurnTargetSpeed = 700;
-    //float aeroDescentSteerLogKp = 5.5f;
-    //float landingBurnSteerLogKp = 2.5f;
     string numLandingBurnEngines = "current";
 
     // Advanced GUI Elements
@@ -65,7 +63,6 @@ namespace BoosterGuidance
 
     public void Start()
     {
-      Debug.Log("[BoosterGuidance] Start");
       hasFAR = Trajectories.AerodynamicModelFactory.HasFAR();
       Debug.Log("[BoosterGuidance] Start hasFAR="+hasFAR);
     }
@@ -78,7 +75,6 @@ namespace BoosterGuidance
 
     public void OnDestroy()
     {
-      Debug.Log("[BoosterGuidance] Destroy");
       hidden = true;
       Targets.targetingCross.enabled = false;
       Targets.predictedCross.enabled = false;
@@ -90,8 +86,15 @@ namespace BoosterGuidance
       {
         Debug.Log("[BoosterGuidance] core==null vessel=" + vessel + " map=" + MapView.MapIsEnabled);
         core = BoosterGuidanceCore.GetBoosterGuidanceCore(vessel);
-        UpdateFromCore();
-        Targets.SetVisibility(showTargets, showTargets && core.Enabled() && (FlightGlobals.ActiveVessel == core.vessel));
+        if (core != null)
+        {
+          UpdateFromCore();
+          Targets.SetVisibility(showTargets, showTargets && core.Enabled() && (FlightGlobals.ActiveVessel == core.vessel));
+        }
+        else
+        {
+          return core;
+        }
       }
       else
       {
@@ -458,9 +461,7 @@ namespace BoosterGuidance
       else
       {
         if (GUILayout.Button("Unset"))  // Set to currently active engines
-        {
           numLandingBurnEngines = core.UnsetLandingBurnEngines();
-        }
       }
       GUILayout.EndHorizontal();
 
@@ -468,7 +469,7 @@ namespace BoosterGuidance
       GUILayout.Label("Steer", GUILayout.Width(40));
       core.landingBurnSteerKp = Mathf.Clamp(core.landingBurnSteerKp, 0, maxLandingBurnGain);
       core.landingBurnSteerKp = GUILayout.HorizontalSlider(core.landingBurnSteerKp, 0, maxLandingBurnGain);
-      //core.landingBurnSteerKp = Mathf.Exp(landingBurnSteerLogKp);
+      //Debug.Log("[BoosterGuidance] Slider kp=" + core.landingBurnSteerKp + " maxLandingBurnGain=" + maxLandingBurnGain);
       GUILayout.Label(((int)(core.landingBurnMaxAoA)).ToString() + "°(max)", GUILayout.Width(60));
       GUILayout.EndHorizontal();
 

@@ -68,6 +68,9 @@ namespace BoosterGuidance
     [KSPField(isPersistant = true, guiActive = false)]
     public string phase = "Unset";
 
+    [KSPField(isPersistant = true, guiActive = false)]
+    public float aeroMult = 1;
+
     public bool logging = false;
     public bool useFAR = false;
     public string logFilename = "unset";
@@ -83,7 +86,6 @@ namespace BoosterGuidance
     {
       if (controller != null)
         DisableGuidance();
-      Debug.Log("[BoosterGuidance] BoosterGuidanceCore.OnDestroy()");
     }
 
     // Find first BoosterGuidanceCore module for vessel
@@ -95,7 +97,7 @@ namespace BoosterGuidance
         {
           if (mod.GetType() == typeof(BoosterGuidanceCore))
           {
-            Debug.Log("[BoosterGuidance] vessel=" + vessel.name + "part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
+            Debug.Log("[BoosterGuidance] vessel=" + vessel.name + " part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
             return (BoosterGuidanceCore)mod;
           }
         }
@@ -122,11 +124,9 @@ namespace BoosterGuidance
 
     public void CopyToOtherCore(BoosterGuidanceCore other)
     {
-      //Debug.Log("[BoosterGuidance] CopyToOtherCore");
       other.deployLandingGear = deployLandingGear;
       other.deployLandingGearHeight = deployLandingGearHeight;
-      // can't sensibly clone this to other cores as once staged they will have different sets of engines
-      other.landingBurnEngines = "current";
+      other.landingBurnEngines = landingBurnEngines;
       other.landingBurnMaxAoA = landingBurnMaxAoA;
       other.landingBurnSteerKp = landingBurnSteerKp;
       other.reentryBurnAlt = reentryBurnAlt;
@@ -167,16 +167,34 @@ namespace BoosterGuidance
 
     public string SetLandingBurnEngines()
     {
-      controller.SetLandingBurnEngines();
-      landingBurnEngines = controller.GetLandingBurnEngineString();
-      return controller.landingBurnEngines.Count().ToString();
+      List<ModuleEngines> activeEngines = KSPUtils.GetActiveEngines(vessel);
+      // get string
+      List<string> s = new List<string>();
+      int num = 0;
+      foreach(var engine in KSPUtils.GetAllEngines(vessel))
+      {
+        if (activeEngines.Contains(engine))
+        {
+          s.Add("1");
+          num++;
+        }
+        else
+          s.Add("0");
+      }
+      landingBurnEngines = String.Join(",", s.ToArray());
+      Debug.Log("[BoosterGuidance] landingBurnEngines=" + landingBurnEngines);
+      if (controller != null)
+        controller.SetLandingBurnEnginesFromString(landingBurnEngines);
+      return num.ToString();
     }
 
     public string UnsetLandingBurnEngines()
     {
-      controller.UnsetLandingBurnEngines();
-      landingBurnEngines = controller.GetLandingBurnEngineString();
-      return "current";
+      Debug.Log("[BoosterGuidance] UnsetLandingBurnEngines");
+      landingBurnEngines = "current";
+      if (controller != null)
+        controller.SetLandingBurnEnginesFromString(landingBurnEngines);
+      return landingBurnEngines;
     }
 
     public double LandingBurnHeight()
@@ -206,6 +224,7 @@ namespace BoosterGuidance
         controller.deployLandingGear = deployLandingGear;
         controller.deployLandingGearHeight = deployLandingGearHeight;
         controller.igniteDelay = igniteDelay;
+        controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       }
       CopyToOtherCores();
     }
@@ -235,7 +254,6 @@ namespace BoosterGuidance
     public void EnableGuidance(KSPActionParam param)
     {
       controller = new BLController(vessel, useFAR);
-      controller.SetLandingBurnEnginesFromString(landingBurnEngines);
       Changed(); // updates controller
 
       if ((tgtLatitude == 0) && (tgtLongitude == 0) && (tgtAlt == 0))
@@ -280,18 +298,13 @@ namespace BoosterGuidance
     [KSPAction("Disable BoosterGuidance")]
     public void DisableGuidance(KSPActionParam param)
     {
-      Debug.Log("[BoosterGuidance] Disabling Guidance");
       if (controller != null)
       {
-        Debug.Log("[BoosterGuidance] RemoveController");
         RemoveController(controller);
-        Debug.Log("[BoosterGuidance] stopLogging");
         controller.StopLogging();
-        Debug.Log("[BoosterGuidance] Disabled Guidance for vessel " + controller.vessel.name);
       }
       if ((vessel) && vessel.enabled) // extra checks
       {
-        Debug.Log("[BoosterGuidance] Removing FlyByWire");
         vessel.OnFlyByWire -= new FlightInputCallback(Fly);
         vessel.Autopilot.Disable();
       }

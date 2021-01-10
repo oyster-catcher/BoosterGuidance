@@ -37,15 +37,11 @@ namespace Trajectories
 
     class FARModel: VesselAerodynamicModel
     {
-        //private MethodInfo FARAPI_CalculateVesselAeroForces;
-
         public override string AerodynamicModelName { get { return "FAR"; } }
 
-         //public FARModel(Vessel ship, CelestialBody body, MethodInfo CalculateVesselAeroForces)
          public FARModel(Vessel ship, CelestialBody body)
          : base(ship, body)
         {
-          //FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(ship, out Vector3 res_drag, out Vector3 torque, Vector3d.zero, 100000);
         }
 
         protected override Vector3d ComputeForces_Model(Vector3d airVelocity, double altitude)
@@ -55,13 +51,10 @@ namespace Trajectories
 
             if (airVelocity.x == 0d || airVelocity.y == 0d || airVelocity.z == 0d)
             {
-                //Debug.LogWarning(string.Format("Trajectories: Getting FAR forces - Velocity: {0} | Altitude: {1}", airVelocity, altitude));
                 return Vector3.zero;
             }
 
             Vector3 worldAirVel = new Vector3((float)airVelocity.x, (float)airVelocity.y, (float)airVelocity.z);
-            //var parameters = new object[] { vessel_, new Vector3(), new Vector3(), worldAirVel, altitude };
-            //FARAPI_CalculateVesselAeroForces.Invoke(null, parameters);
 
             // Force direct call of API. Why not?
             FerramAerospaceResearch.FARAPI.CalculateVesselAeroForces(vessel_, out Vector3 res_drag, out Vector3 torque, worldAirVel, altitude);

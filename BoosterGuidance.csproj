@@ -136,6 +136,7 @@
     <None Include="GameData\BoosterGuidance\BoosterGuidanceIcon.png" />
     <None Include="LICENSE" />
     <None Include="GameData\BoosterGuidance\BoosterGuidance.cfg" />
+    <None Include="CHANGES" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
