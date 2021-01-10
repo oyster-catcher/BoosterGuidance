@@ -32,7 +32,7 @@ namespace Trajectories
       }
       catch (Exception e)
       {
-        Debug.Log("[BoosterGuidance] Checking for FAR: " + e.ToString());
+        Debug.Log("[BoosterGuidance] Checking for FAR - failed(" + e.ToString()+")");
         return false;
       }
       Debug.Log("[BoosterGuidance] Checking for FAR - success!");
