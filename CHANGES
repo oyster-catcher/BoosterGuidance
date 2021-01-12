@@ -4,6 +4,7 @@ v1.1.0
 - Added language localization tags for all text. Included en-us.cfg
 - Reports messages to screen from controller such as phase changes
 - Landing burn gain reduced
+- Now copies target setting to multiple cores when target changed
 
 v1.0.4
 - Will now always use FerramAerospaceResearch for aerodynamic calculations if its available. FAR seems to predict higher drag so landing burn alt often way lower
