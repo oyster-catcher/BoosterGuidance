@@ -163,6 +163,7 @@ namespace BoosterGuidance
           tgtLongitude = target.longitude;
           tgtAlt = (int)target.altitude;
           core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
+          core.Changed();
           string msg = String.Format(Localizer.Format("#BoosterGuidance_TargetSetToX"),target.name);
           GuiUtils.ScreenMessage(msg);
         }
@@ -189,6 +190,7 @@ namespace BoosterGuidance
           //tgtAlt = (int)nav.Altitude;
           tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
           core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
+          core.Changed();
           string msg = String.Format(Localizer.Format("#BoosterGuidance_TargetSetToX"), pos.ToStringDMS());
           GuiUtils.ScreenMessage(msg);
         }
@@ -597,6 +599,7 @@ namespace BoosterGuidance
           tgtAlt = (int)pickAlt;
           pickingPositionTarget = false;
           core.SetTarget(pickLat, pickLon, pickAlt);
+          core.Changed();
         }
       }
     }
