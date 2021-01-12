@@ -44,6 +44,7 @@ namespace BoosterGuidance
     public double touchdownMargin = 30; // use touchdown speed from this height
     public double noSteerHeight = 200;
     public bool useFAR = false;
+    public bool bellyFlop = false;
 
     // Private parameters
     private double minError = double.MaxValue;
@@ -343,7 +344,13 @@ namespace BoosterGuidance
 
       // No thrust - retrograde relative to surface (default and Coasting phase
       throttle = 0;
+
+      // Retrograde steering
       steer = -Vector3d.Normalize(vel_air);
+
+      // Starship belly-flop
+      Vector3d east = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude+1, tgtAlt) - body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
+      east = Vector3d.Normalize(east);
 
       Vector3d error = Vector3d.zero;
       attitudeError = 0;
@@ -430,6 +437,7 @@ namespace BoosterGuidance
           double ang = pid_reentry.Update(error.magnitude, Time.deltaTime);
           steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, reentryBurnMaxAoA);
         }
+        steer = east;
       }
 
       // desired velocity - used in AERO DESCENT and LANDING BURN
@@ -461,6 +469,9 @@ namespace BoosterGuidance
         }
         // Interpolate to avoid rapid swings
         steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation to damp rapid oscillations
+
+        if (bellyFlop)
+          steer = east;
       }
 
       // LANDING BURN (suicide burn)
@@ -502,6 +513,14 @@ namespace BoosterGuidance
         {
           msg = string.Format(Localizer.Format("#BoosterGuidance_NoSteerHeightReached"));
           noSteerReported = true;
+        }
+
+        if (bellyFlop)
+        {
+          // Do we need throttle to steer?
+          attitudeError = HGUtils.angle_between(att, steer);
+          if (attitudeError > 10)
+            throttle = 0.3f;
         }
     
         // Decide to shutdown engines for final touch down? (within 3 secs)

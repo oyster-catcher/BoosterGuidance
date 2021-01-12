@@ -69,7 +69,7 @@ namespace BoosterGuidance
     public string phase = "Unset";
 
     [KSPField(isPersistant = true, guiActive = false)]
-    public float aeroMult = 1;
+    public bool bellyFlop = false;
 
     public bool logging = false;
     public bool useFAR = false;
@@ -226,6 +226,7 @@ namespace BoosterGuidance
         controller.deployLandingGearHeight = deployLandingGearHeight;
         controller.igniteDelay = igniteDelay;
         controller.SetLandingBurnEnginesFromString(landingBurnEngines);
+        controller.bellyFlop = bellyFlop;
       }
       CopyToOtherCores();
     }

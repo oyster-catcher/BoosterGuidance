@@ -265,6 +265,10 @@ namespace BoosterGuidance
       Targets.showSteer = debug;
       GUILayout.EndHorizontal();
 
+      GUILayout.BeginHorizontal();
+      core.bellyFlop = GUILayout.Toggle(core.bellyFlop, Localizer.Format("#BoosterGuidance_BellyFlop"));
+      GUILayout.EndHorizontal();
+
       // Show all active vessels
       GUILayout.Space(10);
       GUILayout.BeginHorizontal();
