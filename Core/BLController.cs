@@ -338,7 +338,9 @@ namespace BoosterGuidance
       if (amax > 0) // check in case out of fuel or something
         throttleGain = 5 / (amax - amin); // cancel velocity over 1.25 seconds
 
-      if ((t < lastt + 1.0/Math.Max(simulationsPerSec,0.1)) && (y>500))
+      // We will compute thrust and steer at the maximum rate when y<500
+      // and not being run for a simulate (which would be slower)
+      if ((t < lastt + 1.0/Math.Max(simulationsPerSec,0.1)) && (y>500) || (simulate))
         return msg;
 
       // No thrust - retrograde relative to surface (default and Coasting phase
