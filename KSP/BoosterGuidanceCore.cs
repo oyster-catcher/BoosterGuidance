@@ -239,6 +239,7 @@ namespace BoosterGuidance
           if (mod.GetType() == typeof(BoosterGuidanceCore))
           {
             var other = (BoosterGuidanceCore)mod;
+            Debug.Log("[BoosterGuidance] CopyToOtherCore part=" + part + " module=" + mod.GetType());
             CopyToOtherCore(other);
           }
         }
@@ -341,10 +342,11 @@ namespace BoosterGuidance
       if ((landingGear) && (!reportedLandingGear))
       {
         KSPUtils.DeployLandingGear(vessel);
-        GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_DeployingLandingGear"));
+        if (vessel == FlightGlobals.ActiveVessel)
+          GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_DeployingLandingGear"));
       }
 
-      if (msg != "")
+      if ((msg != "") && (vessel == FlightGlobals.ActiveVessel))
         GuiUtils.ScreenMessage(msg);
 
       if (vessel.checkLanded())
