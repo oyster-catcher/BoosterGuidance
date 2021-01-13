@@ -22,7 +22,6 @@ def plot_variable_line(ax,data,fx,fy,widthfield,widthscale,color='black',label='
   segments=[]
   for i in range(len(xx)-1):
     segments.append( [(xx[i],yy[i]),(xx[i+1],yy[i+1])] )
-  print(segments[:5])
   lc = LineCollection(segments, linewidths=lwidths[:-1],color=color)
   ax.add_collection(lc)
 
@@ -56,7 +55,7 @@ def add_derived_columns(data, vd):
 def plot(labels,dmin,dmax,emax,tmin,tmax,vmax,ymax,
          accelmax,
          filenames=[],savepng=None,
-         marktime=None, vd=None):
+         marktime=None, vd=None, thrustscale=1):
 
   # Set up figures
   # altitude against time, and throttle
@@ -185,8 +184,8 @@ def plot(labels,dmin,dmax,emax,tmin,tmax,vmax,ymax,
     xx,yy=[],[]
     #plot_line(ax10,data,'downrange','y',color=colors[di],label=filenames[di])
     # width at max thrust is 1% of width of XY plot
-    widthscale = 0.01 * (dmax - dmin) / accelmax  # assume 30m/s/s accel is reference
-    plot_variable_line(ax10,data,'downrange','y','mag_accel',widthscale=widthscale,color=colors[di],label=filenames[di])
+    widthscale = 0.002 * (dmax - dmin) / max(accelmax,1)  # assume 30m/s/s accel is reference
+    plot_variable_line(ax10,data,'downrange','y','mag_accel',widthscale=widthscale*thrustscale,color=colors[di],label=filenames[di])
     if marktime:
       plot_markers(ax10,data,'downrange','y',[marktime],color=colors[di],markersize=10,alpha=0.5)
     # Show checkpoints
@@ -264,6 +263,7 @@ parser.add_argument('--accelmax', type=float, help='Maximum acceleration', defau
 parser.add_argument('--tmin', type=float, help='Minimum time', default=None)
 parser.add_argument('--tmax', type=float, help='Maximum time', default=None)
 parser.add_argument('--square', action='store_true', help='Make XY plot square (roughly as depends on window size)', default=False)
+parser.add_argument('--thrustscale', type=float, help='Scale thickness of line to indicate thrust by this factor', default=1)
 parser.add_argument('--savepng', help='PNG filename to save plot to', default=None)
 
 args = parser.parse_args()
@@ -289,7 +289,7 @@ if not args.tmin:
 if not args.dmin:
   args.dmin = min(d['downrange'] for d in alldata)
 if not args.dmax:
-  args.dmax = max(d['downrange'] for d in alldata)
+  args.dmax = max(d['downrange'] for d in alldata) + 0.01
 if not args.emax:
   args.emax = max(d['target_error'] for d in alldata)
 if not args.vmax:
@@ -304,4 +304,4 @@ if not args.ymax:
 plot(args.filename,
      dmin=args.dmin, dmax=args.dmax, emax=args.emax, tmin=args.tmin, tmax=args.tmax,vmax=args.vmax,ymax=args.ymax,
      filenames=args.filename,accelmax=args.accelmax,savepng=args.savepng,
-     marktime=args.marktime,vd=vd)
+     marktime=args.marktime,vd=vd,thrustscale=args.thrustscale)
