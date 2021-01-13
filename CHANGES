@@ -5,6 +5,7 @@ v1.1.0
 - Reports messages to screen from controller such as phase changes
 - Landing burn gain reduced
 - Now copies target setting to multiple cores when target changed
+- Stopped slowness of 40-50ms of computation time for some vessels by stopping rapid iterations in simulate
 
 v1.0.4
 - Will now always use FerramAerospaceResearch for aerodynamic calculations if its available. FAR seems to predict higher drag so landing burn alt often way lower
