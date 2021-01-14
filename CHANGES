@@ -3,9 +3,9 @@ v1.1.0
 - Added action group to toggle guidance
 - Added language localization tags for all text. Included en-us.cfg
 - Reports messages to screen from controller such as phase changes
-- Landing burn gain reduced
-- Now copies target setting to multiple cores when target changed
-- Stopped slowness of 40-50ms of computation time for some vessels by stopping rapid iterations in simulate
+- Landing burn gain reduced so steering less aggressive
+- Fixed bug where target position wasn't copied to all cores, so target was lost on staging
+- Stopped slowness of 40-50ms of computation time for some vessels by stopping very frequent calls in simulate
 
 v1.0.4
 - Will now always use FerramAerospaceResearch for aerodynamic calculations if its available. FAR seems to predict higher drag so landing burn alt often way lower
