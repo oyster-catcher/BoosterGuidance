@@ -303,7 +303,6 @@ namespace BoosterGuidance
                     Vector3d r, // world pos
                     Vector3d v, // world velocity
                     Vector3d att, // attitude
-                    double alt, // altitude
                     double minThrust, double maxThrust,
                     double t,
                     CelestialBody body,
@@ -315,7 +314,7 @@ namespace BoosterGuidance
 
     {
       // height of lowest point with additional margin
-      double y = alt - tgtAlt - touchdownMargin + lowestY;
+      double y = (r - body.position).magnitude - body.Radius - tgtAlt - touchdownMargin + lowestY;
       Vector3d up = Vector3d.Normalize(r - body.position);
       Vector3d vel_air = v - body.getRFrmVel(r);
       double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
