@@ -32,7 +32,7 @@ namespace BoosterGuidance
     virtual public string GetControlOutputs(Vessel vessel,
                double totalMass,
                Vector3d r, Vector3d v, Vector3d att,
-               double y, double amin, double amax, double t,
+               double amin, double amax, double t,
                CelestialBody body,
                Vector3d tgt_r,
                bool simulate,

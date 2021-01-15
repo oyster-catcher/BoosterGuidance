@@ -83,10 +83,21 @@ namespace BoosterGuidance
     // List of all active controllers
     public static List<BLController> controllers = new List<BLController>();
 
+    public void Start()
+    {
+      //GameEvents.onVesselDestroy.Add(OnCrash);
+    }
+
     public void OnDestroy()
     {
       if (controller != null)
         DisableGuidance();
+    }
+
+    public void OnCrash()
+    {
+      if ((controller != null) && (controller.vessel = FlightGlobals.ActiveVessel) && (controller.enabled))
+        GuiUtils.ScreenMessage("Vessel crashed - Try increasing touchdown margin in the advanced tab");
     }
 
     // Find first BoosterGuidanceCore module for vessel
@@ -337,7 +348,7 @@ namespace BoosterGuidance
 
       bool landingGear;
       bool bailOutLandingBurn = true; // cut thrust if near ground and have too much thrust to reach ground
-      string msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, vessel.altitude, minThrust, maxThrust,
+      string msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, minThrust, maxThrust,
         controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn);
       if ((landingGear) && (!reportedLandingGear))
       {

@@ -22,7 +22,8 @@ namespace BoosterGuidance
 
     static private void EulerStep(
             double dt,
-            Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
+            Vessel vessel, Vector3d r, // in world space but relative to body.position
+            Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
             Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t,
             BLController controller, Vector3d tgt_r, double aeroFudgeFactor,
             out Vector3d steer,
@@ -42,7 +43,7 @@ namespace BoosterGuidance
       if (controller != null)
       {
         bool landingGear;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
         // Stop throttle so we don't take off again in timestep, dt
         // TODO - Fix HACK!!
         if (y < controller.TgtAlt + 50)
@@ -89,7 +90,7 @@ namespace BoosterGuidance
         bool bailOutLandingBurn = true;
         bool simulate = true;
         bool landingGear;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
         if (throttle > 0)
         {
           F = steer * (minThrust + throttle * (maxThrust - minThrust));
