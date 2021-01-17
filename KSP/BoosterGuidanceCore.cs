@@ -71,8 +71,12 @@ namespace BoosterGuidance
     [KSPField(isPersistant = true, guiActive = false)]
     public float aeroMult = 1;
 
+    public double last_t = 0;
+    public double last_throttle = 0;
+    public Vector3d last_steer = Vector3d.zero;
     public bool logging = false;
     public bool useFAR = false;
+    public bool debug = false;
     public string logFilename = "unset";
     private string info = "Disabled";
     private bool reportedLandingGear = false;
@@ -250,7 +254,6 @@ namespace BoosterGuidance
           if (mod.GetType() == typeof(BoosterGuidanceCore))
           {
             var other = (BoosterGuidanceCore)mod;
-            Debug.Log("[BoosterGuidance] CopyToOtherCore part=" + part + " module=" + mod.GetType());
             CopyToOtherCore(other);
           }
         }
@@ -295,7 +298,8 @@ namespace BoosterGuidance
         vessel.OnFlyByWire += new FlightInputCallback(Fly);
       }
       controller.SetPhase(BLControllerPhase.Unset);
-      GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_Enabled") + " " + controller.PhaseStr());
+      // TODO - Shows wrong phase as phase isn't yet decidedd
+      //GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_Enabled") + " " + controller.PhaseStr());
       controller.enabled = true;
       AddController(controller);
     }
@@ -337,8 +341,8 @@ namespace BoosterGuidance
 
     public void Fly(FlightCtrlState state)
     {
-      double throttle;
-      Vector3d steer;
+      double throttle = last_throttle;
+      Vector3d steer = last_steer;
       double minThrust;
       double maxThrust;
 
@@ -346,10 +350,19 @@ namespace BoosterGuidance
 
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
 
-      bool landingGear;
+      bool landingGear = false;
       bool bailOutLandingBurn = true; // cut thrust if near ground and have too much thrust to reach ground
-      string msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, minThrust, maxThrust,
-        controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn);
+      double dt = vessel.missionTime - last_t;
+      string msg = "";
+      if ((dt > 0.1) || (vessel.altitude < tgtAlt + 500))
+      {
+        msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, minThrust, maxThrust,
+        controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn, debug);
+        last_throttle = throttle;
+        last_steer = steer;
+        last_t = controller.vessel.missionTime;
+      }
+      
       if ((landingGear) && (!reportedLandingGear))
       {
         KSPUtils.DeployLandingGear(vessel);
