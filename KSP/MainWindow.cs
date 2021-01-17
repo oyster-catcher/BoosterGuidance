@@ -162,8 +162,7 @@ namespace BoosterGuidance
           tgtLatitude = target.latitude;
           tgtLongitude = target.longitude;
           tgtAlt = (int)target.altitude;
-          core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
-          core.Changed();
+          UpdateCore();
           string msg = String.Format(Localizer.Format("#BoosterGuidance_TargetSetToX"),target.name);
           GuiUtils.ScreenMessage(msg);
         }
@@ -190,9 +189,9 @@ namespace BoosterGuidance
           //tgtAlt = (int)nav.Altitude;
           tgtAlt = (int)FlightGlobals.ActiveVessel.mainBody.TerrainAltitude(tgtLatitude, tgtLongitude);
           core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
-          core.Changed();
           string msg = String.Format(Localizer.Format("#BoosterGuidance_TargetSetToX"), pos.ToStringDMS());
           GuiUtils.ScreenMessage(msg);
+          UpdateCore();
         }
       }
       else
@@ -543,6 +542,7 @@ namespace BoosterGuidance
 
     public void UpdateCore()
     {
+      core.debug = debug;
       core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
       // Set Angle - of - Attack from gains
       core.reentryBurnMaxAoA = maxSteerAngle * (core.reentryBurnSteerKp / maxReentryGain);
@@ -624,13 +624,18 @@ namespace BoosterGuidance
 
     void SetTargetHere()
     {
-      tgtLatitude = FlightGlobals.ActiveVessel.latitude;
-      tgtLongitude = FlightGlobals.ActiveVessel.longitude;
-      double lowestY = KSPUtils.FindLowestPointOnVessel(FlightGlobals.ActiveVessel);
-      tgtAlt = (int)FlightGlobals.ActiveVessel.altitude + (int)lowestY;
-      core.SetTarget(FlightGlobals.ActiveVessel.latitude, FlightGlobals.ActiveVessel.longitude, tgtAlt);
-      core.Changed();
-      GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_TargetSetToVessel"));
+      Vessel vessel = FlightGlobals.ActiveVessel;
+      if (vessel)
+      {
+        FlightGlobals.ActiveVessel.mainBody.GetLatLonAlt(vessel.GetWorldPos3D(), out double pickLat, out double pickLon, out double pickAlt);
+        double lowestY = KSPUtils.FindLowestPointOnVessel(FlightGlobals.ActiveVessel);
+        tgtLatitude = pickLat;
+        tgtLongitude = pickLon;
+        tgtAlt = (int)(pickAlt + lowestY);
+        core.SetTarget(tgtLatitude, tgtLongitude, tgtAlt);
+        core.Changed();
+        GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_TargetSetToVessel"));
+      }
     }
 
     void EnableGuidance(BLControllerPhase phase)
