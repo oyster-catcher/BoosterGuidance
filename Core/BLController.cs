@@ -217,8 +217,8 @@ namespace BoosterGuidance
       String name = PhaseStr().Replace(" ", "_");
       Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
       BLController tc = new BLController(this);
-      Simulate.ToGroundVariableStep(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out targetT, logFilename + ".Simulate." + name + ".dat", logTransform, vessel.missionTime - logStartTime);
-      Simulate.ToGroundVariableStep(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out targetT, logFilename + ".Simulate.Free.dat", logTransform, vessel.missionTime - logStartTime);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out targetT, logFilename + ".Simulate." + name + ".dat", logTransform, vessel.missionTime - logStartTime);
+      Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out targetT, logFilename + ".Simulate.Free.dat", logTransform, vessel.missionTime - logStartTime);
     }
 
 
@@ -357,7 +357,7 @@ namespace BoosterGuidance
         // the remaining phases and doesn't try to redo reentry burn for instance
         if (phase == BLControllerPhase.BoostBack)
           tc.phase = BLControllerPhase.Coasting;
-        predWorldPos = Simulate.ToGroundVariableStep(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
+        predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
         landingBurnAMax = tc.landingBurnAMax;
         landingBurnHeight = tc.landingBurnHeight; // Update from simulation
         tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);

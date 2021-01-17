@@ -104,110 +104,7 @@ namespace BoosterGuidance
       return F;
     }
 
-    /*
     static public Vector3d ToGround(double tgtAlt, Vessel vessel, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, BLController controller,
-      Vector3d tgt_r, out double T, string logFilename="", Transform logTransform=null, double timeOffset=0, double maxT=600)
-      // logTransform is transform at the current time
-    {
-      float ang;
-      Quaternion bodyRotation;
-      System.IO.StreamWriter f = null;
-      if (logFilename != "")
-      {
-        f = new System.IO.StreamWriter(logFilename);
-        f.WriteLine("time x y z vx vy vz ax ay az att_err target_error total_mass");
-        f.WriteLine("# tgtAlt=" + tgtAlt);
-      }
-
-      T = 0;
-      Vector3d r = vessel.GetWorldPos3D() - body.position;
-      Vector3d v = vessel.GetObtVelocity();
-      Vector3d a = Vector3d.zero;
-      Vector3d lastv = v;
-      double minThrust, maxThrust;
-      double totalMass = vessel.totalMass;
-      // Initially thrust is for all operational engines
-      KSPUtils.ComputeMinMaxThrust(vessel, out minThrust, out maxThrust);
-      double y = r.magnitude - body.Radius;
-      // TODO: att should be supplied as vessel transform will be wrong in simulation
-      Vector3d att = new Vector3d(vessel.transform.up.x, vessel.transform.up.y, vessel.transform.up.z);
-      double targetError = 0;
-
-      if (controller != null)
-      {
-        // Take target error from previously calculated trajectory
-        // We would know this at the end but can't wait until then
-        targetError = controller.targetError;
-      }
-
-      double dt = 8; // above atmosphere
-      double initialY = y;
-      
-      while ((y > tgtAlt) && (T < maxT))
-      {
-        y = r.magnitude - body.Radius;
-        if (y < 60000) // TODO: change for different planets
-          dt = 1;
-        //if (y < 10000)
-        //  dt = 0.5;
-        // Get all forces, i.e. aero-dynamic and thrust
-        Vector3d vel_air;
-        Vector3d steer;
-        double throttle;
-        double aeroFudgeFactor = 1.2; // Assume aero forces 20% higher which causes overshoot of target and more vertical final descent
-        Vector3d out_r;
-        Vector3d out_v;
-        EulerStep(dt, vessel, r, v, att, totalMass, minThrust, maxThrust, aeroModel, body, T, controller, tgt_r, aeroFudgeFactor, out steer, out vel_air, out throttle, out out_r, out out_v);
-        r = out_r;
-        lastv = v;
-        v = out_v;
-        att = steer; // assume can turn immediately
-        if (f != null)
-        {
-          // NOTE: Cancel out rotation of planet
-          ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
-          // Rotation 1 second earlier
-          float prevang = (float)((-(T - 1)) * body.angularVelocity.magnitude / Math.PI * 180.0);
-          // Consider body rotation at this time
-          bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
-          Quaternion prevbodyRotation = Quaternion.AngleAxis(prevang, body.angularVelocity.normalized);
-          Vector3d tr = bodyRotation * r;
-          Vector3d tr1 = prevbodyRotation * r;
-          Vector3d tr2 = bodyRotation * (r + v);
-          Vector3d ta = bodyRotation * a;
-          tr = logTransform.InverseTransformPoint(tr + body.position);
-          Vector3d tv = logTransform.InverseTransformVector(tr2 - tr1);
-          ta = logTransform.InverseTransformVector(ta);
-          f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F2} {11:F2}", T + timeOffset, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, targetError, totalMass));
-        }
-
-        T = T + dt;
-      }
-      if (T > maxT)
-        Debug.Log("[BoosterGuidance] Simulation time exceeds maxT=" + maxT);
-
-      // Correct to point of intersect on surface
-      double vy = Vector3d.Dot(lastv, Vector3d.Normalize(r));
-      double p = 0;
-      if (vy < -0.1)
-      {
-        p = (tgtAlt - y) / -vy; // Backup proportion
-        r = r - lastv * p;
-        T = T - p;
-      }
-      if (f != null)
-        f.Close();
-
-      // Compensate for body rotation giving world position in the surface point now
-      // that would be hit in the future
-      ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
-      bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
-      r = bodyRotation * r ;
-      return r + body.position;
-    }
-    */
-
-    static public Vector3d ToGroundVariableStep(double tgtAlt, Vessel vessel, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, BLController controller,
       Vector3d tgt_r, out double T, string logFilename = "", Transform logTransform = null, double timeOffset = 0, double maxT = 600)
     // Changes step size, dt, based on the amount of deacceleration forces, aero or thrust and winds back to choose smaller timesteps
     {
@@ -279,38 +176,8 @@ namespace BoosterGuidance
         Vector3d out_v;
         // Compute time step change in r and v
         EulerStep(dt, vessel, r, v, att, totalMass, minThrust, maxThrust, aeroModel, body, T, controller, tgt_r, aeroFudgeFactor, out steer, out vel_air, out throttle, out out_r, out out_v);
-
-        /*
-        if (throttle > 0.01)
-        {
-          if (dt > 1)
-          {
-            // wind back and recalculate
-            T = last_T;
-            r = last_r;
-            v = last_v;
-            // Repeat last time step with smaller dt
-            //Debug.Log("[BoosterGuidance] simulate repeating last time step");
-            // Reset controller?
-            controller.phase = last_phase;
-            dt = 1;
-            EulerStep(dt, vessel, r, v, att, totalMass, minThrust, maxThrust, aeroModel, body, T, controller, tgt_r, aeroFudgeFactor, out steer, out vel_air, out throttle, out out_r, out out_v);
-            r = out_r;
-            v = out_v;
-            T = T + dt;
-            // Now run this time step with smaller dt
-            EulerStep(dt, vessel, r, v, att, totalMass, minThrust, maxThrust, aeroModel, body, T, controller, tgt_r, aeroFudgeFactor, out steer, out vel_air, out throttle, out out_r, out out_v);
-          }
-          dt = 1; // keeps dt=1 when throttle is applied
-        }
-        else
-        {
-          dt = Math.Min(8, dt * 2); // raise dt again
-        }
-        */
         
         y = r.magnitude - body.Radius;
-        //Debug.Log("[BoosterGuidance] simulate y=" + y + " T=" + T + " dt=" + dt + " throttle="+throttle+" vel_air="+vel_air.magnitude);
 
         att = steer; // assume can turn immediately
         
@@ -338,10 +205,6 @@ namespace BoosterGuidance
       if (f != null)
         f.Close();
 
-      //Debug.Log("[BoosterGuidance] simulate() final_y=" + (r.magnitude - body.Radius)+" p="+p+" v(mag)="+lastv.magnitude+" vy="+vy);
-
-      //Debug.Log("[BoosterGuidance] simulate() final_y=" + (r.magnitude - body.Radius)+ " lastv(mag)="+lastv.magnitude);
-
       // Compensate for body rotation giving world position in the surface point now
       // that would be hit in the future
       ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
@@ -357,7 +220,6 @@ namespace BoosterGuidance
       BLController controller=null, double maxT = 600, string filename="")
     {
       double T = 0;
-      Vector3d a = Vector3d.zero;
       Vector3d r = wr - body.position;
       double y = r.magnitude - body.Radius;
       double amin = minThrust / totalMass;
@@ -408,8 +270,9 @@ namespace BoosterGuidance
           f.WriteLine(string.Format("{0} {1:F1} {2:F1} {3:F1}", T, y, vel_air.magnitude, dvy));
 
         // Equations of motion
-        r = r + v * dt;
-        v = v + (F / totalMass) * dt;
+        Vector3d a = (F / totalMass);
+        r = r + v * dt + 0.5 * a * dt * dt;
+        v = v + a * dt;
 
         T = T + dt;
       }
