@@ -1,12 +1,12 @@
 v1.1.1
 - Upped throttle gains which avoids very heavy vessels hitting ground (depends on dt in simulate)
-- Targets cross updates when selecting vessel or navigation target
+- Target crosses now move when selecting vessel or navigation target
 - Landing burn works correctly when clicking button even if aero-descent not enabled first
 - Fixed bug in simulate that led to landing burn not being simulated below 500m (leading to jitter in predictions)
-- Tuning of simulation to make it as fast and accurately as I currently can
+- Tuning of simulation to make it as fast and accurate as I currently can
 - Now runs faster for planets with no atmosphere
 - Reduced maximum gains to try and reduce the near to tweak gains to reduce max angle-of-attack in RO (gains still needed to be low for RO)
-- Reduced jitter to landing prediction by reducing timestep of simulation when near ground
+- Reduced jitter to landing prediction by reducing timestep of simulation when near ground (can still get bad jitter is some scenarios)
 
 v1.1.0
 - Finally fixed steer gain calculation (perhaps) as several bugs discovered
