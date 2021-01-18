@@ -142,6 +142,8 @@ namespace BoosterGuidance
       }
 
       double dt = 8; // above atmosphere
+      if (y < 5000)
+        dt = 1;
       double last_T = T;
 
       while ((y > tgtAlt) && (T < maxT))
@@ -167,7 +169,8 @@ namespace BoosterGuidance
 
         y = r.magnitude - body.Radius;
         if ((y < body.atmosphereDepth) || (y < controller.reentryBurnAlt + 1500*dt))
-          dt = 2;
+          dt = Math.Min(dt,2);
+
         Vector3d vel_air;
         Vector3d steer;
         double throttle;
