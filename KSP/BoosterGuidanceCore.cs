@@ -100,6 +100,7 @@ namespace BoosterGuidance
 
     public void OnCrash()
     {
+      // TODO - does this work?
       if ((controller != null) && (controller.vessel = FlightGlobals.ActiveVessel) && (controller.enabled))
         GuiUtils.ScreenMessage("Vessel crashed - Try increasing touchdown margin in the advanced tab");
     }
@@ -298,8 +299,6 @@ namespace BoosterGuidance
         vessel.OnFlyByWire += new FlightInputCallback(Fly);
       }
       controller.SetPhase(BLControllerPhase.Unset);
-      // TODO - Shows wrong phase as phase isn't yet decidedd
-      //GuiUtils.ScreenMessage(Localizer.Format("#BoosterGuidance_Enabled") + " " + controller.PhaseStr());
       controller.enabled = true;
       AddController(controller);
     }
