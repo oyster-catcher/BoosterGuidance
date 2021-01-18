@@ -70,8 +70,6 @@ namespace BoosterGuidance
 
     // Cache previous values - only calculate new at log interval
     private double lastt = 0;
-    private double lastThrottle = 0;
-    private Vector3d lastSteer = Vector3d.zero;
     private Vector3d last_vel_air = Vector3d.zero;
 
     public BLController()
@@ -310,7 +308,8 @@ namespace BoosterGuidance
                     bool simulate, // if true just go retrograde (no corrections)
                     out double throttle, out Vector3d steer,
                     out bool landingGear, // true if landing gear requested (stays true)
-                    bool bailOutLandingBurn = false) // if set too true on RO set throttle=0 if thrust > gravity at landing
+                    bool bailOutLandingBurn = false, // if set too true on RO set throttle=0 if thrust > gravity at landing
+                    bool showCpuTime = false)
 
     {
       // height of lowest point with additional margin
@@ -318,7 +317,6 @@ namespace BoosterGuidance
       Vector3d up = Vector3d.Normalize(r - body.position);
       Vector3d vel_air = v - body.getRFrmVel(r);
       double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
-      double throttleGain = 0;
       double amin = minThrust / totalMass;
       double amax = maxThrust / totalMass;
       float minThrottle = 0.01f;
@@ -328,19 +326,23 @@ namespace BoosterGuidance
       timer.Start();
       string msg = ""; // return message about the status
 
-      steer = lastSteer;
-      throttle = lastThrottle;
       landingGear = (y < deployLandingGearHeight) && (deployLandingGear);
 
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
-
-      if (amax > 0) // check in case out of fuel or something
-        throttleGain = 5 / (amax - amin); // cancel velocity over 1.25 seconds
+      double dt = t - lastt;
 
       // We will compute thrust and steer at the maximum rate when y<500
-      // and not being run for a simulate (which would be slower)
-      if ((t < lastt + 1.0/Math.Max(simulationsPerSec,0.1)) && (y>500) || (simulate))
-        return msg;
+      // and not being run for a simulation (which would be slower)
+      // simulate will regulate calling this function as only calls in dt timestep, never return the
+      // last throttle, steer since this messes with winding back the integration step
+      /*
+      if (!simulate)
+      {
+        // Only run a simulationsPerSec unless very near ground
+        if ((dt >= 1.0 / simulationsPerSec) && (y > 500))
+          return msg;
+      }
+      */
 
       // No thrust - retrograde relative to surface (default and Coasting phase
       throttle = 0;
@@ -356,6 +358,7 @@ namespace BoosterGuidance
         if (phase == BLControllerPhase.BoostBack)
           tc.phase = BLControllerPhase.Coasting;
         predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
+        landingBurnAMax = tc.landingBurnAMax;
         landingBurnHeight = tc.landingBurnHeight; // Update from simulation
         tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
         error = predWorldPos - tgt_r;
@@ -414,7 +417,9 @@ namespace BoosterGuidance
         if (errv > 0)
         {
           double newThrottle = HGUtils.LinearMap((double)y, (double)reentryBurnAlt, (double)reentryBurnAlt - 8000, 0.1, 1);
-          double da = g + Math.Max(errv * 0.4, 10); // attempt to cancel 40% of extra velocity in 1 second and min of 10m/s/s
+          // Limit maximum de-acceleration to make the simulation accuract when dt=2 or 4 secs
+          double da = g + Math.Min(0.5*Math.Max(errv * 0.4, 10)/dt,50); // attempt to cancel 40% of extra velocity in 2*dt and min of 10m/s/s
+          // Use of dt prevents too high throttle when simulating re-entry burn with dt=2 or 4 secs.
           newThrottle = (da - amin) / (0.01 + amax - amin);
           throttle = HGUtils.Clamp(newThrottle, minThrottle, 1);
         }
@@ -440,10 +445,13 @@ namespace BoosterGuidance
       // AERO DESCENT
       if (phase == BLControllerPhase.AeroDescent)
       {
-        pid_aero.kp = aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass, false);
-        steerGain = pid_aero.kp;
-        double ang = pid_aero.Update(error.magnitude, Time.deltaTime);
-        steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, aeroDescentMaxAoA);
+        if (!simulate)
+        {
+          pid_aero.kp = aeroDescentSteerKp * CalculateSteerGain(0, vel_air, r, y, totalMass, false);
+          steerGain = pid_aero.kp;
+          double ang = pid_aero.Update(error.magnitude, dt);
+          steer = -Vector3d.Normalize(vel_air) + GetSteerAdjust(error, ang, aeroDescentMaxAoA);
+        }
 
         double landingMinThrust, landingMaxThrust;
         KSPUtils.ComputeMinMaxThrust(vessel, out landingMinThrust, out landingMaxThrust, false, landingBurnEngines);
@@ -452,8 +460,9 @@ namespace BoosterGuidance
         if (Math.Abs(landingBurnAMax - newLandingBurnAMax) > 0.02)
         {
           landingBurnAMax = landingMaxThrust / totalMass; // update so we don't continually recalc
-          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100, "landing_burn.dat");
+          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100);
         }
+
         if (y - vel_air.magnitude * igniteDelay <= landingBurnHeight) // Switch to landing burn N secs earlier to allow RO engine start up time
         {
           lowestY = KSPUtils.FindLowestPointOnVessel(vessel);
@@ -473,13 +482,14 @@ namespace BoosterGuidance
           msg = string.Format(Localizer.Format("#BoosterGuidance_SetXEnginesForLanding", landingBurnEngines.Count.ToString()));
           setLandingEnginesDone = true;
         }
-        av = Math.Max(0.1, landingBurnAMax - g); // wrong on first iteration
+        av = Math.Max(0.1, maxThrust/totalMass - g); // wrong on first iteration
         if (y > 0)
           dvy = -Math.Sqrt((1 + suicideFactor) * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
         if (amax > 0)
         {
           double err_dv = vy - dvy; // +ve is velocity too high
-          double da = g - (5 * err_dv); // required accel to change vy, cancel out g (only works if vertical)
+          double da = g - (err_dv/dt); // required accel to change vy in next two timesteps, cancel out g (only works if vertical)
+          
           throttle = HGUtils.Clamp((da - amin) / (0.01 + amax - amin), minThrottle, 1);
           // compensate if not vertical as need more vertical component of thrust
           throttle = HGUtils.Clamp(throttle / Math.Max(0.1, Vector3.Dot(att, up)), minThrottle, 1);
@@ -534,7 +544,6 @@ namespace BoosterGuidance
         Vector3d ta = logTransform.InverseTransformVector(a);
         fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);
         logLastTime = t;
-        last_vel_air = vel_air;
       }
 
       lastt = t;
@@ -547,10 +556,6 @@ namespace BoosterGuidance
       // So the logging is done at the start of the new phase
       if ((lastPhase != phase) && (fp != null))
         LogSimulation();
-
-      // Cache
-      lastSteer = steer;
-      lastThrottle = throttle;
 
       elapsed_secs = timer.ElapsedMilliseconds * 0.001;
 
@@ -578,7 +583,10 @@ namespace BoosterGuidance
         string s2 = string.Format("{0:F0}", attitudeError);
         string s3 = string.Format("{0:F0}", targetT);
         string s4 = string.Format("{0:F0}", elapsed_secs * 1000);
-        info = string.Format(Localizer.Format("#BoosterGuidance_ErrorXTimeXCPUX", s1, s2, s3, s4));
+        if (showCpuTime)
+          info = string.Format(Localizer.Format("#BoosterGuidance_ErrorXTimeXCPUX", s1, s2, s3, s4));
+        else
+          info = string.Format(Localizer.Format("#BoosterGuidance_ErrorXTimeX", s1, s2, s3));
       }
 
       if (msg != "")

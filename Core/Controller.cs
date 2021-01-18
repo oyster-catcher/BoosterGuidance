@@ -38,7 +38,8 @@ namespace BoosterGuidance
                bool simulate,
                out double throttle, out Vector3d steer,
                out bool landingGear,
-               bool bailOutLandingBurn = false)
+               bool bailOutLandingBurn = false,
+               bool showCpuTime = false)
 
     {
       throttle = 0;

@@ -7,3 +7,6 @@
 - sometimes problem with sharing violation on logging when enable/disable guidance
 - Compute distance from ground wherever you are landing
 - Tool tips
+- When on mun on aero descent predicted land spot drifts away and then returns to target every 1-2 secs sometimes between 0 to 800m error or similar. Why?
+- on time warp on Mun crash seems to jump location (I think)
+- report helpful message about crashing and upping touchdown margin?
