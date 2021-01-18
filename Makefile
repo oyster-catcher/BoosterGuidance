@@ -3,7 +3,7 @@ KSP=/Users/${USER}/Library/Application\ Support/Steam/steamapps/common/Kerbal\ S
 # Additional install locations
 KSP_CUTDOWN=~/KSP_Cutdown
 KSP_RO=~/KSP_RO
-VER=v1.1.0
+VER=v1.1.1
 GAMEDATADEPS=GameData/BoosterGuidance/BoosterGuidance.cfg
 
 .PHONY: all install
@@ -12,6 +12,7 @@ all: BoosterGuidance-${VER}.zip install
 
 BoosterGuidance-${VER}.zip: ./obj/Release/BoosterGuidance.dll ${GAMEDATADEPS}
 	cp $< GameData/BoosterGuidance
+	cp plot.py GameData/BoosterGuidance
 	cp LICENSE GameData/BoosterGuidance
 	cp README.md GameData/BoosterGuidance
 	cp CHANGES GameData/BoosterGuidance
