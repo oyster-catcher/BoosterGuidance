@@ -22,7 +22,8 @@ namespace BoosterGuidance
 
     static private void EulerStep(
             double dt,
-            Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
+            Vessel vessel, Vector3d r, // in world space but relative to body.position
+            Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
             Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t,
             BLController controller, Vector3d tgt_r, double aeroFudgeFactor,
             out Vector3d steer,
@@ -42,7 +43,7 @@ namespace BoosterGuidance
       if (controller != null)
       {
         bool landingGear;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
         // Stop throttle so we don't take off again in timestep, dt
         // TODO - Fix HACK!!
         if (y < controller.TgtAlt + 50)
@@ -61,13 +62,13 @@ namespace BoosterGuidance
       Vector3d F = aeroModel.GetForces(body, r, vel_air, Math.PI) * aeroFudgeFactor + Ft;
       Vector3d a = F / totalMass + g;
 
-      out_r = r + v * dt;
+      out_r = r + v * dt + 0.5 * a * dt * dt;
       out_v = v + a * dt;
     }
 
 
     static private Vector3d GetForces(Vessel vessel, Vector3d r, Vector3d v, Vector3d att, double totalMass, double minThrust, double maxThrust,
-      Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t,
+      Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, double t, double dt,
       BLController controller, Vector3d tgt_r, double aeroFudgeFactor,
       out Vector3d steer, out Vector3d vel_air, out double throttle)
     {
@@ -89,7 +90,7 @@ namespace BoosterGuidance
         bool bailOutLandingBurn = true;
         bool simulate = true;
         bool landingGear;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, y, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
+        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
         if (throttle > 0)
         {
           F = steer * (minThrust + throttle * (maxThrust - minThrust));
@@ -103,10 +104,9 @@ namespace BoosterGuidance
       return F;
     }
 
-
     static public Vector3d ToGround(double tgtAlt, Vessel vessel, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body, BLController controller,
-      Vector3d tgt_r, out double T, string logFilename="", Transform logTransform=null, double timeOffset=0, double maxT=600)
-      // logTransform is transform at the current time
+      Vector3d tgt_r, out double T, string logFilename = "", Transform logTransform = null, double timeOffset = 0, double maxT = 600)
+    // Changes step size, dt, based on the amount of deacceleration forces, aero or thrust and winds back to choose smaller timesteps
     {
       float ang;
       Quaternion bodyRotation;
@@ -114,7 +114,7 @@ namespace BoosterGuidance
       if (logFilename != "")
       {
         f = new System.IO.StreamWriter(logFilename);
-        f.WriteLine("time x y z vx vy vz ax ay az att_err airspeed target_error total_mass");
+        f.WriteLine("time x y z vx vy vz ax ay az att_err target_error total_mass");
         f.WriteLine("# tgtAlt=" + tgtAlt);
       }
 
@@ -122,7 +122,9 @@ namespace BoosterGuidance
       Vector3d r = vessel.GetWorldPos3D() - body.position;
       Vector3d v = vessel.GetObtVelocity();
       Vector3d a = Vector3d.zero;
-      Vector3d lastv = v;
+      Vector3d last_r = r;
+      Vector3d last_v = v;
+      BLControllerPhase last_phase = controller.phase;
       double minThrust, maxThrust;
       double totalMass = vessel.totalMass;
       // Initially thrust is for all operational engines
@@ -139,25 +141,13 @@ namespace BoosterGuidance
         targetError = controller.targetError;
       }
 
-      double dt = 2; // above atmosphere
-      if (y < 70000)
+      double dt = 8; // above atmosphere
+      if (y < 5000)
         dt = 1;
-      double initialY = y;
+      double last_T = T;
+
       while ((y > tgtAlt) && (T < maxT))
       {
-        y = r.magnitude - body.Radius;
-        // Get all forces, i.e. aero-dynamic and thrust
-        Vector3d vel_air;
-        Vector3d steer;
-        double throttle;
-        double aeroFudgeFactor = 1.2; // Assume aero forces 20% higher which causes overshoot of target and more vertical final descent
-        Vector3d out_r;
-        Vector3d out_v;
-        EulerStep(dt, vessel, r, v, att, totalMass, minThrust, maxThrust, aeroModel, body, T, controller, tgt_r, aeroFudgeFactor, out steer, out vel_air, out throttle, out out_r, out out_v);
-        r = out_r;
-        v = out_v;
-        att = steer; // assume can turn immediately
-
         if (f != null)
         {
           // NOTE: Cancel out rotation of planet
@@ -174,20 +164,45 @@ namespace BoosterGuidance
           tr = logTransform.InverseTransformPoint(tr + body.position);
           Vector3d tv = logTransform.InverseTransformVector(tr2 - tr1);
           ta = logTransform.InverseTransformVector(ta);
-          f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F1} {11:F2} {12:F2}", T + timeOffset, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, vel_air.magnitude, targetError, totalMass));
+          f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F2} {11:F2}", T + timeOffset, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, targetError, totalMass));
         }
+
+        y = r.magnitude - body.Radius;
+        if ((y < body.atmosphereDepth) || (y < controller.reentryBurnAlt + 1500*dt))
+          dt = Math.Min(dt,2);
+
+        Vector3d vel_air;
+        Vector3d steer;
+        double throttle;
+        double aeroFudgeFactor = 1.2; // Assume aero forces 20% higher which causes overshoot of target and more vertical final descent
+        Vector3d out_r;
+        Vector3d out_v;
+        // Compute time step change in r and v
+        EulerStep(dt, vessel, r, v, att, totalMass, minThrust, maxThrust, aeroModel, body, T, controller, tgt_r, aeroFudgeFactor, out steer, out vel_air, out throttle, out out_r, out out_v);
+        
+        y = r.magnitude - body.Radius;
+
+        att = steer; // assume can turn immediately
+        
+        last_phase = controller.phase;
+        last_r = r;
+        last_v = v;
+        last_T = T;
+        r = out_r;
+        v = out_v;
 
         T = T + dt;
       }
       if (T > maxT)
         Debug.Log("[BoosterGuidance] Simulation time exceeds maxT=" + maxT);
+
       // Correct to point of intersect on surface
-      double vy = Vector3d.Dot(lastv, Vector3d.Normalize(r));
+      double vy = Vector3d.Dot(last_v, Vector3d.Normalize(r));
       double p = 0;
       if (vy < -0.1)
       {
         p = (tgtAlt - y) / -vy; // Backup proportion
-        r = r - lastv * p;
+        r = r - last_v * p;
         T = T - p;
       }
       if (f != null)
@@ -197,7 +212,7 @@ namespace BoosterGuidance
       // that would be hit in the future
       ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
       bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
-      r = bodyRotation * r ;
+      r = bodyRotation * r;
       return r + body.position;
     }
 
@@ -208,7 +223,6 @@ namespace BoosterGuidance
       BLController controller=null, double maxT = 600, string filename="")
     {
       double T = 0;
-      Vector3d a = Vector3d.zero;
       Vector3d r = wr - body.position;
       double y = r.magnitude - body.Radius;
       double amin = minThrust / totalMass;
@@ -226,7 +240,7 @@ namespace BoosterGuidance
         f.WriteLine("time y vy dvy");
       }
 
-      double dt = 0.5;
+      double dt = 4; // was 0.5
       while ((y > tgtAlt) && (T < maxT))
       {
         y = r.magnitude - body.Radius;
@@ -237,12 +251,13 @@ namespace BoosterGuidance
         double aeroFudgeFactor = 1;
         // Need to simulate reentry burn to get reduced mass and less velocity
         // could probably approximation this well without much effort though
-        Vector3d F = GetForces(vessel, r, v, -Vector3d.Normalize(v), totalMass, minThrust, maxThrust, aeroModel, body, T, null, Vector3d.zero, aeroFudgeFactor, out steer, out vel_air, out throttle);
+        Vector3d F = GetForces(vessel, r, v, -Vector3d.Normalize(v), totalMass, minThrust, maxThrust, aeroModel, body, T, dt, null, Vector3d.zero, aeroFudgeFactor, out steer, out vel_air, out throttle);
 
         double R = r.magnitude;
         Vector3d g = r * (-body.gravParameter / (R * R * R));
 
         // Calculate suicide burn velocity
+        //Debug.Log("[BoosterGuidance g=" + g);
         double av = amax - g.magnitude;
         if (av < 0)
           av = 0.1; // pretend we have more thrust to look like we are doing something rather than giving up!!
@@ -258,8 +273,9 @@ namespace BoosterGuidance
           f.WriteLine(string.Format("{0} {1:F1} {2:F1} {3:F1}", T, y, vel_air.magnitude, dvy));
 
         // Equations of motion
-        r = r + v * dt;
-        v = v + (F / totalMass) * dt;
+        Vector3d a = (F / totalMass);
+        r = r + v * dt + 0.5 * a * dt * dt;
+        v = v + a * dt;
 
         T = T + dt;
       }
