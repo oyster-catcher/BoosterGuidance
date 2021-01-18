@@ -25,9 +25,9 @@ namespace BoosterGuidance
     int tab = 0;
     bool hidden = true;
     BoosterGuidanceCore core = null;
-    float maxReentryGain = 1;
-    float maxAeroDescentGain = 1;
-    float maxLandingBurnGain = 0.5f;
+    float maxReentryGain = 0.5f;
+    float maxAeroDescentGain = 0.5f;
+    float maxLandingBurnGain = 0.25f;
     float maxSteerAngle = 30; // 30 degrees
     Rect windowRect = new Rect(150, 150, 220, 520);
 
