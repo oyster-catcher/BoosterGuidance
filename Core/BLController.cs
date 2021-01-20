@@ -52,7 +52,7 @@ namespace BoosterGuidance
     private double logLastTime = 0;
     private Transform logTransform;
     private const float deg2rad = Mathf.PI / 180;
-    private float aeroMult = 3;
+    private float aeroMult = 5; // was 3 - testing in RO
     private float aeroThrustPropMargin = 0.3f; // if FAaero or Fthrust more than 10% of max(FAero,Fthrust) play safe the don't steer
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
@@ -62,7 +62,7 @@ namespace BoosterGuidance
     private bool noSteerReported = false;
 
     // Outputs
-    public Vector3d predWorldPos = Vector3d.zero;
+    public Vector3d predBodyRelPos = Vector3d.zero;
     public BLControllerPhase phase = BLControllerPhase.Unset;
     public List<ModuleEngines> landingBurnEngines = null;
     public double steerGain = 0;
@@ -215,7 +215,7 @@ namespace BoosterGuidance
     public void LogSimulation()
     {
       String name = PhaseStr().Replace(" ", "_");
-      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
+      Vector3d tgt_r = vessel.mainBody.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt) - vessel.mainBody.position;
       BLController tc = new BLController(this);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, tc, tgt_r, out targetT, logFilename + ".Simulate." + name + ".dat", logTransform, vessel.missionTime - logStartTime);
       Simulate.ToGround(tgtAlt, vessel, aeroModel, vessel.mainBody, null, tgt_r, out targetT, logFilename + ".Simulate.Free.dat", logTransform, vessel.missionTime - logStartTime);
@@ -298,13 +298,12 @@ namespace BoosterGuidance
     public override string GetControlOutputs(
                     Vessel vessel,
                     double totalMass, 
-                    Vector3d r, // world pos
+                    Vector3d r, // world pos relative to body
                     Vector3d v, // world velocity
                     Vector3d att, // attitude
                     double minThrust, double maxThrust,
                     double t,
                     CelestialBody body,
-                    Vector3d tgt_r, // target in world co-ordinates
                     bool simulate, // if true just go retrograde (no corrections)
                     out double throttle, out Vector3d steer,
                     out bool landingGear, // true if landing gear requested (stays true)
@@ -313,14 +312,15 @@ namespace BoosterGuidance
 
     {
       // height of lowest point with additional margin
-      double y = (r - body.position).magnitude - body.Radius - tgtAlt - touchdownMargin + lowestY;
-      Vector3d up = Vector3d.Normalize(r - body.position);
-      Vector3d vel_air = v - body.getRFrmVel(r);
+      double y = r.magnitude - body.Radius - tgtAlt - touchdownMargin + lowestY;
+      Vector3d up = Vector3d.Normalize(r);
+      Vector3d vel_air = v - body.getRFrmVel(r + body.position);
       double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
       double amin = minThrust / totalMass;
       double amax = maxThrust / totalMass;
       float minThrottle = 0.01f;
       BLControllerPhase lastPhase = phase;
+      Vector3d tgt_r;
 
       System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
       timer.Start();
@@ -330,19 +330,6 @@ namespace BoosterGuidance
 
       double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
       double dt = t - lastt;
-
-      // We will compute thrust and steer at the maximum rate when y<500
-      // and not being run for a simulation (which would be slower)
-      // simulate will regulate calling this function as only calls in dt timestep, never return the
-      // last throttle, steer since this messes with winding back the integration step
-      /*
-      if (!simulate)
-      {
-        // Only run a simulationsPerSec unless very near ground
-        if ((dt >= 1.0 / simulationsPerSec) && (y > 500))
-          return msg;
-      }
-      */
 
       // No thrust - retrograde relative to surface (default and Coasting phase
       throttle = 0;
@@ -357,11 +344,11 @@ namespace BoosterGuidance
         // the remaining phases and doesn't try to redo reentry burn for instance
         if (phase == BLControllerPhase.BoostBack)
           tc.phase = BLControllerPhase.Coasting;
-        predWorldPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
+        tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt) - body.position;
+        predBodyRelPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
         landingBurnAMax = tc.landingBurnAMax;
         landingBurnHeight = tc.landingBurnHeight; // Update from simulation
-        tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt);
-        error = predWorldPos - tgt_r;
+        error = predBodyRelPos - tgt_r;
         error = Vector3d.Exclude(up, error); // make sure error is horizontal
         targetError = error.magnitude;
       }
@@ -539,7 +526,7 @@ namespace BoosterGuidance
       if (fp != null)
       {
         Vector3d a = att * (amin + throttle * (amax - amin)); // this assumes engine is ignited though
-        Vector3d tr = logTransform.InverseTransformPoint(r);
+        Vector3d tr = logTransform.InverseTransformPoint(r + body.position);
         Vector3d tv = logTransform.InverseTransformVector(vel_air);
         Vector3d ta = logTransform.InverseTransformVector(a);
         fp.WriteLine("{0:F1} {1} {2:F1} {3:F1} {4:F1} {5:F1} {6:F1} {7:F1} {8:F1} {9:F1} {10:F1} {11:F1} {12:F1} {13:F1} {14:F3} {15:F1} {16:F2}", t - logStartTime, phase, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, a.x, a.y, a.z, attitudeError, amin, amax, steerGain, targetError, totalMass);

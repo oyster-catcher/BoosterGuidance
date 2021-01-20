@@ -43,7 +43,7 @@ namespace BoosterGuidance
       if (controller != null)
       {
         bool landingGear;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, minThrust, maxThrust, t, body, tgt_r, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
+        controller.GetControlOutputs(vessel, totalMass, r, v, att, minThrust, maxThrust, t, body, true, out throttle, out steer, out landingGear, bailOutLandingBurn);
         // Stop throttle so we don't take off again in timestep, dt
         // TODO - Fix HACK!!
         if (y < controller.TgtAlt + 50)
@@ -90,7 +90,7 @@ namespace BoosterGuidance
         bool bailOutLandingBurn = true;
         bool simulate = true;
         bool landingGear;
-        controller.GetControlOutputs(vessel, totalMass, r + body.position, v, att, minThrust, maxThrust, t, body, tgt_r, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
+        controller.GetControlOutputs(vessel, totalMass, r, v, att, minThrust, maxThrust, t, body, simulate, out throttle, out steer, out landingGear, bailOutLandingBurn);
         if (throttle > 0)
         {
           F = steer * (minThrust + throttle * (maxThrust - minThrust));
@@ -174,7 +174,7 @@ namespace BoosterGuidance
         Vector3d vel_air;
         Vector3d steer;
         double throttle;
-        double aeroFudgeFactor = 1.2; // Assume aero forces 20% higher which causes overshoot of target and more vertical final descent
+        double aeroFudgeFactor = 1.05; // Assume aero forces 5% higher which causes overshoot of target and more vertical final descent
         Vector3d out_r;
         Vector3d out_v;
         // Compute time step change in r and v
@@ -213,17 +213,16 @@ namespace BoosterGuidance
       ang = (float)((-T) * body.angularVelocity.magnitude / Math.PI * 180.0);
       bodyRotation = Quaternion.AngleAxis(ang, body.angularVelocity.normalized);
       r = bodyRotation * r;
-      return r + body.position;
+      return r;
     }
 
     // Simulate trajectory to ground and work out point to fire landing burn assuming air resistance will help slow the vessel down
     // This point will be MUCH later than thrust would be applied minus air resistance
     // Height is used to mean the height above the target altitude
-    static public double CalculateLandingBurnHeight(double tgtAlt, Vector3d wr, Vector3d v, Vessel vessel, double totalMass, double minThrust, double maxThrust, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body,
+    static public double CalculateLandingBurnHeight(double tgtAlt, Vector3d r, Vector3d v, Vessel vessel, double totalMass, double minThrust, double maxThrust, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body,
       BLController controller=null, double maxT = 600, string filename="")
     {
       double T = 0;
-      Vector3d r = wr - body.position;
       double y = r.magnitude - body.Radius;
       double amin = minThrust / totalMass;
       double amax = maxThrust / totalMass;

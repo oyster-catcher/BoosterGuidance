@@ -34,7 +34,6 @@ namespace BoosterGuidance
                Vector3d r, Vector3d v, Vector3d att,
                double amin, double amax, double t,
                CelestialBody body,
-               Vector3d tgt_r,
                bool simulate,
                out double throttle, out Vector3d steer,
                out bool landingGear,

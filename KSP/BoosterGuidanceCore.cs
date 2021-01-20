@@ -355,8 +355,8 @@ namespace BoosterGuidance
       string msg = "";
       if ((dt > 0.1) || (vessel.altitude < tgtAlt + 500))
       {
-        msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D(), vessel.GetObtVelocity(), vessel.transform.up, minThrust, maxThrust,
-        controller.vessel.missionTime, vessel.mainBody, tgt_r, false, out throttle, out steer, out landingGear, bailOutLandingBurn, debug);
+        msg = controller.GetControlOutputs(vessel, vessel.GetTotalMass(), vessel.GetWorldPos3D() - vessel.mainBody.position, vessel.GetObtVelocity(), vessel.transform.up, minThrust, maxThrust,
+        controller.vessel.missionTime, vessel.mainBody, false, out throttle, out steer, out landingGear, bailOutLandingBurn, debug);
         last_throttle = throttle;
         last_steer = steer;
         last_t = controller.vessel.missionTime;
@@ -406,7 +406,7 @@ namespace BoosterGuidance
         double lat, lon, alt;
         // prediction is for position of planet at current time compensating for
         // planet rotation
-        vessel.mainBody.GetLatLonAlt(controller.predWorldPos, out lat, out lon, out alt);
+        vessel.mainBody.GetLatLonAlt(controller.predBodyRelPos + controller.vessel.mainBody.position, out lat, out lon, out alt);
         alt = vessel.mainBody.TerrainAltitude(lat, lon); // Make on surface
         Targets.RedrawPrediction(vessel.mainBody, lat, lon, alt + 1); // 1m above ground
 
