@@ -114,12 +114,12 @@ namespace BoosterGuidance
         {
           if (mod.GetType() == typeof(BoosterGuidanceCore))
           {
-            Debug.Log("[BoosterGuidance] vessel=" + vessel.name + " part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
+            //Debug.Log("[BoosterGuidance] vessel=" + vessel.name + " part=" + part.name + " module=" + mod.name + " modtype=" + mod.GetType());
             return (BoosterGuidanceCore)mod;
           }
         }
       }
-      Debug.Log("[BoosterGuidance] No BoosterGuidanceCore module for vessel " + vessel.name);
+      //Debug.Log("[BoosterGuidance] No BoosterGuidanceCore module for vessel " + vessel.name);
       return null;
     }
 
