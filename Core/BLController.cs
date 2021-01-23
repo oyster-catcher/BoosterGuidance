@@ -22,7 +22,7 @@ namespace BoosterGuidance
   public class BLController : Controller
   {
     // Public parameters
-    public double touchdownSpeed = 3;
+    public double touchdownSpeed = 2;
     public double aeroDescentMaxAoA = 20;
     public double aeroDescentSteerKp = 0.001f;
     public double reentryBurnAlt = 70000;
@@ -52,7 +52,7 @@ namespace BoosterGuidance
     private double logLastTime = 0;
     private Transform logTransform;
     private const float deg2rad = Mathf.PI / 180;
-    private float aeroMult = 5; // was 3 - testing in RO
+    private float aeroMult = 3;
     private float aeroThrustPropMargin = 0.3f; // if FAaero or Fthrust more than 10% of max(FAero,Fthrust) play safe the don't steer
     
     private Trajectories.VesselAerodynamicModel aeroModel = null;
@@ -181,6 +181,7 @@ namespace BoosterGuidance
     public void SetPhase(BLControllerPhase a_phase)
     {
       minError = double.MaxValue; // reset so boostback doesn't give up
+      lowestY = KSPUtils.FindLowestPointOnVessel(vessel); // in case its changed
 
       // Current phase unset and specified phase unset then find out suitable phase
       // otherwise use already set phase
@@ -261,17 +262,19 @@ namespace BoosterGuidance
 
     private double CalculateSteerGain(double throttle, Vector3d vel_air, Vector3d r, double y, double totalMass, bool log)
     {
-      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r - vessel.mainBody.position, vel_air, 180 * deg2rad); // 180 degrees (retrograde);
+      Vector3d Faero = aeroModel.GetForces(vessel.mainBody, r, vel_air, 180 * deg2rad); // 180 degrees (retrograde);
 
       // Find lift by just considering change in aero force vector
-      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r - vessel.mainBody.position, vel_air, (180 - 15) * deg2rad);
+      Vector3d Faero2 = aeroModel.GetForces(vessel.mainBody, r, vel_air, (180 - 15) * deg2rad);
 
       // Calculate lift vector orthogonal to the drag vector when retrograde
       Vector3d Fdiff = Faero2 - Faero;
       Vector3d Flift = Fdiff - Vector3d.Project(Fdiff, Faero);
 
       double sideFA = Flift.magnitude * aeroMult; // aero dynamic lift at 15 degrees AoA
-      double thrust = minThrust + throttle * (maxThrust - minThrust);
+      double thrust = 0;
+      if (throttle > 0)
+        thrust = minThrust + throttle * (maxThrust - minThrust);
       double sideFT = thrust * Math.Sin(15 * deg2rad); // sideways component of thrust at 15 degrees
       double gain = 0;
       // When its a toss up whether thrust or aerodynamic steering is better gain can become very high or infinite
@@ -315,12 +318,12 @@ namespace BoosterGuidance
       double y = r.magnitude - body.Radius - tgtAlt - touchdownMargin + lowestY;
       Vector3d up = Vector3d.Normalize(r);
       Vector3d vel_air = v - body.getRFrmVel(r + body.position);
-      double vy = Vector3d.Dot(vel_air, up); // TODO - Or vel_air?
+      double vy = Vector3d.Dot(vel_air, up);
       double amin = minThrust / totalMass;
       double amax = maxThrust / totalMass;
       float minThrottle = 0.01f;
       BLControllerPhase lastPhase = phase;
-      Vector3d tgt_r;
+      Vector3d tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt) - body.position;
 
       System.Diagnostics.Stopwatch timer = new System.Diagnostics.Stopwatch();
       timer.Start();
@@ -328,7 +331,7 @@ namespace BoosterGuidance
 
       landingGear = (y < deployLandingGearHeight) && (deployLandingGear);
 
-      double g = FlightGlobals.getGeeForceAtPosition(r).magnitude;
+      double g = FlightGlobals.getGeeForceAtPosition(r + body.position).magnitude;
       double dt = t - lastt;
 
       // No thrust - retrograde relative to surface (default and Coasting phase
@@ -344,7 +347,7 @@ namespace BoosterGuidance
         // the remaining phases and doesn't try to redo reentry burn for instance
         if (phase == BLControllerPhase.BoostBack)
           tc.phase = BLControllerPhase.Coasting;
-        tgt_r = body.GetWorldSurfacePosition(tgtLatitude, tgtLongitude, tgtAlt) - body.position;
+        
         predBodyRelPos = Simulate.ToGround(tgtAlt, vessel, aeroModel, body, tc, tgt_r, out targetT);
         landingBurnAMax = tc.landingBurnAMax;
         landingBurnHeight = tc.landingBurnHeight; // Update from simulation
@@ -380,6 +383,9 @@ namespace BoosterGuidance
           phase = BLControllerPhase.ReentryBurn;
           msg = Localizer.Format("#BoosterGuidance_SwitchedToReentryBurn");
         }
+
+        // TODO - Check for steer in 180 degrees as interpolation wont work
+        steer = Vector3d.Normalize(att * 0.75 + steer * 0.25); // simple interpolation to damp rapid oscillations
       }
 
       // COASTING
@@ -403,11 +409,11 @@ namespace BoosterGuidance
 
         if (errv > 0)
         {
-          double newThrottle = HGUtils.LinearMap((double)y, (double)reentryBurnAlt, (double)reentryBurnAlt - 8000, 0.1, 1);
-          // Limit maximum de-acceleration to make the simulation accuract when dt=2 or 4 secs
-          double da = g + Math.Min(0.5*Math.Max(errv * 0.4, 10)/dt,50); // attempt to cancel 40% of extra velocity in 2*dt and min of 10m/s/s
+          double smooth = HGUtils.LinearMap((double)y, (double)reentryBurnAlt, (double)reentryBurnAlt - 4000, 0, 1);
+          // Limit maximum de-acceleration to make the simulation accuracy when dt=2 or 4 secs
+          double da = g + Math.Min(Math.Max(errv * 0.3, 10), 50); // attempt to cancel 30% of extra velocity in 1 sec and min of 10m/s/s
           // Use of dt prevents too high throttle when simulating re-entry burn with dt=2 or 4 secs.
-          newThrottle = (da - amin) / (0.01 + amax - amin);
+          double newThrottle = smooth * (da - amin) / (0.01 + amax - amin);
           throttle = HGUtils.Clamp(newThrottle, minThrottle, 1);
         }
         else
@@ -444,10 +450,10 @@ namespace BoosterGuidance
         KSPUtils.ComputeMinMaxThrust(vessel, out landingMinThrust, out landingMaxThrust, false, landingBurnEngines);
         double newLandingBurnAMax = landingMaxThrust / totalMass;
 
-        if (Math.Abs(landingBurnAMax - newLandingBurnAMax) > 0.02)
+        if (Math.Abs(landingBurnAMax - newLandingBurnAMax) > 0.5)
         {
           landingBurnAMax = landingMaxThrust / totalMass; // update so we don't continually recalc
-          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100);
+          landingBurnHeight = Simulate.CalculateLandingBurnHeight(tgtAlt, r, v, vessel, totalMass, landingMinThrust, landingMaxThrust, aeroModel, vessel.mainBody, this, 100, "", suicideFactor);
         }
 
         if (y - vel_air.magnitude * igniteDelay <= landingBurnHeight) // Switch to landing burn N secs earlier to allow RO engine start up time
@@ -469,22 +475,22 @@ namespace BoosterGuidance
           msg = string.Format(Localizer.Format("#BoosterGuidance_SetXEnginesForLanding", landingBurnEngines.Count.ToString()));
           setLandingEnginesDone = true;
         }
-        av = Math.Max(0.1, maxThrust/totalMass - g); // wrong on first iteration
+        av = Math.Max(0.1, amax - g); // wrong on first iteration
         if (y > 0)
           dvy = -Math.Sqrt((1 + suicideFactor) * av * y) - touchdownSpeed; // Factor is 2 for perfect suicide burn, lower for margin and hor vel
         if (amax > 0)
         {
           double err_dv = vy - dvy; // +ve is velocity too high
-          double da = g - (err_dv/dt); // required accel to change vy in next two timesteps, cancel out g (only works if vertical)
-          
+          double da = g - 0.1*(err_dv/dt); // required accel to change vy in next two timesteps, cancel out g (only works if vertical)
+
           throttle = HGUtils.Clamp((da - amin) / (0.01 + amax - amin), minThrottle, 1);
+
           // compensate if not vertical as need more vertical component of thrust
           throttle = HGUtils.Clamp(throttle / Math.Max(0.1, Vector3.Dot(att, up)), minThrottle, 1);
         }
         if ((!simulate) && (y > noSteerHeight))
         {
           double ang;
-          // If almost no throttle then still use aero steering gain
           pid_landing.kp = landingBurnSteerKp * CalculateSteerGain(throttle, vel_air, r, y, totalMass, false);
           steerGain = pid_landing.kp;
           ang = pid_landing.Update(error.magnitude, Time.deltaTime);
