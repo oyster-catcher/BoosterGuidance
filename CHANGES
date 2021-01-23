@@ -1,3 +1,10 @@
+v1.1.2
+- Further tuning of dt to make simulation faster
+- Reduced internal transformation of position to reduce jitter
+- Smoothed steering in boostback
+- Smoothed throttle onset and offset to reduce jitter in simulation
+- Fixed bug where aero settings are not copied to other probe cores
+
 v1.1.1
 - Upped throttle gains which avoids very heavy vessels hitting ground (depends on dt in simulate)
 - Target crosses now move when selecting vessel or navigation target
