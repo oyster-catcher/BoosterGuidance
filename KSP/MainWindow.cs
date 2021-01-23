@@ -42,7 +42,7 @@ namespace BoosterGuidance
     string numLandingBurnEngines = "current";
 
     // Advanced GUI Elements
-    EditableInt touchdownMargin = 20;
+    EditableInt touchdownMargin = 25;
     EditableDouble touchdownSpeed = 2;
     EditableInt noSteerHeight = 100;
     bool deployLandingGear = true;
@@ -89,7 +89,6 @@ namespace BoosterGuidance
     {
       if (core == null)
       {
-        Debug.Log("[BoosterGuidance] core==null vessel=" + vessel + " map=" + MapView.MapIsEnabled);
         core = BoosterGuidanceCore.GetBoosterGuidanceCore(vessel);
         if (core != null)
         {
