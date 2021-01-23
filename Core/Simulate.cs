@@ -5,6 +5,10 @@ namespace BoosterGuidance
 {
   public class Simulate
   {
+    static float dt_space = 32;
+    static float dt_reentry = 2; // used before reentry
+    static float dt_aero = 4;
+
     double MinHeightAtMinThrust(double y, double vy, double amin, double g)
     {
       double minHeight = 0;
@@ -141,13 +145,22 @@ namespace BoosterGuidance
         targetError = controller.targetError;
       }
 
-      double dt = 8; // above atmosphere
-      if (y < 5000)
-        dt = 1;
+      // Use small dt all the way when below 5000m
+      double dt_max = (y > 5000) ? dt_space : 1;
+      double dt = dt_max;
       double last_T = T;
 
       while ((y > tgtAlt) && (T < maxT))
       {
+        y = r.magnitude - body.Radius;
+        double dy = (r + v*dt).magnitude - body.Radius - y;
+
+        if (y + dy < controller.reentryBurnAlt)
+          dt = dt_reentry;
+
+        if ((controller.phase == BLControllerPhase.AeroDescent) || (controller.phase == BLControllerPhase.LandingBurn))
+          dt = Math.Min(dt_aero, dt_max);
+
         if (f != null)
         {
           // NOTE: Cancel out rotation of planet
@@ -166,8 +179,7 @@ namespace BoosterGuidance
           ta = logTransform.InverseTransformVector(ta);
           f.WriteLine(string.Format("{0} {1:F5} {2:F5} {3:F5} {4:F5} {5:F5} {6:F5} {7:F1} {8:F1} {9:F1} 0 {10:F2} {11:F2}", T + timeOffset, tr.x, tr.y, tr.z, tv.x, tv.y, tv.z, ta.x, ta.y, ta.z, targetError, totalMass));
         }
-
-        y = r.magnitude - body.Radius;
+        
         if ((y < body.atmosphereDepth) || (y < controller.reentryBurnAlt + 1500*dt))
           dt = Math.Min(dt,2);
 
@@ -220,7 +232,7 @@ namespace BoosterGuidance
     // This point will be MUCH later than thrust would be applied minus air resistance
     // Height is used to mean the height above the target altitude
     static public double CalculateLandingBurnHeight(double tgtAlt, Vector3d r, Vector3d v, Vessel vessel, double totalMass, double minThrust, double maxThrust, Trajectories.VesselAerodynamicModel aeroModel, CelestialBody body,
-      BLController controller=null, double maxT = 600, string filename="")
+      BLController controller=null, double maxT = 600, string filename="", double suicideFactor=0.8f)
     {
       double T = 0;
       double y = r.magnitude - body.Radius;
@@ -229,8 +241,7 @@ namespace BoosterGuidance
       double LandingBurnHeight = -1;
       Vector3d att = -Vector3d.Normalize(v);
 
-      double suicideFactor = 0.8;
-      double touchdownSpeed = 1;
+      double touchdownSpeed = 2;
 
       System.IO.StreamWriter f = null;
       if (filename != "")
@@ -239,7 +250,7 @@ namespace BoosterGuidance
         f.WriteLine("time y vy dvy");
       }
 
-      double dt = 4; // was 0.5
+      double dt = dt_aero; // was 0.5
       while ((y > tgtAlt) && (T < maxT))
       {
         y = r.magnitude - body.Radius;
