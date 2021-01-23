@@ -146,6 +146,8 @@ namespace BoosterGuidance
       other.landingBurnEngines = landingBurnEngines;
       other.landingBurnMaxAoA = landingBurnMaxAoA;
       other.landingBurnSteerKp = landingBurnSteerKp;
+      other.aeroDescentMaxAoA = aeroDescentMaxAoA;
+      other.aeroDescentSteerKp = aeroDescentSteerKp;
       other.reentryBurnAlt = reentryBurnAlt;
       other.reentryBurnMaxAoA = reentryBurnMaxAoA;
       other.reentryBurnSteerKp = reentryBurnSteerKp;
@@ -359,7 +361,7 @@ namespace BoosterGuidance
         controller.vessel.missionTime, vessel.mainBody, false, out throttle, out steer, out landingGear, bailOutLandingBurn, debug);
         last_throttle = throttle;
         last_steer = steer;
-        last_t = controller.vessel.missionTime;
+        last_t = vessel.missionTime;
       }
       
       if ((landingGear) && (!reportedLandingGear))
