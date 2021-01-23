@@ -10,3 +10,5 @@
 - When on mun on aero descent predicted land spot drifts away and then returns to target every 1-2 secs sometimes between 0 to 800m error or similar. Why?
 - on time warp on Mun crash seems to jump location (I think)
 - report helpful message about crashing and upping touchdown margin?
+- throttle up or down simulation rate based on ms timing? use up to 200ms per 1 sec? which is 7/sec, and otherwise up to 20/sec if under 200ms total but max rate when near ground.
+- After landing Fly() is still called and get Null Exception
