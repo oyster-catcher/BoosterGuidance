@@ -65,12 +65,17 @@ namespace BoosterGuidance
     {
       hasFAR = Trajectories.AerodynamicModelFactory.HasFAR();
       Debug.Log("[BoosterGuidance] Start hasFAR="+hasFAR);
+      
     }
 
     public void OnGUI()
     {
       if (!hidden)
-        windowRect = GUI.Window(0, windowRect, WindowFunction, "Booster Guidance");
+      {
+        Version version = typeof(BoosterGuidanceCore).Assembly.GetName().Version;
+        string title = String.Format("BoosterGuidance {0}.{1}.{2}", version.Major, version.Minor, version.Build);
+        windowRect = GUI.Window(0, windowRect, WindowFunction, title);
+      }
     }
 
     public void OnDestroy()
@@ -229,7 +234,6 @@ namespace BoosterGuidance
 
     bool AdvancedTab(int windowID)
     {
-      // Suicide factor
       // Margin
       // Touchdown speed
       // No steer height
