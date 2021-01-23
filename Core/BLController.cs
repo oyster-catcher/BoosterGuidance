@@ -340,7 +340,7 @@ namespace BoosterGuidance
 
       Vector3d error = Vector3d.zero;
       attitudeError = 0;
-      if (!simulate)
+      if ((!simulate) && ( y > noSteerHeight))
       {
         BLController tc = new BLController(this);
         // Only simulate phases beyond boostback so boostback minimizes error and simulate includes just
@@ -481,7 +481,7 @@ namespace BoosterGuidance
         if (amax > 0)
         {
           double err_dv = vy - dvy; // +ve is velocity too high
-          double da = g - 0.1*(err_dv/dt); // required accel to change vy in next two timesteps, cancel out g (only works if vertical)
+          double da = g - 0.3*(err_dv/dt); // required accel to change vy in about the next three timesteps, cancel out g (only works if vertical)
 
           throttle = HGUtils.Clamp((da - amin) / (0.01 + amax - amin), minThrottle, 1);
 
